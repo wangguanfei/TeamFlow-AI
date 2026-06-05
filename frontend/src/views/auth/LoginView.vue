@@ -6,28 +6,54 @@
           <div class="brand__mark">TF</div>
           <div>
             <strong>TeamFlow AI</strong>
-            <span>企业协同平台</span>
+            <span>企业级智能协同平台</span>
           </div>
         </div>
-        <h1>企业协同工作台</h1>
-        <p>统一身份入口，连接项目协作、任务流转、知识资产与 AI 助手能力。</p>
+        <h1>
+          <span>安全登录</span>
+          <span>进入协同中枢</span>
+        </h1>
+        <p>统一身份认证、权限边界与团队上下文，让项目、任务、知识库和 AI 助手在同一工作区内协同运转。</p>
+        <div class="auth-status" aria-label="平台状态">
+          <div>
+            <strong>身份与权限已就绪</strong>
+            <span>统一身份 · 权限边界 · 访问审计</span>
+          </div>
+          <div class="auth-signal" aria-hidden="true">
+            <i></i>
+            <i></i>
+            <i></i>
+          </div>
+        </div>
       </div>
 
       <el-card class="auth-card" shadow="never">
-        <h2>账号登录</h2>
+        <div class="brand auth-login-brand">
+          <div class="brand__mark">TF</div>
+          <div>
+            <strong>TeamFlow AI</strong>
+            <span>安全身份认证</span>
+          </div>
+        </div>
+        <h2>登录工作区</h2>
+        <p class="auth-card-subtitle">继续访问企业协同平台</p>
         <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @keyup.enter="handleLogin">
-          <el-form-item label="账号" prop="username">
-            <el-input v-model="form.username" placeholder="请输入账号" :prefix-icon="User" />
+          <el-form-item label="登录账号" prop="username">
+            <el-input v-model="form.username" placeholder="请输入登录账号" :prefix-icon="User" />
           </el-form-item>
-          <el-form-item label="密码" prop="password">
-            <el-input v-model="form.password" type="password" show-password placeholder="请输入密码" :prefix-icon="Lock" />
+          <el-form-item label="账户密码" prop="password">
+            <el-input v-model="form.password" type="password" show-password placeholder="请输入账户密码" :prefix-icon="Lock" />
           </el-form-item>
           <div class="auth-options">
-            <el-checkbox v-model="form.rememberMe">记住我</el-checkbox>
-            <span>请联系系统管理员重置密码</span>
+            <el-checkbox v-model="form.rememberMe">保持登录状态</el-checkbox>
+            <span>忘记密码请联系管理员</span>
           </div>
-          <el-button class="auth-submit" type="primary" :loading="loading" @click="handleLogin">登录</el-button>
+          <el-button class="auth-submit" type="primary" :loading="loading" @click="handleLogin">进入工作区</el-button>
         </el-form>
+        <div class="auth-foot">
+          <span>安全会话</span>
+          <span>访问审计已启用</span>
+        </div>
       </el-card>
     </section>
   </main>

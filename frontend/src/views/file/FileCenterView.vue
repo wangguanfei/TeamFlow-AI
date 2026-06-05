@@ -14,7 +14,7 @@
       <div class="file-stat-card">
         <span>当前页容量</span>
         <strong>{{ formatSize(currentPageSize) }}</strong>
-        <small>用于演示文件资产统计</small>
+        <small>文件资产统计</small>
       </div>
       <div class="file-stat-card">
         <span>图片文件</span>
@@ -51,7 +51,6 @@
               </span>
               <div class="file-name-cell__meta">
                 <strong>{{ row.originalName }}</strong>
-                <span>#{{ row.id }} · {{ row.contentType || 'application/octet-stream' }}</span>
               </div>
             </div>
           </template>
@@ -66,11 +65,6 @@
           <template #default="{ row }">{{ formatSize(row.fileSize) }}</template>
         </el-table-column>
         <el-table-column prop="uploaderName" label="上传人" width="130" />
-        <el-table-column label="存储" width="110">
-          <template #default="{ row }">
-            <el-tag :type="row.bucketName === 'local' ? 'warning' : 'success'">{{ row.bucketName === 'local' ? '本地兜底' : 'MinIO' }}</el-tag>
-          </template>
-        </el-table-column>
         <el-table-column label="上传时间" min-width="160">
           <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
@@ -158,6 +152,14 @@
     </el-dialog>
 
     <el-dialog v-model="editVisible" title="业务归档" width="520px">
+      <el-alert
+        class="archive-tip"
+        type="info"
+        :closable="false"
+        show-icon
+        title="归档用于把文件归类到具体业务"
+        description="选择业务类型（项目/任务/知识库）并填写对应业务ID后，该文件即与目标业务关联，可在对应模块按业务检索、统计与筛选；也可在此重命名文件。"
+      />
       <el-form :model="editForm" label-width="88px">
         <el-form-item label="文件名">
           <el-input v-model="editForm.originalName" />
@@ -180,29 +182,43 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="previewVisible" title="文件预览" size="640px" @closed="releasePreviewUrl">
-      <div v-if="previewTarget" class="file-preview">
-        <div class="file-preview__header">
+    <el-dialog
+      v-model="previewVisible"
+      width="90%"
+      top="5vh"
+      class="file-preview-dialog"
+      append-to-body
+      destroy-on-close
+      @opened="previewReady = true"
+      @closed="releasePreviewUrl"
+    >
+      <template #header>
+        <div v-if="previewTarget" class="file-preview__header">
           <strong>{{ previewTarget.originalName }}</strong>
-          <span>{{ formatSize(previewTarget.fileSize) }} · {{ previewTarget.contentType }}</span>
+          <span>{{ formatSize(previewTarget.fileSize) }}</span>
         </div>
+      </template>
+      <div v-if="previewTarget" class="file-preview">
         <img v-if="previewMode === 'image'" :src="previewUrl" alt="文件预览" />
         <pre v-else-if="previewMode === 'text'">{{ previewText }}</pre>
         <iframe v-else-if="previewMode === 'pdf'" :src="previewUrl" />
-        <el-empty v-else description="该类型暂不支持在线预览，请下载查看" />
+        <VueOfficeDocx v-else-if="previewMode === 'word' && previewReady" :src="previewSrc" class="file-preview__office" />
+        <VueOfficeExcel v-else-if="previewMode === 'excel' && previewReady" :src="previewSrc" class="file-preview__sheet" />
+        <VueOfficePptx v-else-if="previewMode === 'pptx' && previewReady" :src="previewSrc" class="file-preview__office" />
+        <el-empty v-else-if="previewMode === 'none'" description="该类型暂不支持在线预览（如旧版 doc/xls/ppt），请下载查看" />
       </div>
-    </el-drawer>
+    </el-dialog>
 
     <el-dialog v-model="shareVisible" title="文件分享" width="520px">
       <div v-if="shareResult" class="file-share-result">
         <span>分享码</span>
         <strong>{{ shareResult.shareCode }}</strong>
         <small>有效期至 {{ formatDate(shareResult.expireTime) }}</small>
-        <el-input :model-value="shareUrl" readonly>
-          <template #append>
-            <el-button @click="copyShare">复制</el-button>
-          </template>
-        </el-input>
+        <div class="file-share-link">
+          <el-input :model-value="shareUrl" readonly />
+          <el-button type="primary" :icon="CopyDocument" @click="copyShare">复制链接</el-button>
+        </div>
+        <small class="file-share-tip">任何人通过该链接即可在有效期内查看与下载，同一文件重复分享会复用此链接。</small>
       </div>
     </el-dialog>
   </PageContainer>
@@ -211,7 +227,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadRequestOptions, type UploadUserFile } from 'element-plus'
-import { Document, Files, Picture, Refresh, Search, UploadFilled } from '@element-plus/icons-vue'
+import { CopyDocument, Document, Files, Picture, Refresh, Search, UploadFilled } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
 import PermissionButton from '@/components/PermissionButton.vue'
 import {
@@ -227,14 +243,20 @@ import {
   type FileShareItem
 } from '@/api/file'
 import { importKnowledgeDocFileApi, knowledgeSpacePageApi, type KnowledgeSpaceItem } from '@/api/knowledge'
+import { resolvePreview, type PreviewMode } from '@/utils/filePreview'
+import VueOfficeDocx from '@vue-office/docx'
+import VueOfficeExcel from '@vue-office/excel'
+import VueOfficePptx from '@vue-office/pptx'
+import '@vue-office/docx/lib/index.css'
+import '@vue-office/excel/lib/index.css'
 import { formatDateTime } from '@/utils/format'
 
 const loading = ref(false)
 const keyword = ref('')
 const bizType = ref('')
 const page = ref(1)
-const size = ref(20)
-const pageData = reactive({ page: 1, size: 20, total: 0, records: [] as FileItem[] })
+const size = ref(10)
+const pageData = reactive({ page: 1, size: 10, total: 0, records: [] as FileItem[] })
 const shareData = reactive({ page: 1, size: 10, total: 0, records: [] as FileShareItem[] })
 const uploadVisible = ref(false)
 const editVisible = ref(false)
@@ -246,7 +268,10 @@ const downloadingId = ref<number | null>(null)
 const sharingId = ref<number | null>(null)
 const previewUrl = ref('')
 const previewText = ref('')
-const previewMode = ref<'image' | 'text' | 'pdf' | 'none'>('none')
+const previewSrc = ref<ArrayBuffer>()
+const previewMode = ref<PreviewMode>('none')
+// Office 渲染器按容器宽度计算尺寸，需等对话框打开动画结束、宽度就绪后再挂载
+const previewReady = ref(false)
 const shareResult = ref<FileShareItem | null>(null)
 const editingId = ref<number | null>(null)
 const knowledgeSpaces = ref<KnowledgeSpaceItem[]>([])
@@ -371,18 +396,11 @@ async function previewFile(row: FileItem) {
     releasePreviewUrl()
     previewTarget.value = row
     const response = await previewFileBlobApi(row.id)
-    const blob = response.data
-    previewUrl.value = URL.createObjectURL(blob)
-    if (row.contentType?.startsWith('image/')) {
-      previewMode.value = 'image'
-    } else if (row.contentType === 'application/pdf') {
-      previewMode.value = 'pdf'
-    } else if (row.contentType?.startsWith('text/') || ['md', 'json', 'xml', 'sql', 'txt'].includes(row.fileExt || '')) {
-      previewMode.value = 'text'
-      previewText.value = await blob.text()
-    } else {
-      previewMode.value = 'none'
-    }
+    const result = await resolvePreview(response.data, row.contentType, row.fileExt)
+    previewMode.value = result.mode
+    previewUrl.value = result.url || ''
+    previewText.value = result.text || ''
+    previewSrc.value = result.src
     previewVisible.value = true
   } catch {
     ElMessage.error('文件预览失败，请稍后重试')
@@ -429,8 +447,31 @@ async function removeFile(row: FileItem) {
 }
 
 async function copyShare() {
-  await navigator.clipboard.writeText(shareUrl.value)
-  ElMessage.success('分享链接已复制')
+  const text = shareUrl.value
+  if (!text) return
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+    } else {
+      fallbackCopy(text)
+    }
+    ElMessage.success('分享链接已复制')
+  } catch {
+    fallbackCopy(text)
+    ElMessage.success('分享链接已复制')
+  }
+}
+
+function fallbackCopy(text: string) {
+  // 非安全上下文（http/局域网 IP）下 navigator.clipboard 不可用，退回 execCommand
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand('copy')
+  document.body.removeChild(textarea)
 }
 
 function releasePreviewUrl() {
@@ -439,7 +480,9 @@ function releasePreviewUrl() {
   }
   previewUrl.value = ''
   previewText.value = ''
+  previewSrc.value = undefined
   previewMode.value = 'none'
+  previewReady.value = false
 }
 
 function fileIcon(row: FileItem) {
@@ -612,15 +655,22 @@ function formatDate(value?: string) {
   font-size: 12px;
 }
 
+.file-preview-dialog :deep(.el-dialog__body) {
+  padding: 0 20px 20px;
+}
+
 .file-preview__header {
   display: grid;
   gap: 4px;
-  margin-bottom: 16px;
+  min-width: 0;
 }
 
 .file-preview__header strong {
+  overflow: hidden;
   color: var(--tf-text);
   font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-preview__header span {
@@ -628,15 +678,26 @@ function formatDate(value?: string) {
   font-size: 12px;
 }
 
+/* 预览主体固定高度，给 Office 渲染器一个确定的可计算高度 */
+.file-preview {
+  height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .file-preview img {
   max-width: 100%;
+  max-height: 100%;
+  margin: auto;
+  object-fit: contain;
   border: 1px solid var(--tf-border);
   border-radius: 14px;
 }
 
 .file-preview pre {
-  max-height: 70vh;
+  flex: 1;
   overflow: auto;
+  margin: 0;
   padding: 16px;
   border: 1px solid var(--tf-border);
   border-radius: 14px;
@@ -646,10 +707,54 @@ function formatDate(value?: string) {
 }
 
 .file-preview iframe {
+  flex: 1;
   width: 100%;
-  height: 72vh;
   border: 1px solid var(--tf-border);
   border-radius: 14px;
+}
+
+/* Word/PPT：内容自撑高，父容器滚动 */
+.file-preview__office {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--tf-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+/* Excel：必须给确定高度，由 @vue-office/excel 在内部自行滚动，
+   外层不能用 overflow:auto 否则会反复重算导致表格被压扁 */
+.file-preview__sheet {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--tf-border);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.file-preview__sheet :deep(.vue-office-excel),
+.file-preview__sheet :deep(.vue-office-excel-main) {
+  height: 100%;
+}
+
+.archive-tip {
+  margin-bottom: 16px;
+}
+
+.file-share-link {
+  display: flex;
+  gap: 10px;
+}
+
+.file-share-link .el-input {
+  flex: 1;
+}
+
+.file-share-tip {
+  color: var(--tf-muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .file-share-result {

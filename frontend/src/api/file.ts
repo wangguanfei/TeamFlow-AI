@@ -59,6 +59,18 @@ export function fileSharePageApi(params: { page?: number; size?: number; keyword
   return http.get<unknown, PageResult<FileShareItem>>('/file-shares/page', { params })
 }
 
+export function fileShareAccessApi(shareCode: string) {
+  return http.get<unknown, FileShareItem>(`/file-shares/access/${encodeURIComponent(shareCode)}`)
+}
+
+export function sharedPreviewBlobApi(shareCode: string) {
+  return blobRequest(`/file-shares/access/${encodeURIComponent(shareCode)}/preview`)
+}
+
+export function sharedDownloadBlobApi(shareCode: string) {
+  return blobRequest(`/file-shares/access/${encodeURIComponent(shareCode)}/download`)
+}
+
 export function previewFileBlobApi(id: number) {
   return blobRequest(`/files/${id}/preview`)
 }

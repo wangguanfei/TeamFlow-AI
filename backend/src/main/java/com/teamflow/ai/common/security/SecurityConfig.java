@@ -58,6 +58,7 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/refresh-token",
                                 "/api/profile/avatar-file/**",
+                                "/api/file-shares/access/**",
                                 "/ws/notifications",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",

@@ -213,6 +213,16 @@ public class FileService {
     @Transactional
     public FileShareItem createShare(FileShareRequest request, Long currentUserId) {
         FileInfo fileInfo = getFileEntity(request.fileId());
+        // 同一文件复用未过期的分享码：避免每次分享都生成新链接，方便对外统一传播与回收
+        FileShare existing = fileShareMapper.selectOne(new LambdaQueryWrapper<FileShare>()
+                .eq(FileShare::getFileId, fileInfo.getId())
+                .eq(FileShare::getDeleted, 0)
+                .gt(FileShare::getExpireTime, LocalDateTime.now())
+                .orderByDesc(FileShare::getId)
+                .last("LIMIT 1"));
+        if (existing != null) {
+            return toShareItems(List.of(existing)).get(0);
+        }
         FileShare share = new FileShare();
         share.setFileId(fileInfo.getId());
         share.setShareCode(UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase(Locale.ROOT));
@@ -223,6 +233,31 @@ public class FileService {
         share.setDeleted(0);
         fileShareMapper.insert(share);
         return toShareItems(List.of(share)).get(0);
+    }
+
+    public FileShareItem getShareByCode(String shareCode) {
+        return toShareItems(List.of(findActiveShareByCode(shareCode))).get(0);
+    }
+
+    public FileContent loadShareContent(String shareCode) {
+        return loadContent(findActiveShareByCode(shareCode).getFileId());
+    }
+
+    private FileShare findActiveShareByCode(String shareCode) {
+        if (shareCode == null || shareCode.isBlank()) {
+            throw new BusinessException("分享码无效");
+        }
+        FileShare share = fileShareMapper.selectOne(new LambdaQueryWrapper<FileShare>()
+                .eq(FileShare::getShareCode, shareCode.trim().toUpperCase(Locale.ROOT))
+                .eq(FileShare::getDeleted, 0)
+                .last("LIMIT 1"));
+        if (share == null) {
+            throw new BusinessException("分享链接不存在或已被取消");
+        }
+        if (share.getExpireTime() != null && share.getExpireTime().isBefore(LocalDateTime.now())) {
+            throw new BusinessException("分享链接已过期");
+        }
+        return share;
     }
 
     public PageResult<FileShareItem> pageShares(long page, long size, String keyword) {

@@ -31,11 +31,17 @@ const router = createRouter({
       path: '/login',
       name: 'Login',
       component: () => import('@/views/auth/LoginView.vue'),
-      meta: { public: true }
+      meta: { guestOnly: true }
     },
     {
       path: '/register',
       redirect: '/login'
+    },
+    {
+      path: '/file/share/:code',
+      name: 'FileShare',
+      component: () => import('@/views/file/FileShareView.vue'),
+      meta: { public: true }
     },
     {
       path: '/',
@@ -60,8 +66,13 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const userStore = useUserStore()
-  if (to.meta.public) {
+  // 仅游客可访问的页面（登录页）：已登录用户跳转工作台
+  if (to.meta.guestOnly) {
     return userStore.isLoggedIn ? '/dashboard' : true
+  }
+  // 公开页面（如文件分享链接）：登录与否均可访问，不触发登录拦截
+  if (to.meta.public) {
+    return true
   }
   if (!userStore.isLoggedIn) {
     return {

@@ -10,6 +10,8 @@ import com.teamflow.ai.modules.file.service.FileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -82,5 +84,23 @@ public class FileShareController {
     public ApiResult<Void> batchDelete(@RequestBody IdListRequest request) {
         fileService.batchDeleteShares(request.ids());
         return ApiResult.success();
+    }
+
+    @Operation(summary = "公开访问-分享详情")
+    @GetMapping("/access/{shareCode}")
+    public ApiResult<FileShareItem> access(@PathVariable String shareCode) {
+        return ApiResult.success(fileService.getShareByCode(shareCode));
+    }
+
+    @Operation(summary = "公开访问-分享预览")
+    @GetMapping("/access/{shareCode}/preview")
+    public ResponseEntity<Resource> accessPreview(@PathVariable String shareCode) {
+        return FileResponseSupport.preview(fileService.loadShareContent(shareCode));
+    }
+
+    @Operation(summary = "公开访问-分享下载")
+    @GetMapping("/access/{shareCode}/download")
+    public ResponseEntity<Resource> accessDownload(@PathVariable String shareCode) {
+        return FileResponseSupport.download(fileService.loadShareContent(shareCode));
     }
 }
