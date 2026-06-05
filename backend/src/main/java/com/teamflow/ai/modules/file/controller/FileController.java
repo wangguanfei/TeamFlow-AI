@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,11 +32,27 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.Set;
 
 @Tag(name = "文件")
 @RestController
 @RequestMapping("/api/files")
 public class FileController {
+
+    private static final String X_CONTENT_TYPE_OPTIONS = "X-Content-Type-Options";
+    private static final Set<String> INLINE_PREVIEW_CONTENT_TYPES = Set.of(
+            "application/pdf",
+            "text/plain",
+            "text/csv",
+            "text/markdown",
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/webp",
+            "image/bmp",
+            "image/avif"
+    );
 
     private final FileService fileService;
 
@@ -116,7 +133,8 @@ public class FileController {
                         .filename(content.fileName(), StandardCharsets.UTF_8)
                         .build()
                         .toString())
-                .contentType(MediaType.parseMediaType(content.contentType()))
+                .header(X_CONTENT_TYPE_OPTIONS, "nosniff")
+                .contentType(parseMediaType(content.contentType()))
                 .contentLength(content.contentLength())
                 .body(content.resource());
     }
@@ -126,13 +144,32 @@ public class FileController {
     @PreAuthorize("hasAuthority('file:view')")
     public ResponseEntity<Resource> preview(@PathVariable Long id) {
         FileContent content = fileService.loadContent(id);
+        MediaType mediaType = parseMediaType(content.contentType());
+        boolean inlinePreview = isInlinePreviewSafe(mediaType);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                .header(HttpHeaders.CONTENT_DISPOSITION, (inlinePreview ? ContentDisposition.inline() : ContentDisposition.attachment())
                         .filename(content.fileName(), StandardCharsets.UTF_8)
                         .build()
                         .toString())
-                .contentType(MediaType.parseMediaType(content.contentType()))
+                .header(X_CONTENT_TYPE_OPTIONS, "nosniff")
+                .contentType(inlinePreview ? mediaType : MediaType.APPLICATION_OCTET_STREAM)
                 .contentLength(content.contentLength())
                 .body(content.resource());
+    }
+
+    private boolean isInlinePreviewSafe(MediaType mediaType) {
+        String contentType = (mediaType.getType() + "/" + mediaType.getSubtype()).toLowerCase(Locale.ROOT);
+        return INLINE_PREVIEW_CONTENT_TYPES.contains(contentType);
+    }
+
+    private MediaType parseMediaType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (InvalidMediaTypeException exception) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 }

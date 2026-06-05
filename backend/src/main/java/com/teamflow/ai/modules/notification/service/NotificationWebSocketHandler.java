@@ -10,10 +10,8 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
-import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
@@ -36,7 +34,15 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        Long userId = authenticate(session.getUri());
+        session.setTextMessageSizeLimit(4096);
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        if (session.getAttributes().containsKey("userId")) {
+            return;
+        }
+        Long userId = authenticate(readAuthToken(message.getPayload()));
         if (userId == null) {
             session.close(CloseStatus.NOT_ACCEPTABLE.withReason("invalid token"));
             return;
@@ -88,11 +94,23 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private Long authenticate(URI uri) {
-        if (uri == null) {
+    private String readAuthToken(String payload) {
+        if (payload == null || payload.isBlank()) {
             return null;
         }
-        String token = UriComponentsBuilder.fromUri(uri).build().getQueryParams().getFirst("token");
+        try {
+            Map<?, ?> message = objectMapper.readValue(payload, Map.class);
+            if (!"AUTH".equals(message.get("type"))) {
+                return null;
+            }
+            Object token = message.get("token");
+            return token instanceof String value ? value : null;
+        } catch (Exception exception) {
+            return null;
+        }
+    }
+
+    private Long authenticate(String token) {
         if (token == null || token.isBlank()) {
             return null;
         }

@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.project.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.project.dto.ProjectDetail;
 import com.teamflow.ai.modules.project.dto.ProjectListItem;
@@ -68,7 +69,7 @@ public class ProjectService {
                         .like(Project::getDescription, keyword))
                 .orderByDesc(Project::getCreatedAt)
                 .orderByDesc(Project::getId);
-        Page<Project> result = projectMapper.selectPage(Page.of(page, size), wrapper);
+        Page<Project> result = projectMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         List<ProjectListItem> records = buildProjectItems(result.getRecords());
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), records);
     }
@@ -149,7 +150,7 @@ public class ProjectService {
                 .eq(ProjectMember::getDeleted, 0)
                 .eq(projectId != null, ProjectMember::getProjectId, projectId)
                 .orderByDesc(ProjectMember::getId);
-        Page<ProjectMember> result = projectMemberMapper.selectPage(Page.of(page, size), wrapper);
+        Page<ProjectMember> result = projectMemberMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         List<ProjectMemberItem> members = toMemberItems(result.getRecords()).stream()
                 .filter(member -> keyword == null || keyword.isBlank()
                         || contains(member.username(), keyword)
@@ -202,7 +203,7 @@ public class ProjectService {
                         .or()
                         .like(ProjectTag::getTagColor, keyword))
                 .orderByDesc(ProjectTag::getId);
-        Page<ProjectTag> result = projectTagMapper.selectPage(Page.of(page, size), wrapper);
+        Page<ProjectTag> result = projectTagMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         List<ProjectTagItem> records = result.getRecords().stream().map(this::toTagItem).toList();
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), records);
     }

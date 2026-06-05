@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.task.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.notification.dto.NotificationRequest;
 import com.teamflow.ai.modules.notification.service.NotificationService;
@@ -97,7 +98,7 @@ public class TaskService {
         LambdaQueryWrapper<Task> wrapper = baseTaskWrapper(projectId, status, keyword)
                 .orderByDesc(Task::getCreatedAt)
                 .orderByDesc(Task::getId);
-        Page<Task> result = taskMapper.selectPage(Page.of(page, size), wrapper);
+        Page<Task> result = taskMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(
                 result.getCurrent(),
                 result.getSize(),
@@ -243,7 +244,7 @@ public class TaskService {
                 .eq(taskId != null, TaskComment::getTaskId, taskId)
                 .like(keyword != null && !keyword.isBlank(), TaskComment::getContent, keyword)
                 .orderByDesc(TaskComment::getId);
-        Page<TaskComment> result = commentMapper.selectPage(Page.of(page, size), wrapper);
+        Page<TaskComment> result = commentMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toCommentItems(result.getRecords()));
     }
 
@@ -275,7 +276,7 @@ public class TaskService {
                 .eq(taskId != null, TaskWorklog::getTaskId, taskId)
                 .like(keyword != null && !keyword.isBlank(), TaskWorklog::getDescription, keyword)
                 .orderByDesc(TaskWorklog::getId);
-        Page<TaskWorklog> result = worklogMapper.selectPage(Page.of(page, size), wrapper);
+        Page<TaskWorklog> result = worklogMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toWorklogItems(result.getRecords()));
     }
 
@@ -307,7 +308,7 @@ public class TaskService {
         LambdaQueryWrapper<TaskAttachment> wrapper = new LambdaQueryWrapper<TaskAttachment>()
                 .eq(taskId != null, TaskAttachment::getTaskId, taskId)
                 .orderByDesc(TaskAttachment::getId);
-        Page<TaskAttachment> result = attachmentMapper.selectPage(Page.of(page, size), wrapper);
+        Page<TaskAttachment> result = attachmentMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toAttachmentItems(result.getRecords()));
     }
 
@@ -327,7 +328,7 @@ public class TaskService {
                 .eq(taskId != null, TaskTag::getTaskId, taskId)
                 .like(keyword != null && !keyword.isBlank(), TaskTag::getTagName, keyword)
                 .orderByDesc(TaskTag::getId);
-        Page<TaskTag> result = tagMapper.selectPage(Page.of(page, size), wrapper);
+        Page<TaskTag> result = tagMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), result.getRecords().stream().map(this::toTagItem).toList());
     }
 

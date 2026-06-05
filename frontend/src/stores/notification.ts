@@ -18,8 +18,11 @@ export const useNotificationStore = defineStore('notification', () => {
       return
     }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${protocol}//${window.location.host}/ws/notifications?token=${encodeURIComponent(token)}`
+    const url = `${protocol}//${window.location.host}/ws/notifications`
     socket = new WebSocket(url)
+    socket.onopen = () => {
+      socket?.send(JSON.stringify({ type: 'AUTH', token }))
+    }
     socket.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data) as { type?: string; data?: NotificationItem }

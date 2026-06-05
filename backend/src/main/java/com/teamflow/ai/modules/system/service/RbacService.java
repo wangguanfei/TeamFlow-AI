@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.system.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.system.dto.MenuRequest;
 import com.teamflow.ai.modules.system.dto.PermissionRequest;
@@ -65,7 +66,7 @@ public class RbacService {
                         .like(SysRole::getRoleName, keyword))
                 .orderByAsc(SysRole::getSortNo)
                 .orderByDesc(SysRole::getId);
-        Page<SysRole> result = roleMapper.selectPage(Page.of(page, size), wrapper);
+        Page<SysRole> result = roleMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), result.getRecords());
     }
 
@@ -160,7 +161,7 @@ public class RbacService {
                         .or()
                         .like(SysPermission::getResourcePath, keyword))
                 .orderByDesc(SysPermission::getId);
-        Page<SysPermission> result = permissionMapper.selectPage(Page.of(page, size), wrapper);
+        Page<SysPermission> result = permissionMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), result.getRecords());
     }
 
@@ -233,7 +234,7 @@ public class RbacService {
                         .like(SysMenu::getPermissionCode, keyword))
                 .orderByAsc(SysMenu::getParentId)
                 .orderByAsc(SysMenu::getSortNo);
-        Page<SysMenu> result = menuMapper.selectPage(Page.of(page, size), wrapper);
+        Page<SysMenu> result = menuMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), result.getRecords());
     }
 

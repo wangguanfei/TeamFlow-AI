@@ -458,8 +458,17 @@ function createTemporaryUserMessage(content: string): AiMessageItem {
     content,
     tokens: 0,
     references: [],
-    createdAt: new Date().toISOString()
+    createdAt: localDateTimeNow()
   }
+}
+
+// 与后端 LocalDateTime 保持一致：输出本地时区的 "YYYY-MM-DDTHH:mm:ss"，
+// 避免 toISOString() 的 UTC 时间让乐观气泡比真实消息早 8 小时。
+function localDateTimeNow(): string {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+    + `T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
 }
 
 async function removeSession(session: AiSessionItem) {

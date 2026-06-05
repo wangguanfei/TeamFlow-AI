@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.file.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.file.dto.FileContent;
 import com.teamflow.ai.modules.file.dto.FileItem;
@@ -21,6 +22,8 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -44,6 +47,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class FileService {
+
+    private static final Logger log = LoggerFactory.getLogger(FileService.class);
 
     private static final String LOCAL_BUCKET = "local";
 
@@ -134,7 +139,7 @@ public class FileService {
                         .or()
                         .like(FileInfo::getBizType, keyword))
                 .orderByDesc(FileInfo::getId);
-        Page<FileInfo> result = fileInfoMapper.selectPage(Page.of(page, size), wrapper);
+        Page<FileInfo> result = fileInfoMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toFileItems(result.getRecords()));
     }
 
@@ -198,6 +203,9 @@ public class FileService {
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
+            // 记录真实异常（如 MinIO 鉴权失败 / 对象不存在），否则只剩通用提示难以排查
+            log.error("读取文件失败 id={} bucket={} objectKey={}",
+                    id, fileInfo.getBucketName(), fileInfo.getObjectKey(), exception);
             throw new BusinessException("读取文件失败");
         }
     }
@@ -222,7 +230,7 @@ public class FileService {
                 .eq(FileShare::getDeleted, 0)
                 .like(keyword != null && !keyword.isBlank(), FileShare::getShareCode, keyword)
                 .orderByDesc(FileShare::getId);
-        Page<FileShare> result = fileShareMapper.selectPage(Page.of(page, size), wrapper);
+        Page<FileShare> result = fileShareMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toShareItems(result.getRecords()));
     }
 

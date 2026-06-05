@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.user.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.system.entity.SysRole;
 import com.teamflow.ai.modules.system.entity.SysUserRole;
@@ -57,7 +58,7 @@ public class UserAdminService {
                         .or()
                         .like(SysUser::getEmail, keyword))
                 .orderByDesc(SysUser::getId);
-        Page<SysUser> result = userMapper.selectPage(Page.of(page, size), wrapper);
+        Page<SysUser> result = userMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         List<Long> userIds = result.getRecords().stream().map(SysUser::getId).toList();
         Map<Long, List<String>> roleCodes = loadRoleCodes(userIds);
         List<UserPageItem> records = result.getRecords().stream()

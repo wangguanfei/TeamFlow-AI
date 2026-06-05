@@ -44,7 +44,7 @@ public class LoginRateLimitService {
     public void checkNotLocked(String username, String ip) {
         if (isLocked(USER_KEY_PREFIX + username, USER_MAX_FAILURES)
                 || isLocked(IP_KEY_PREFIX + ip, IP_MAX_FAILURES)) {
-            throw new BusinessException("登录失败次数过多，请 " + LOCK_WINDOW.toMinutes() + " 分钟后再试");
+            throw new BusinessException(429, "登录失败次数过多，请 " + LOCK_WINDOW.toMinutes() + " 分钟后再试");
         }
     }
 

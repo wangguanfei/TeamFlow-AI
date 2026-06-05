@@ -16,11 +16,20 @@
 #    （把本文件复制为 default.ssl.conf 并填好 server_name 与证书文件名）
 # 4. docker compose up -d --build frontend
 
-# HTTP：全部 301 跳转到 HTTPS
+# HTTP：健康检查返回 200，其余全部 301 跳转到 HTTPS
 server {
   listen 80;
   server_name your_domain.com;
-  return 301 https://$host$request_uri;
+
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    return 200 "ok\n";
+  }
+
+  location / {
+    return 301 https://$host$request_uri;
+  }
 }
 
 server {
@@ -40,11 +49,18 @@ server {
   add_header X-Content-Type-Options "nosniff" always;
   add_header X-Frame-Options "DENY" always;
   add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" always;
 
   client_max_body_size 500m;
 
   root /usr/share/nginx/html;
   index index.html;
+
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    return 200 "ok\n";
+  }
 
   location / {
     try_files $uri $uri/ /index.html;
@@ -59,6 +75,7 @@ server {
   }
 
   location /ws/ {
+    access_log off;
     proxy_pass http://backend:8080/ws/;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;

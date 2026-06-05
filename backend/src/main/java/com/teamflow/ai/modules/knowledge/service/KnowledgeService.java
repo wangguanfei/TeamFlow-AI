@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.knowledge.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.ai.service.AiKnowledgeIndexService;
 import com.teamflow.ai.modules.knowledge.dto.KnowledgeDocItem;
@@ -79,7 +80,7 @@ public class KnowledgeService {
                         .or()
                         .like(KnowledgeSpace::getDescription, keyword))
                 .orderByDesc(KnowledgeSpace::getId);
-        Page<KnowledgeSpace> result = spaceMapper.selectPage(Page.of(page, size), wrapper);
+        Page<KnowledgeSpace> result = spaceMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toSpaceItems(result.getRecords()));
     }
 
@@ -129,7 +130,7 @@ public class KnowledgeService {
                 .orderByAsc(KnowledgeDoc::getParentId)
                 .orderByAsc(KnowledgeDoc::getSortNo)
                 .orderByDesc(KnowledgeDoc::getId);
-        Page<KnowledgeDoc> result = docMapper.selectPage(Page.of(page, size), wrapper);
+        Page<KnowledgeDoc> result = docMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toDocItems(result.getRecords(), currentUserId));
     }
 
@@ -236,7 +237,7 @@ public class KnowledgeService {
                         .or()
                         .like(KnowledgeDocVersion::getChangeSummary, keyword))
                 .orderByDesc(KnowledgeDocVersion::getVersionNo);
-        Page<KnowledgeDocVersion> result = versionMapper.selectPage(Page.of(page, size), wrapper);
+        Page<KnowledgeDocVersion> result = versionMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toVersionItems(result.getRecords()));
     }
 
@@ -267,7 +268,7 @@ public class KnowledgeService {
     }
 
     public PageResult<KnowledgeFavoriteItem> pageFavorites(long page, long size, Long currentUserId) {
-        Page<KnowledgeFavorite> result = favoriteMapper.selectPage(Page.of(page, size), new LambdaQueryWrapper<KnowledgeFavorite>()
+        Page<KnowledgeFavorite> result = favoriteMapper.selectPage(PageRequestUtils.of(page, size), new LambdaQueryWrapper<KnowledgeFavorite>()
                 .eq(KnowledgeFavorite::getUserId, currentUserId)
                 .orderByDesc(KnowledgeFavorite::getId));
         return new PageResult<>(
@@ -307,7 +308,7 @@ public class KnowledgeService {
                 .eq(docId != null, KnowledgeTag::getDocId, docId)
                 .like(keyword != null && !keyword.isBlank(), KnowledgeTag::getTagName, keyword)
                 .orderByDesc(KnowledgeTag::getId);
-        Page<KnowledgeTag> result = tagMapper.selectPage(Page.of(page, size), wrapper);
+        Page<KnowledgeTag> result = tagMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(
                 result.getCurrent(),
                 result.getSize(),

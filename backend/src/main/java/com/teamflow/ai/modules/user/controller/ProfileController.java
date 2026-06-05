@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -66,7 +67,8 @@ public class ProfileController {
                         .filename(content.fileName(), StandardCharsets.UTF_8)
                         .build()
                         .toString())
-                .contentType(MediaType.parseMediaType(content.contentType()))
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(parseMediaType(content.contentType()))
                 .contentLength(content.contentLength())
                 .body(content.resource());
     }
@@ -82,5 +84,16 @@ public class ProfileController {
     @GetMapping("/overview")
     public ApiResult<ProfileOverviewResponse> overview() {
         return ApiResult.success(profileService.getOverview(CurrentUser.require().getUserId()));
+    }
+
+    private MediaType parseMediaType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (InvalidMediaTypeException exception) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 }

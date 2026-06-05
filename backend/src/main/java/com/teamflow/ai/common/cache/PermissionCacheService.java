@@ -1,11 +1,14 @@
 package com.teamflow.ai.common.cache;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -24,15 +27,19 @@ import java.util.function.Supplier;
 public class PermissionCacheService {
 
     private static final Logger log = LoggerFactory.getLogger(PermissionCacheService.class);
+    private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
+    };
 
     private static final String ROLE_KEY_PREFIX = "auth:roles:";
     private static final String PERM_KEY_PREFIX = "auth:perms:";
     private static final Duration TTL = Duration.ofMinutes(30);
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
-    public PermissionCacheService(RedisTemplate<String, Object> redisTemplate) {
+    public PermissionCacheService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
     }
 
     /** 读取用户角色编码，未命中时通过 loader 查库并回填。 */
@@ -75,20 +82,37 @@ public class PermissionCacheService {
 
     private List<String> getOrLoad(String key, Supplier<List<String>> loader) {
         try {
-            Object cached = redisTemplate.opsForValue().get(key);
-            if (cached instanceof List<?> list) {
-                return list.stream().map(String::valueOf).toList();
+            String cached = redisTemplate.opsForValue().get(key);
+            if (cached != null) {
+                List<String> codes = objectMapper.readValue(cached, STRING_LIST_TYPE);
+                if (isValidCodeList(codes)) {
+                    return codes;
+                }
+                deleteQuietly(key);
             }
-        } catch (RuntimeException ex) {
-            log.warn("读取权限缓存失败，回退数据库 key={}", key, ex);
+        } catch (Exception ex) {
+            deleteQuietly(key);
+            log.warn("读取权限缓存失败，已删除坏缓存并回退数据库 key={} error={}", key, ex.getMessage());
         }
         List<String> value = loader.get();
         try {
-            redisTemplate.opsForValue().set(key, value, TTL);
-        } catch (RuntimeException ex) {
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(value), TTL);
+        } catch (Exception ex) {
             log.warn("写入权限缓存失败 key={}", key, ex);
         }
         return value;
+    }
+
+    private boolean isValidCodeList(Collection<String> codes) {
+        return codes != null && codes.stream().allMatch(code -> code != null && !code.isBlank());
+    }
+
+    private void deleteQuietly(String key) {
+        try {
+            redisTemplate.delete(key);
+        } catch (RuntimeException ex) {
+            log.warn("删除坏权限缓存失败 key={}", key, ex);
+        }
     }
 
     private void safeDelete(List<String> keys) {

@@ -1,5 +1,6 @@
 server:
   port: 8080
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:framework}
   tomcat:
     max-swallow-size: 500MB
 
@@ -43,15 +44,15 @@ springdoc:
     path: /swagger-ui.html
 
 teamflow:
+  demo-data:
+    enabled: ${DEMO_DATA_ENABLED:false}
   jwt:
     issuer: teamflow-ai
     secret: ${JWT_SECRET:teamflow-ai-local-development-secret-change-me-64bytes}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}
     refresh-token-days: ${JWT_REFRESH_TOKEN_DAYS:7}
   cors:
-    allowed-origins:
-      - http://localhost:5173
-      - http://127.0.0.1:5173
+    allowed-origins: ${TEAMFLOW_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9000}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}

@@ -31,9 +31,21 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Service
 public class ProfileService {
+
+    private static final long MAX_AVATAR_BYTES = 5L * 1024L * 1024L;
+    private static final Set<String> ALLOWED_AVATAR_CONTENT_TYPES = Set.of(
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/webp",
+            "image/bmp",
+            "image/avif"
+    );
 
     private final SysUserMapper userMapper;
     private final TaskMapper taskMapper;
@@ -91,9 +103,11 @@ public class ProfileService {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("请选择头像文件");
         }
-        String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new BusinessException("头像仅支持图片文件");
+        if (file.getSize() > MAX_AVATAR_BYTES) {
+            throw new BusinessException(413, "头像文件不能超过 5MB");
+        }
+        if (!isAllowedAvatarContentType(file.getContentType())) {
+            throw new BusinessException("头像仅支持 png、jpg、gif、webp、bmp、avif 图片");
         }
         SysUser user = getActiveUser(userId);
         FileItem uploaded = fileService.upload(file, "PROFILE_AVATAR", userId, userId);
@@ -105,7 +119,10 @@ public class ProfileService {
 
     public FileContent loadAvatarFile(Long fileId) {
         FileInfo file = fileInfoMapper.selectById(fileId);
-        if (file == null || Integer.valueOf(1).equals(file.getDeleted()) || !"PROFILE_AVATAR".equals(file.getBizType())) {
+        if (file == null
+                || Integer.valueOf(1).equals(file.getDeleted())
+                || !"PROFILE_AVATAR".equals(file.getBizType())
+                || !isAllowedAvatarContentType(file.getContentType())) {
             throw new BusinessException(404, "头像不存在");
         }
         return fileService.loadContent(fileId);
@@ -204,5 +221,12 @@ public class ProfileService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private boolean isAllowedAvatarContentType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return false;
+        }
+        return ALLOWED_AVATAR_CONTENT_TYPES.contains(contentType.toLowerCase(Locale.ROOT));
     }
 }

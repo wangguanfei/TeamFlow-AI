@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.team.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.team.dto.TeamItem;
 import com.teamflow.ai.modules.team.dto.TeamRequest;
@@ -39,7 +40,7 @@ public class TeamService {
                         .or()
                         .like(Team::getDescription, keyword))
                 .orderByDesc(Team::getId);
-        Page<Team> result = teamMapper.selectPage(Page.of(page, size), wrapper);
+        Page<Team> result = teamMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         Map<Long, String> ownerNames = loadUserNames(result.getRecords().stream().map(Team::getOwnerId).toList());
         List<TeamItem> records = result.getRecords().stream()
                 .map(team -> toItem(team, ownerNames.get(team.getOwnerId())))

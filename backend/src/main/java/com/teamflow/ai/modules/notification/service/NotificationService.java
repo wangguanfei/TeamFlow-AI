@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.notification.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.notification.dto.NotificationItem;
 import com.teamflow.ai.modules.notification.dto.NotificationRequest;
@@ -83,7 +84,7 @@ public class NotificationService {
                 wrapper.notIn(Notification::getId, readIds);
             }
         }
-        Page<Notification> result = notificationMapper.selectPage(Page.of(page, size), wrapper);
+        Page<Notification> result = notificationMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         List<NotificationItem> items = toItems(result.getRecords(), currentUserId);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), items);
     }

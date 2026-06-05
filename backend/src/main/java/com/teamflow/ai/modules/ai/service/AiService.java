@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.common.security.DemoAccountConstants;
 import com.teamflow.ai.modules.ai.dto.AiChatRequest;
@@ -134,7 +135,7 @@ public class AiService {
                         .like(AiSession::getModelName, keyword))
                 .orderByDesc(AiSession::getUpdatedAt)
                 .orderByDesc(AiSession::getId);
-        Page<AiSession> result = sessionMapper.selectPage(Page.of(page, size), wrapper);
+        Page<AiSession> result = sessionMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toSessionItems(result.getRecords()));
     }
 
@@ -189,7 +190,7 @@ public class AiService {
                         .or()
                         .like(AiMessage::getRole, keyword))
                 .orderByAsc(AiMessage::getId);
-        Page<AiMessage> result = messageMapper.selectPage(Page.of(page, size), wrapper);
+        Page<AiMessage> result = messageMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toMessageItems(result.getRecords()));
     }
 
@@ -469,7 +470,7 @@ public class AiService {
                         .or()
                         .like(AiEmbedding::getEmbeddingHash, keyword))
                 .orderByDesc(AiEmbedding::getId);
-        Page<AiEmbedding> result = embeddingMapper.selectPage(Page.of(page, size), wrapper);
+        Page<AiEmbedding> result = embeddingMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
         return new PageResult<>(result.getCurrent(), result.getSize(), result.getTotal(), toEmbeddingItems(result.getRecords()));
     }
 
