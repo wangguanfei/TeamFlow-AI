@@ -1,0 +1,364 @@
+# TeamFlow AI Enterprise Collaboration Platform
+
+> AI-native enterprise collaboration platform with RBAC, knowledge RAG, workflow orchestration, real-time notification, file asset management, and cloud-native delivery.
+
+English | [中文](./README.md)
+
+![TeamFlow AI Module Map](./teamflow-ai-module.png)
+
+## Live Demo
+
+- Demo URL: <http://81.69.248.152/login>
+- Demo account: `demo` / `demo123456` (read-only demo account)
+
+## Overview
+
+TeamFlow AI is an AI-native enterprise collaboration platform built for teams, engineering organizations, and knowledge-intensive workflows. It is more than an admin dashboard template. It provides a full-stack application foundation that connects authentication, RBAC, project collaboration, task workflow, knowledge management, file assets, AI assistants, real-time notifications, and cloud-native deployment.
+
+The project is designed as a production-minded SaaS backend and frontend system. It features clear domain boundaries, strong permission control, consistent API contracts, and end-to-end business flows that can be demonstrated, studied, extended, and self-hosted.
+
+## Highlights
+
+- **AI-native collaboration**: chat, knowledge Q&A, document summary, code generation, SQL assistant, DeepSeek / OpenAI-compatible provider, and MockAIProvider fallback.
+- **Complete RBAC pipeline**: JWT, Spring Security, role-permission model, dynamic menus, button-level permissions, and API-level authorization.
+- **Knowledge RAG foundation**: Markdown, TXT, PDF, and DOCX import, document publishing, searchable knowledge slices, and AI knowledge Q&A.
+- **Project and task workflow**: projects, members, tags, task list, Kanban drag-and-drop, Gantt view, comments, worklogs, attachments, and executors.
+- **Enterprise file center**: MinIO storage, upload, preview, download, sharing, business archive, and large-file support.
+- **Real-time notification**: unread badges, search, read status, deletion, and WebSocket push.
+- **Production-minded engineering**: unified API result, global exception handling, TraceId, OpenAPI, Docker Compose, Nginx reverse proxy, and health checks.
+- **Open-source ready**: modular architecture, bootstrap data, typed frontend clients, and practical deployment scripts.
+
+## Architecture
+
+```text
+Browser
+  |
+  |  Vue 3 + TypeScript + Vite + Pinia + Element Plus
+  v
+Nginx / Vite Dev Proxy
+  |
+  |  REST API / WebSocket / SSE
+  v
+Spring Boot 3 Application
+  |
+  |-- Spring Security + JWT + RBAC
+  |-- Project / Task / Knowledge / File / AI / Notification Modules
+  |-- MyBatis-Plus Data Access
+  |
+  |-- MySQL 8      relational data
+  |-- Redis        cache and runtime support
+  |-- MinIO        object storage
+  |-- AI Provider  DeepSeek / OpenAI compatible / Mock fallback
+```
+
+## Tech Stack
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | Vue 3, TypeScript, Vite, Pinia, Vue Router, Element Plus, Axios, ECharts, MdEditorV3, SortableJS |
+| Backend | Java 17, Spring Boot 3, Spring Security, JWT, WebSocket, Validation, springdoc-openapi |
+| Data | MySQL 8, Redis, MyBatis-Plus |
+| File Storage | MinIO, multipart upload, 500MB upload limit |
+| AI | OpenAI-compatible HTTP client, DeepSeek-compatible config, MockAIProvider fallback |
+| Deployment | Docker, Docker Compose, Nginx, health checks, reverse proxy |
+
+## Feature Map
+
+### Authentication and Permissions
+
+- Username and password login, token refresh, and unified 401 handling.
+- Self-registration is disabled for enterprise backend usage.
+- Full user, role, permission, and menu management.
+- Dynamic menus, button permissions, and API permissions.
+- Read-only demo account `demo` is protected by backend enforcement. All write requests are blocked.
+
+### Dashboard
+
+- Project, task, knowledge document, and AI message statistics.
+- Project trend, member activity, and AI usage distribution.
+- Aggregated current to-do tasks.
+- One-click project creation from the dashboard.
+
+### Project Collaboration
+
+- Project CRUD, member management, and tag management.
+- Newly created projects are highlighted and followed by next-step actions.
+- Project statistics, detail drawer, and member roles.
+
+### Task Workflow
+
+- Task list, Kanban board, and Gantt view.
+- Kanban drag-and-drop status updates.
+- Assignee and multiple executors are modeled separately.
+- Comments, worklogs, attachments, and tags.
+- Task changes can trigger notifications.
+
+### Knowledge Base and RAG
+
+- Knowledge spaces, document tree, document creation, editing, and deletion.
+- Markdown editing and preview.
+- Publishing, version history, rollback, and favorites.
+- Markdown, TXT, PDF, and DOCX import.
+- Published documents refresh AI retrieval slices for knowledge Q&A.
+
+### File Center
+
+- MinIO file upload, download, preview, and deletion.
+- Batch file upload.
+- Business type and business ID archiving.
+- File sharing.
+- 500MB upload limit with Nginx large-file proxy support.
+
+### AI Assistant
+
+- General chat.
+- Knowledge Q&A.
+- Document summary.
+- Code generation.
+- SQL assistant.
+- DeepSeek / OpenAI-compatible API.
+- MockAIProvider fallback for fully offline demos without an API key.
+
+### Notification and Profile Center
+
+- Notification pagination, search, unread-only filtering, mark all as read, and deletion.
+- WebSocket real-time push.
+- Unread badge.
+- Avatar upload, profile update, password change, permission summary, and preferences.
+
+## Project Structure
+
+```text
+.
+├── backend
+│   ├── src/main/java/com/teamflow/ai
+│   │   ├── common              # API result, exception, security, trace, config
+│   │   └── modules             # auth, user, system, project, task, knowledge, file, ai, notification
+│   └── src/main/resources
+│       ├── application.yml
+│       └── db/schema.sql       # runtime schema and demo data bootstrap
+├── frontend
+│   └── src
+│       ├── api                 # typed API clients
+│       ├── components          # shared UI components
+│       ├── layouts             # main shell
+│       ├── router              # dynamic route sync
+│       ├── stores              # Pinia stores
+│       └── views               # feature pages
+├── deploy/nginx                # Nginx reverse proxy configs
+├── docker-compose.yml
+├── README.md
+└── README.en.md
+```
+
+## Quick Start
+
+### Requirements
+
+- JDK 17+
+- Maven 3.9+
+- Node.js 20+
+- MySQL 8
+- Redis 7+
+- MinIO
+
+Default local connections:
+
+| Service | Address |
+| --- | --- |
+| MySQL | `127.0.0.1:3306/teamflow_ai` |
+| Redis | `127.0.0.1:6379` |
+| MinIO API | `http://127.0.0.1:9000` |
+| MinIO Console | `http://127.0.0.1:9001` |
+
+### Start the Backend
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+Backend URL:
+
+```text
+http://localhost:8080
+```
+
+Swagger:
+
+```text
+http://localhost:8080/swagger-ui.html
+```
+
+### Start the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend URL:
+
+```text
+http://localhost:5173
+```
+
+If the backend does not use port `8080`:
+
+```bash
+VITE_PROXY_TARGET=http://127.0.0.1:18080 npm run dev
+```
+
+## Default Accounts
+
+Bootstrap data is created automatically by `DemoDataInitializer` when the application starts.
+
+```text
+Admin username: admin
+Admin password: admin123456
+
+Developer username: dev
+Developer password: dev123456
+
+Read-only demo username: demo
+Read-only demo password: demo123456
+```
+
+Account roles:
+
+- `admin`: super administrator with full system management permissions.
+- `dev`: developer role for project, task, knowledge, file, AI, and notification demos.
+- `demo`: read-only viewer. All non-read requests are blocked by the backend.
+
+## AI Configuration
+
+The backend uses an OpenAI-compatible HTTP API. Configuration is under `teamflow.ai` and can also be overridden through environment variables:
+
+```bash
+export AI_PROVIDER=deepseek
+export AI_BASE_URL=https://api.deepseek.com/v1
+export AI_API_KEY=your-api-key
+export AI_MODEL=deepseek-chat
+```
+
+Notes:
+
+- `AI_PROVIDER` can be `deepseek`, `openai`, or another compatible provider label.
+- `AI_BASE_URL` must point to a service compatible with `/chat/completions`.
+- If `AI_API_KEY` is missing or the upstream provider fails, the application falls back to `MockAIProvider`.
+- Do not commit real API keys. For production, inject secrets through `.env`, container environment variables, or cloud secret management.
+
+## Docker Compose Deployment
+
+Copy the environment template:
+
+```bash
+cp .env.example .env
+```
+
+Fill `JWT_SECRET`, `MYSQL_ROOT_PASSWORD`, `MINIO_ROOT_PASSWORD`, `AI_API_KEY`, and other production settings in `.env`.
+
+Build and start:
+
+```bash
+docker compose up -d --build
+```
+
+Start with AI environment variables:
+
+```bash
+AI_PROVIDER=deepseek \
+AI_BASE_URL=https://api.deepseek.com/v1 \
+AI_API_KEY=your-api-key \
+AI_MODEL=deepseek-chat \
+docker compose up -d --build
+```
+
+Production entry:
+
+```text
+http://localhost
+```
+
+Compose deployment notes:
+
+- The frontend is exposed through Nginx.
+- `/api/` is reverse-proxied to the backend.
+- `/ws/` is reverse-proxied to the WebSocket notification service.
+- `client_max_body_size 500m` supports large file uploads.
+- MySQL, Redis, MinIO, and backend containers can collaborate inside the Compose network to reduce public exposure.
+- MySQL and Redis health checks are configured, and the backend waits for core dependencies before startup.
+
+## Verification Commands
+
+Backend compile:
+
+```bash
+cd backend
+mvn test
+```
+
+Frontend build:
+
+```bash
+cd frontend
+npm run build
+```
+
+Port checks:
+
+```bash
+lsof -nP -iTCP:8080 -sTCP:LISTEN
+lsof -nP -iTCP:5173 -sTCP:LISTEN
+```
+
+API checks:
+
+```bash
+curl http://localhost:8080/v3/api-docs
+curl -I http://localhost:5173
+```
+
+Docker checks:
+
+```bash
+docker compose config
+docker compose up -d --build
+docker compose ps
+curl -I http://localhost
+```
+
+## Database Initialization
+
+The backend uses `backend/src/main/resources/db/schema.sql` for runtime database initialization.
+
+## Why This Project Matters
+
+TeamFlow AI combines enterprise collaboration and AI capabilities in one coherent application flow. Instead of placing AI in an isolated chat panel, it connects AI with knowledge, files, tasks, notifications, and project execution. This makes the platform a strong foundation for internal collaboration tools, AI knowledge bases, engineering productivity systems, and full-stack portfolio projects.
+
+## Use Cases
+
+- Full-stack engineering portfolio and interview showcase.
+- Enterprise collaboration platform prototype.
+- AI knowledge base and RAG application starter.
+- RBAC system learning and secondary development.
+- Spring Boot 3 + Vue 3 enterprise backend reference.
+- Self-hosted team workspace foundation.
+
+## Contributing
+
+Contributions are welcome. Useful directions include:
+
+- production-grade vector retrieval,
+- AI Agent workflows,
+- multi-tenant organization models,
+- audit logs and operation tracing,
+- end-to-end test coverage,
+- responsive mobile experience.
+
+## License
+
+This project is released under the [MIT License](./LICENSE). You are free to use, copy, modify, merge, publish, distribute, sublicense, and sell the software, provided that the copyright notice and permission notice are included in all copies or substantial portions of the software.
+
+Copyright (c) 2026 wangguanfei
