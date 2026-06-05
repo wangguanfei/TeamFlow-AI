@@ -20,7 +20,7 @@ The project is designed as a production-minded SaaS backend and frontend system.
 ## Highlights
 
 - **AI-native collaboration**: chat, knowledge Q&A, document summary, code generation, SQL assistant, DeepSeek / OpenAI-compatible provider, and MockAIProvider fallback.
-- **Complete RBAC pipeline**: JWT, Spring Security, role-permission model, dynamic menus, button-level permissions, and API-level authorization.
+- **Complete RBAC pipeline**: JWT, Spring Security, role-permission model, dynamic menus, button-level permissions, and API-level authorization, with user permissions cached in Redis to eliminate repeated lookups in the JWT filter on every request.
 - **Knowledge RAG foundation**: Markdown, TXT, PDF, and DOCX import, document publishing, searchable knowledge slices, and AI knowledge Q&A.
 - **Project and task workflow**: projects, members, tags, task list, Kanban drag-and-drop, Gantt view, comments, worklogs, attachments, and executors.
 - **Enterprise file center**: MinIO storage, upload, preview, download, sharing, business archive, and large-file support.
@@ -46,7 +46,7 @@ Spring Boot 3 Application
   |-- MyBatis-Plus Data Access
   |
   |-- MySQL 8      relational data
-  |-- Redis        cache and runtime support
+  |-- Redis        permission cache and runtime support
   |-- MinIO        object storage
   |-- AI Provider  DeepSeek / OpenAI compatible / Mock fallback
 ```
@@ -176,6 +176,17 @@ Default local connections:
 ```bash
 cd backend
 mvn spring-boot:run
+```
+
+The backend runs as a JAR without hot reload, so repackage and restart after changing Java code. For local development, prefer `start-local.sh`, which injects the AI environment variables automatically so a restart never silently falls back to MockAIProvider:
+
+```bash
+# Export your real key in ~/.zshrc first (the script itself contains no key)
+export AI_API_KEY=sk-your-real-key
+
+cd backend
+./start-local.sh --build   # mvn package, then restart
+./start-local.sh           # restart with the existing jar
 ```
 
 Backend URL:
