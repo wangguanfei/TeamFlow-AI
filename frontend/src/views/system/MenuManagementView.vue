@@ -9,7 +9,7 @@
         <el-input v-model="keyword" class="table-search" placeholder="搜索菜单名称、路由或权限码" clearable :prefix-icon="Search" @keyup.enter="loadData" />
         <el-button :icon="Search" @click="loadData">查询</el-button>
       </div>
-      <el-table :data="pageData.records" row-key="id">
+      <el-table v-loading="loading" :data="pageData.records" row-key="id">
         <el-table-column prop="menuName" label="菜单名称" min-width="150" />
         <el-table-column prop="path" label="路由" min-width="180" />
         <el-table-column prop="component" label="组件" min-width="180" />
@@ -73,10 +73,17 @@ const formVisible = ref(false)
 const editingId = ref<number | null>(null)
 const form = reactive({ parentId: 0, menuName: '', path: '', component: '', icon: '', permissionCode: '', menuType: 'MENU', sortNo: 100, visible: 1 })
 
+const loading = ref(false)
+
 onMounted(loadData)
 
 async function loadData() {
-  pageData.value = await menuPageApi({ page: page.value, size: size.value, keyword: keyword.value })
+  loading.value = true
+  try {
+    pageData.value = await menuPageApi({ page: page.value, size: size.value, keyword: keyword.value })
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {

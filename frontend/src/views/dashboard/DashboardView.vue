@@ -4,7 +4,7 @@
       <PermissionButton permission="project:create" type="primary" :icon="Plus" @click="goCreateProject">新建项目</PermissionButton>
     </template>
 
-    <section class="metric-grid">
+    <section v-loading="loading" class="metric-grid">
       <article v-for="card in metricCards" :key="card.label" class="metric-card">
         <div class="metric-card__icon">
           <el-icon><component :is="card.icon" /></el-icon>
@@ -17,7 +17,7 @@
       </article>
     </section>
 
-    <section class="dashboard-grid">
+    <section v-loading="loading" class="dashboard-grid">
       <el-card shadow="never" class="panel panel--trend">
         <template #header>
           <div class="panel-title">
@@ -119,6 +119,7 @@ import {
 import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
+const loading = ref(false)
 const overview = ref<DashboardOverview>({
   userCount: 0,
   projectCount: 0,
@@ -154,14 +155,19 @@ const aiUsageStats = computed(() => {
 })
 
 onMounted(async () => {
-  overview.value = await dashboardOverviewApi()
-  const [trend, active, aiUsage, todoResult] = await Promise.all([projectTrendApi(), memberActiveApi(), aiUsageApi(), dashboardTodosApi()])
-  todos.value = todoResult
-  aiUsagePoints.value = aiUsage
-  await nextTick()
-  renderLineChart(trend)
-  renderBarChart(active)
-  renderPieChart(aiUsage)
+  loading.value = true
+  try {
+    overview.value = await dashboardOverviewApi()
+    const [trend, active, aiUsage, todoResult] = await Promise.all([projectTrendApi(), memberActiveApi(), aiUsageApi(), dashboardTodosApi()])
+    todos.value = todoResult
+    aiUsagePoints.value = aiUsage
+    await nextTick()
+    renderLineChart(trend)
+    renderBarChart(active)
+    renderPieChart(aiUsage)
+  } finally {
+    loading.value = false
+  }
   window.addEventListener('resize', resizeCharts)
 })
 

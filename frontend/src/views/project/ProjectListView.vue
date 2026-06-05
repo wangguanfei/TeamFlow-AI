@@ -49,7 +49,7 @@
         <el-button :icon="Search" @click="loadData">查询</el-button>
       </div>
 
-      <el-table :data="pageData.records" row-key="id" :row-class-name="tableRowClassName">
+      <el-table v-loading="loading" :data="pageData.records" row-key="id" :row-class-name="tableRowClassName">
         <el-table-column label="项目" min-width="260">
           <template #default="{ row }">
             <div class="project-name-cell">
@@ -293,6 +293,7 @@ const router = useRouter()
 const keyword = ref('')
 const page = ref(1)
 const size = ref(10)
+const loading = ref(false)
 const pageData = ref<PageResult<ProjectListItem>>({ page: 1, size: 10, total: 0, records: [] })
 const stats = ref<ProjectStats>({ total: 0, active: 0, done: 0, averageProgress: 0 })
 
@@ -361,12 +362,17 @@ onBeforeUnmount(() => {
 })
 
 async function loadData() {
-  const [projects, projectStats] = await Promise.all([
-    projectPageApi({ page: page.value, size: size.value, keyword: keyword.value }),
-    projectStatsApi()
-  ])
-  pageData.value = projects
-  stats.value = projectStats
+  loading.value = true
+  try {
+    const [projects, projectStats] = await Promise.all([
+      projectPageApi({ page: page.value, size: size.value, keyword: keyword.value }),
+      projectStatsApi()
+    ])
+    pageData.value = projects
+    stats.value = projectStats
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadSelectOptions() {

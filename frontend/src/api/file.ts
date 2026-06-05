@@ -1,6 +1,7 @@
 import axios from 'axios'
 import http from './request'
 import type { PageResult } from './system'
+import { doneProgress, startProgress } from '@/utils/progress'
 
 export interface FileItem {
   id: number
@@ -68,8 +69,11 @@ export function downloadFileBlobApi(id: number) {
 
 function blobRequest(url: string) {
   const token = localStorage.getItem('teamflow_access_token')
-  return axios.get<Blob>((import.meta.env.VITE_API_BASE_URL || '/api') + url, {
-    responseType: 'blob',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined
-  })
+  startProgress()
+  return axios
+    .get<Blob>((import.meta.env.VITE_API_BASE_URL || '/api') + url, {
+      responseType: 'blob',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    })
+    .finally(() => doneProgress())
 }

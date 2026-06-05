@@ -22,7 +22,7 @@
         <el-button :icon="Search" @click="loadData">查询</el-button>
       </div>
 
-      <el-table :data="pageData.records" row-key="id">
+      <el-table v-loading="loading" :data="pageData.records" row-key="id">
         <el-table-column label="任务" min-width="260">
           <template #default="{ row }">
             <div class="project-name-cell">
@@ -173,6 +173,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const page = ref(1)
 const size = ref(10)
+const loading = ref(false)
 const pageData = ref<PageResult<TaskListItem>>({ page: 1, size: 10, total: 0, records: [] })
 const projects = ref<ProjectListItem[]>([])
 const users = ref<UserItem[]>([])
@@ -233,13 +234,18 @@ async function loadOptions() {
 }
 
 async function loadData() {
-  pageData.value = await taskPageApi({
-    page: page.value,
-    size: size.value,
-    projectId: filters.projectId,
-    status: filters.status,
-    keyword: filters.keyword
-  })
+  loading.value = true
+  try {
+    pageData.value = await taskPageApi({
+      page: page.value,
+      size: size.value,
+      projectId: filters.projectId,
+      status: filters.status,
+      keyword: filters.keyword
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {

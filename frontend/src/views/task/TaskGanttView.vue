@@ -12,7 +12,7 @@
       </div>
     </el-card>
 
-    <el-card shadow="never" class="system-card gantt-card">
+    <el-card v-loading="loading" shadow="never" class="system-card gantt-card">
       <div class="gantt-header">
         <span>任务</span>
         <span>负责人</span>
@@ -56,6 +56,7 @@ const keyword = ref('')
 const projectId = ref<number | undefined>()
 const projects = ref<ProjectListItem[]>([])
 const allTasks = ref<GanttTaskItem[]>([])
+const loading = ref(false)
 const page = ref(1)
 const size = ref(10)
 const pagedTasks = computed(() => {
@@ -69,8 +70,13 @@ onMounted(async () => {
 })
 
 async function loadData() {
-  page.value = 1
-  allTasks.value = await taskGanttApi({ projectId: projectId.value, keyword: keyword.value })
+  loading.value = true
+  try {
+    page.value = 1
+    allTasks.value = await taskGanttApi({ projectId: projectId.value, keyword: keyword.value })
+  } finally {
+    loading.value = false
+  }
 }
 
 function statusLabel(status: string) {

@@ -9,7 +9,7 @@
         <el-input v-model="keyword" class="table-search" placeholder="搜索角色编码或名称" clearable :prefix-icon="Search" @keyup.enter="loadData" />
         <el-button :icon="Search" @click="loadData">查询</el-button>
       </div>
-      <el-table :data="pageData.records" row-key="id">
+      <el-table v-loading="loading" :data="pageData.records" row-key="id">
         <el-table-column prop="roleCode" label="角色编码" min-width="160" />
         <el-table-column prop="roleName" label="角色名称" min-width="140" />
         <el-table-column prop="scopeType" label="作用域" width="110" />
@@ -154,10 +154,17 @@ const form = reactive({
   remark: ''
 })
 
+const loading = ref(false)
+
 onMounted(loadData)
 
 async function loadData() {
-  pageData.value = await rolePageApi({ page: page.value, size: size.value, keyword: keyword.value })
+  loading.value = true
+  try {
+    pageData.value = await rolePageApi({ page: page.value, size: size.value, keyword: keyword.value })
+  } finally {
+    loading.value = false
+  }
 }
 
 function openCreate() {

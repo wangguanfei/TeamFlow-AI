@@ -76,9 +76,9 @@
         </el-table-column>
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="previewFile(row)">预览</el-button>
-            <el-button link type="primary" @click="downloadFile(row)">下载</el-button>
-            <PermissionButton permission="file:share" link type="primary" @click="shareFile(row)">分享</PermissionButton>
+            <el-button link type="primary" :loading="previewingId === row.id" @click="previewFile(row)">预览</el-button>
+            <el-button link type="primary" :loading="downloadingId === row.id" @click="downloadFile(row)">下载</el-button>
+            <PermissionButton permission="file:share" link type="primary" :loading="sharingId === row.id" @click="shareFile(row)">分享</PermissionButton>
             <PermissionButton permission="file:update" link type="primary" @click="openEdit(row)">归档</PermissionButton>
             <PermissionButton permission="file:delete" link type="danger" @click="removeFile(row)">删除</PermissionButton>
           </template>
@@ -241,6 +241,9 @@ const editVisible = ref(false)
 const previewVisible = ref(false)
 const shareVisible = ref(false)
 const previewTarget = ref<FileItem | null>(null)
+const previewingId = ref<number | null>(null)
+const downloadingId = ref<number | null>(null)
+const sharingId = ref<number | null>(null)
 const previewUrl = ref('')
 const previewText = ref('')
 const previewMode = ref<'image' | 'text' | 'pdf' | 'none'>('none')
@@ -362,38 +365,60 @@ async function saveArchive() {
 }
 
 async function previewFile(row: FileItem) {
-  releasePreviewUrl()
-  previewTarget.value = row
-  const response = await previewFileBlobApi(row.id)
-  const blob = response.data
-  previewUrl.value = URL.createObjectURL(blob)
-  if (row.contentType?.startsWith('image/')) {
-    previewMode.value = 'image'
-  } else if (row.contentType === 'application/pdf') {
-    previewMode.value = 'pdf'
-  } else if (row.contentType?.startsWith('text/') || ['md', 'json', 'xml', 'sql', 'txt'].includes(row.fileExt || '')) {
-    previewMode.value = 'text'
-    previewText.value = await blob.text()
-  } else {
-    previewMode.value = 'none'
+  if (previewingId.value) return
+  previewingId.value = row.id
+  try {
+    releasePreviewUrl()
+    previewTarget.value = row
+    const response = await previewFileBlobApi(row.id)
+    const blob = response.data
+    previewUrl.value = URL.createObjectURL(blob)
+    if (row.contentType?.startsWith('image/')) {
+      previewMode.value = 'image'
+    } else if (row.contentType === 'application/pdf') {
+      previewMode.value = 'pdf'
+    } else if (row.contentType?.startsWith('text/') || ['md', 'json', 'xml', 'sql', 'txt'].includes(row.fileExt || '')) {
+      previewMode.value = 'text'
+      previewText.value = await blob.text()
+    } else {
+      previewMode.value = 'none'
+    }
+    previewVisible.value = true
+  } catch {
+    ElMessage.error('文件预览失败，请稍后重试')
+  } finally {
+    previewingId.value = null
   }
-  previewVisible.value = true
 }
 
 async function downloadFile(row: FileItem) {
-  const response = await downloadFileBlobApi(row.id)
-  const url = URL.createObjectURL(response.data)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = row.originalName
-  link.click()
-  URL.revokeObjectURL(url)
+  if (downloadingId.value) return
+  downloadingId.value = row.id
+  try {
+    const response = await downloadFileBlobApi(row.id)
+    const url = URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = row.originalName
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    ElMessage.error('文件下载失败，请稍后重试')
+  } finally {
+    downloadingId.value = null
+  }
 }
 
 async function shareFile(row: FileItem) {
-  shareResult.value = await createFileShareApi({ fileId: row.id, expireDays: 7 })
-  shareVisible.value = true
-  await loadData()
+  if (sharingId.value) return
+  sharingId.value = row.id
+  try {
+    shareResult.value = await createFileShareApi({ fileId: row.id, expireDays: 7 })
+    shareVisible.value = true
+    await loadData()
+  } finally {
+    sharingId.value = null
+  }
 }
 
 async function removeFile(row: FileItem) {

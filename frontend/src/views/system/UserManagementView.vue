@@ -9,7 +9,7 @@
         <el-input v-model="keyword" class="table-search" placeholder="搜索账号、昵称或邮箱" clearable :prefix-icon="Search" @keyup.enter="loadData" />
         <el-button :icon="Search" @click="loadData">查询</el-button>
       </div>
-      <el-table :data="pageData.records" row-key="id">
+      <el-table v-loading="loading" :data="pageData.records" row-key="id">
         <el-table-column prop="username" label="账号" min-width="140" />
         <el-table-column prop="nickname" label="昵称" min-width="140" />
         <el-table-column prop="email" label="邮箱" min-width="200" />
@@ -154,10 +154,17 @@ const passwordForm = ref({
   password: ''
 })
 
+const loading = ref(false)
+
 onMounted(loadData)
 
 async function loadData() {
-  pageData.value = await userPageApi({ page: page.value, size: size.value, keyword: keyword.value })
+  loading.value = true
+  try {
+    pageData.value = await userPageApi({ page: page.value, size: size.value, keyword: keyword.value })
+  } finally {
+    loading.value = false
+  }
 }
 
 async function openCreate() {
