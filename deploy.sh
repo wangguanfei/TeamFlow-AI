@@ -147,13 +147,16 @@ fi
 # ── 5. 拉取代码 ───────────────────────────────────────────
 if [[ "$SKIP_PULL" == false ]]; then
   log "拉取最新代码（branch: $BRANCH）..."
-  if [[ -d "$DEPLOY_DIR/.git" ]]; then
-    git fetch origin "$BRANCH" >> "$BUILD_LOG" 2>&1 || warn "git fetch 失败，继续用本地代码"
-    git reset --hard "origin/$BRANCH" >> "$BUILD_LOG" 2>&1 || warn "git reset 失败，继续用本地代码"
-    ok "当前版本: $(git log -1 --format='%h %s' 2>/dev/null)"
-  else
-    warn "当前目录不是 git 仓库，跳过 git pull"
+  if [[ ! -d "$DEPLOY_DIR/.git" ]]; then
+    err "当前目录不是 git 仓库，无法拉取代码"
   fi
+  # 用 HTTPS 拉取，避免服务器 SSH 22 端口被代理拦截
+  HTTPS_URL="https://github.com/wangguanfei/TeamFlow-AI.git"
+  GIT_TERMINAL_PROMPT=0 timeout 60 git fetch "$HTTPS_URL" "$BRANCH:refs/remotes/origin/$BRANCH" >> "$BUILD_LOG" 2>&1 \
+    || err "git fetch 失败（超时或网络错误），部署中止。如需跳过拉取请用 --skip-pull"
+  git reset --hard "origin/$BRANCH" >> "$BUILD_LOG" 2>&1 \
+    || err "git reset 失败，部署中止"
+  ok "当前版本: $(git log -1 --format='%h %s' 2>/dev/null)"
 else
   ok "跳过 git pull（--skip-pull）"
 fi
