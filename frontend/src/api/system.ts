@@ -155,3 +155,38 @@ export function userRoleIdsApi(id: number) {
 export function assignUserRolesApi(id: number, roleIds: number[]) {
   return http.put<unknown, null>(`/users/${id}/roles`, { roleIds })
 }
+
+export interface LoginLogItem {
+  id: number
+  userId?: number
+  username?: string
+  loginIp?: string
+  loginLocation?: string
+  browser?: string
+  os?: string
+  userAgent?: string
+  status: number
+  message?: string
+  createdAt: string
+}
+
+export interface LoginLogQueryParams {
+  page?: number
+  size?: number
+  username?: string
+  status?: number | ''
+  startTime?: string
+  endTime?: string
+}
+
+export function loginLogPageApi(params: LoginLogQueryParams) {
+  return http.get<unknown, PageResult<LoginLogItem>>('/login-logs/page', { params })
+}
+
+export function batchDeleteLoginLogApi(ids: number[]) {
+  return http.post<unknown, null>('/login-logs/batch-delete', { ids })
+}
+
+export function cleanLoginLogApi(beforeDays: number) {
+  return http.post<unknown, number>('/login-logs/clean', { beforeDays })
+}

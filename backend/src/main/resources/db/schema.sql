@@ -431,13 +431,18 @@ CREATE TABLE IF NOT EXISTS `login_log` (
   `user_id` BIGINT DEFAULT NULL COMMENT '用户ID',
   `username` VARCHAR(64) DEFAULT NULL COMMENT '账号',
   `login_ip` VARCHAR(64) DEFAULT NULL COMMENT 'IP',
+  `login_location` VARCHAR(128) DEFAULT NULL COMMENT '登录地点',
+  `browser` VARCHAR(64) DEFAULT NULL COMMENT '浏览器',
+  `os` VARCHAR(64) DEFAULT NULL COMMENT '操作系统',
   `user_agent` VARCHAR(500) DEFAULT NULL COMMENT 'UA',
   `status` TINYINT NOT NULL DEFAULT 1 COMMENT '是否成功',
   `message` VARCHAR(255) DEFAULT NULL COMMENT '消息',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
-  KEY `idx_username` (`username`)
+  KEY `idx_username` (`username`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='login_log';
 
 CREATE TABLE IF NOT EXISTS `operation_log` (

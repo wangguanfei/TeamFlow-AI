@@ -14,6 +14,9 @@ public class LoginLog {
     private Long userId;
     private String username;
     private String loginIp;
+    private String loginLocation;
+    private String browser;
+    private String os;
     private String userAgent;
     private Integer status;
     private String message;
@@ -49,6 +52,30 @@ public class LoginLog {
 
     public void setLoginIp(String loginIp) {
         this.loginIp = loginIp;
+    }
+
+    public String getLoginLocation() {
+        return loginLocation;
+    }
+
+    public void setLoginLocation(String loginLocation) {
+        this.loginLocation = loginLocation;
+    }
+
+    public String getBrowser() {
+        return browser;
+    }
+
+    public void setBrowser(String browser) {
+        this.browser = browser;
+    }
+
+    public String getOs() {
+        return os;
+    }
+
+    public void setOs(String os) {
+        this.os = os;
     }
 
     public String getUserAgent() {

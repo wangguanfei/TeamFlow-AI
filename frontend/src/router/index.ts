@@ -21,7 +21,8 @@ const componentMap: Record<string, RouteRecordRaw['component']> = {
   UserManagementView: () => import('@/views/system/UserManagementView.vue'),
   RoleManagementView: () => import('@/views/system/RoleManagementView.vue'),
   PermissionManagementView: () => import('@/views/system/PermissionManagementView.vue'),
-  MenuManagementView: () => import('@/views/system/MenuManagementView.vue')
+  MenuManagementView: () => import('@/views/system/MenuManagementView.vue'),
+  LoginLogView: () => import('@/views/system/LoginLogView.vue')
 }
 
 const router = createRouter({
@@ -95,7 +96,8 @@ router.beforeEach(async (to) => {
   if (to.name === 'NotFound' && to.path.startsWith('/system')) {
     return '/dashboard'
   }
-  if (typeof to.meta.permissionCode === 'string' && !userStore.hasPermission(to.meta.permissionCode)) {
+  const isSuperAdmin = userStore.roles?.includes('SUPER_ADMIN')
+  if (!isSuperAdmin && typeof to.meta.permissionCode === 'string' && !userStore.hasPermission(to.meta.permissionCode)) {
     return '/dashboard'
   }
   return true

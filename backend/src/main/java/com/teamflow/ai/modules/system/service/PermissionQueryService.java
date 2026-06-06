@@ -52,6 +52,14 @@ public class PermissionQueryService {
     }
 
     public List<String> listPermissionCodes(Long userId) {
+        // SUPER_ADMIN 不走缓存：系统新增权限后无需重新登录即可生效
+        if (listRoleCodes(userId).contains(SUPER_ADMIN)) {
+            return permissionMapper.selectList(new LambdaQueryWrapper<SysPermission>()
+                            .eq(SysPermission::getDeleted, 0))
+                    .stream()
+                    .map(SysPermission::getPermissionCode)
+                    .toList();
+        }
         return permissionCacheService.getPermissionCodes(userId, () -> loadPermissionCodes(userId));
     }
 
@@ -68,13 +76,6 @@ public class PermissionQueryService {
     }
 
     private List<String> loadPermissionCodes(Long userId) {
-        if (listRoleCodes(userId).contains(SUPER_ADMIN)) {
-            return permissionMapper.selectList(new LambdaQueryWrapper<SysPermission>()
-                            .eq(SysPermission::getDeleted, 0))
-                    .stream()
-                    .map(SysPermission::getPermissionCode)
-                    .toList();
-        }
         List<Long> roleIds = listRoleIds(userId);
         if (roleIds.isEmpty()) {
             return List.of();

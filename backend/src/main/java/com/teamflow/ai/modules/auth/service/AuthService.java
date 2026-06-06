@@ -9,6 +9,8 @@ import com.teamflow.ai.common.security.JwtTokenType;
 import com.teamflow.ai.common.security.TokenBlacklistService;
 import com.teamflow.ai.common.security.UserPrincipal;
 import com.teamflow.ai.common.web.ClientIpResolver;
+import com.teamflow.ai.common.web.IpLocationResolver;
+import com.teamflow.ai.common.web.UserAgentParser;
 import com.teamflow.ai.modules.auth.dto.AuthTokenResponse;
 import com.teamflow.ai.modules.auth.dto.CurrentUserResponse;
 import com.teamflow.ai.modules.auth.dto.LoginRequest;
@@ -48,6 +50,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final LoginRateLimitService loginRateLimitService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final IpLocationResolver ipLocationResolver;
 
     public AuthService(
             SysUserMapper userMapper,
@@ -56,7 +59,8 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             LoginRateLimitService loginRateLimitService,
-            TokenBlacklistService tokenBlacklistService
+            TokenBlacklistService tokenBlacklistService,
+            IpLocationResolver ipLocationResolver
     ) {
         this.userMapper = userMapper;
         this.loginLogMapper = loginLogMapper;
@@ -65,6 +69,7 @@ public class AuthService {
         this.jwtService = jwtService;
         this.loginRateLimitService = loginRateLimitService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.ipLocationResolver = ipLocationResolver;
     }
 
     @Transactional
@@ -247,14 +252,27 @@ public class AuthService {
     }
 
     private void writeLoginLog(Long userId, String username, HttpServletRequest request, int status, String message) {
-        LoginLog log = new LoginLog();
-        log.setUserId(userId);
-        log.setUsername(username);
-        log.setLoginIp(ClientIpResolver.resolve(request));
-        log.setUserAgent(request.getHeader("User-Agent"));
-        log.setStatus(status);
-        log.setMessage(message);
-        log.setCreatedAt(LocalDateTime.now());
-        loginLogMapper.insert(log);
+        try {
+            String ip = ClientIpResolver.resolve(request);
+            String ua = request.getHeader("User-Agent");
+            LoginLog loginLog = new LoginLog();
+            loginLog.setUserId(userId);
+            loginLog.setUsername(username);
+            loginLog.setLoginIp(ip);
+            loginLog.setUserAgent(ua);
+            loginLog.setStatus(status);
+            loginLog.setMessage(message);
+            loginLog.setCreatedAt(LocalDateTime.now());
+            try {
+                loginLog.setLoginLocation(ipLocationResolver.resolve(ip));
+                loginLog.setBrowser(UserAgentParser.parseBrowser(ua));
+                loginLog.setOs(UserAgentParser.parseOs(ua));
+            } catch (Exception e) {
+                log.warn("登录日志富化失败: {}", e.getMessage());
+            }
+            loginLogMapper.insert(loginLog);
+        } catch (Exception e) {
+            log.error("写入登录日志失败: {}", e.getMessage());
+        }
     }
 }

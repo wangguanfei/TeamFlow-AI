@@ -119,6 +119,8 @@ public class DemoDataInitializer implements CommandLineRunner {
         Long menuCreatePermissionId = ensurePermission("system:menu:create", "菜单创建", "API", "/api/menus");
         Long menuUpdatePermissionId = ensurePermission("system:menu:update", "菜单更新", "API", "/api/menus/**");
         Long menuDeletePermissionId = ensurePermission("system:menu:delete", "菜单删除", "API", "/api/menus/**");
+        Long loginLogViewPermissionId = ensurePermission("system:loginlog:view", "登录日志查看", "API", "/api/login-logs/**");
+        Long loginLogDeletePermissionId = ensurePermission("system:loginlog:delete", "登录日志删除", "API", "/api/login-logs/**");
         Long adminId = ensureAdminUser();
         Long devId = ensureDemoUser();
         Long demoViewerId = ensureDemoViewerUser();
@@ -180,7 +182,9 @@ public class DemoDataInitializer implements CommandLineRunner {
                 menuViewPermissionId,
                 menuCreatePermissionId,
                 menuUpdatePermissionId,
-                menuDeletePermissionId
+                menuDeletePermissionId,
+                loginLogViewPermissionId,
+                loginLogDeletePermissionId
         )) {
             ensureRolePermission(adminRoleId, permissionId);
         }
@@ -217,7 +221,8 @@ public class DemoDataInitializer implements CommandLineRunner {
                 userViewPermissionId,
                 roleViewPermissionId,
                 permissionViewPermissionId,
-                menuViewPermissionId
+                menuViewPermissionId,
+                loginLogViewPermissionId
         ));
         ensureUserRole(adminId, adminRoleId);
         ensureUserRole(devId, developerRoleId);
@@ -238,6 +243,7 @@ public class DemoDataInitializer implements CommandLineRunner {
         ensureMenu(systemMenuId, "角色管理", "/system/role", "RoleManagementView", "UserFilled", "system:role:view", "MENU", 20);
         ensureMenu(systemMenuId, "权限管理", "/system/permission", "PermissionManagementView", "Key", "system:permission:view", "MENU", 30);
         ensureMenu(systemMenuId, "菜单管理", "/system/menu", "MenuManagementView", "Menu", "system:menu:view", "MENU", 40);
+        ensureMenu(systemMenuId, "登录日志", "/system/login-log", "LoginLogView", "Document", "system:loginlog:view", "MENU", 50);
         ensureDashboardDemoData(adminId);
         ensureNotificationDemoData(adminId, devId, demoViewerId);
         markBootstrapCompleted("fresh-install");
