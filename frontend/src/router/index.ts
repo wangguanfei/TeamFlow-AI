@@ -23,7 +23,8 @@ const componentMap: Record<string, RouteRecordRaw['component']> = {
   PermissionManagementView: () => import('@/views/system/PermissionManagementView.vue'),
   MenuManagementView: () => import('@/views/system/MenuManagementView.vue'),
   LoginLogView: () => import('@/views/system/LoginLogView.vue'),
-  OperationLogView: () => import('@/views/system/OperationLogView.vue')
+  OperationLogView: () => import('@/views/system/OperationLogView.vue'),
+  DeployManagementView: () => import('@/views/system/DeployManagementView.vue')
 }
 
 const router = createRouter({

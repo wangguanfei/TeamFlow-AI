@@ -23,6 +23,12 @@ export AI_PROVIDER="${AI_PROVIDER:-deepseek}"
 export AI_BASE_URL="${AI_BASE_URL:-https://api.deepseek.com/v1}"
 export AI_MODEL="${AI_MODEL:-deepseek-chat}"
 
+# 部署功能配置（可选，默认关闭）
+# 启用方式：export DEPLOY_ENABLED=true && export DEPLOY_SCRIPT_PATH=$(realpath ../deploy.sh)
+export DEPLOY_ENABLED="${DEPLOY_ENABLED:-false}"
+export DEPLOY_SCRIPT_PATH="${DEPLOY_SCRIPT_PATH:-}"
+export DEPLOY_LOG_DIR="${DEPLOY_LOG_DIR:-../logs/deploy}"
+
 # 可选：先打包
 if [[ "${1:-}" == "--build" ]]; then
   echo "==> mvn package -DskipTests"

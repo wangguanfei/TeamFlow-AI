@@ -63,6 +63,11 @@ teamflow:
     base-url: ${AI_BASE_URL:https://api.deepseek.com/v1}
     api-key: ${AI_API_KEY:}
     model: ${AI_MODEL:deepseek-chat}
+  deploy:
+    enabled: ${DEPLOY_ENABLED:false}
+    script-path: ${DEPLOY_SCRIPT_PATH:}
+    log-dir: ${DEPLOY_LOG_DIR:logs/deploy}
+    timeout-minutes: ${DEPLOY_TIMEOUT_MINUTES:30}
 
 logging:
   level:
