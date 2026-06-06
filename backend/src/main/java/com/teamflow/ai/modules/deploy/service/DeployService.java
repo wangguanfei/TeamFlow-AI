@@ -13,9 +13,10 @@ import com.teamflow.ai.modules.deploy.dto.DeployRecordItem;
 import com.teamflow.ai.modules.deploy.dto.DeployTriggerRequest;
 import com.teamflow.ai.modules.deploy.entity.DeployRecord;
 import com.teamflow.ai.modules.deploy.mapper.DeployRecordMapper;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -75,7 +76,8 @@ public class DeployService {
     }
 
     // 启动时恢复被中断的部署（容器重启场景）
-    @PostConstruct
+    // ApplicationReadyEvent 在所有 CommandLineRunner（含建表的 DeploySchemaUpgrade）执行完后触发
+    @EventListener(ApplicationReadyEvent.class)
     void recoverRunningDeploys() {
         List<DeployRecord> running = recordMapper.selectList(
                 new LambdaQueryWrapper<DeployRecord>().eq(DeployRecord::getStatus, "RUNNING"));
