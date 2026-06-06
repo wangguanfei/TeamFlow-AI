@@ -80,6 +80,9 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com/v1}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-deepseek-chat}
+    # 日志落盘到宿主机，容器重建/重启也不丢；对应 logback 默认 LOG_DIR=./logs(容器内 /app/logs)
+    volumes:
+      - ./logs/backend:/app/logs
     # 仅 compose 内网暴露 8080，前端通过 nginx 反代访问；如需公网直连调试再改回 ports 映射
     expose:
       - "8080"
