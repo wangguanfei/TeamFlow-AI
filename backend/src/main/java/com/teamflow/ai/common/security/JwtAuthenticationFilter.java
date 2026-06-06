@@ -7,6 +7,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,6 +22,8 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
@@ -60,6 +64,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
             SysUser user = userMapper.selectById(claims.userId());
             if (user == null || user.getDeleted() == 1 || user.getStatus() != 1) {
+                log.debug("Token 校验通过但账号不可用，跳过鉴权 userId={}", claims.userId());
                 return;
             }
             List<GrantedAuthority> authorities = new ArrayList<>();
@@ -71,7 +76,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(authentication);
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException ex) {
+            // Token 过期 / 签名不合法等：清理上下文按匿名处理，常见情况降为 debug 避免刷屏
+            log.debug("Token 解析失败，按匿名请求处理：{}", ex.getMessage());
             SecurityContextHolder.clearContext();
         }
     }

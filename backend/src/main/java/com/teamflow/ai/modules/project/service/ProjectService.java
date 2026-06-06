@@ -23,6 +23,8 @@ import com.teamflow.ai.modules.team.entity.Team;
 import com.teamflow.ai.modules.team.mapper.TeamMapper;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,8 +37,16 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 项目服务：负责项目本体及其成员、标签的增删改查与统计聚合。
+ *
+ * <p>对外部状态有改动的关键操作（创建项目、删除项目、增减成员）会记录 INFO 审计日志，
+ * 配合 traceId 可还原「谁在什么时间动了哪个项目」。
+ */
 @Service
 public class ProjectService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProjectService.class);
 
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper projectMemberMapper;
@@ -101,6 +111,8 @@ public class ProjectService {
                 saveTag(project.getId(), tag.tagName(), tag.tagColor());
             }
         }
+        log.info("创建项目 projectId={} code={} name={} ownerId={} 创建人={}",
+                project.getId(), project.getProjectCode(), project.getProjectName(), ownerId, currentUserId);
         return getProject(project.getId());
     }
 
@@ -121,6 +133,8 @@ public class ProjectService {
         project.setUpdatedAt(LocalDateTime.now());
         projectMapper.updateById(project);
         saveMember(project.getId(), ownerId, "PM");
+        log.info("更新项目 projectId={} code={} name={} ownerId={}",
+                project.getId(), project.getProjectCode(), project.getProjectName(), ownerId);
         return getProject(project.getId());
     }
 
@@ -130,6 +144,7 @@ public class ProjectService {
         projectMapper.deleteById(id);
         projectMemberMapper.delete(new LambdaQueryWrapper<ProjectMember>().eq(ProjectMember::getProjectId, id));
         projectTagMapper.delete(new LambdaQueryWrapper<ProjectTag>().eq(ProjectTag::getProjectId, id));
+        log.info("删除项目（含成员与标签）projectId={}", id);
     }
 
     public ProjectStats stats() {
@@ -174,6 +189,8 @@ public class ProjectService {
     public ProjectMemberItem createMember(ProjectMemberRequest request) {
         getProjectEntity(request.projectId());
         ProjectMember member = saveMember(request.projectId(), request.userId(), request.projectRole());
+        log.info("添加项目成员 projectId={} userId={} projectRole={}",
+                request.projectId(), request.userId(), member.getProjectRole());
         return toMemberItems(List.of(member)).get(0);
     }
 
@@ -186,6 +203,8 @@ public class ProjectService {
         member.setUserId(request.userId());
         member.setProjectRole(normalizeProjectRole(request.projectRole()));
         projectMemberMapper.updateById(member);
+        log.info("更新项目成员 memberId={} projectId={} userId={} projectRole={}",
+                id, request.projectId(), request.userId(), member.getProjectRole());
         return toMemberItems(List.of(member)).get(0);
     }
 
@@ -193,6 +212,7 @@ public class ProjectService {
     public void deleteMember(Long id) {
         getProjectMemberEntity(id);
         projectMemberMapper.deleteById(id);
+        log.info("移除项目成员 memberId={}", id);
     }
 
     public PageResult<ProjectTagItem> pageTags(long page, long size, Long projectId, String keyword) {
@@ -221,7 +241,9 @@ public class ProjectService {
     @Transactional
     public ProjectTagItem createTag(ProjectTagRequest request) {
         getProjectEntity(request.projectId());
-        return toTagItem(saveTag(request.projectId(), request.tagName(), request.tagColor()));
+        ProjectTag tag = saveTag(request.projectId(), request.tagName(), request.tagColor());
+        log.info("创建项目标签 tagId={} projectId={} tagName={}", tag.getId(), request.projectId(), request.tagName());
+        return toTagItem(tag);
     }
 
     @Transactional
@@ -232,6 +254,7 @@ public class ProjectService {
         tag.setTagName(request.tagName());
         tag.setTagColor(defaultTagColor(request.tagColor()));
         projectTagMapper.updateById(tag);
+        log.info("更新项目标签 tagId={} projectId={} tagName={}", id, request.projectId(), request.tagName());
         return toTagItem(tag);
     }
 
@@ -239,6 +262,7 @@ public class ProjectService {
     public void deleteTag(Long id) {
         getProjectTagEntity(id);
         projectTagMapper.deleteById(id);
+        log.info("删除项目标签 tagId={}", id);
     }
 
     private void fillProject(Project project, ProjectRequest request, Long ownerId) {

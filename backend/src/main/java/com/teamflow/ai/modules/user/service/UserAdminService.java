@@ -16,6 +16,8 @@ import com.teamflow.ai.modules.user.dto.UserUpdateRequest;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
 import com.teamflow.ai.common.cache.PermissionCacheService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserAdminService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserAdminService.class);
 
     private final SysUserMapper userMapper;
     private final SysUserRoleMapper userRoleMapper;
@@ -117,6 +121,8 @@ public class UserAdminService {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
+        log.info("管理员创建用户 userId={} username={} status={} roleIds={}",
+                user.getId(), user.getUsername(), user.getStatus(), request.roleIds());
 
         assignUserRoles(user.getId(), request.roleIds());
         Map<Long, List<String>> roleCodes = loadRoleCodes(List.of(user.getId()));
@@ -141,6 +147,7 @@ public class UserAdminService {
         user.setStatus(request.status() == null ? 1 : request.status());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+        log.info("管理员更新用户 userId={} username={} status={}", user.getId(), user.getUsername(), user.getStatus());
         return toPageItem(user);
     }
 
@@ -150,6 +157,8 @@ public class UserAdminService {
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+        // 安全敏感操作：仅记录被重置的用户身份，绝不记录任何密码明文/密文
+        log.warn("管理员重置用户密码 userId={} username={}", user.getId(), user.getUsername());
     }
 
     public List<Long> listUserRoleIds(Long userId) {
@@ -177,6 +186,8 @@ public class UserAdminService {
             }
         }
         permissionCacheService.evictUser(userId);
+        int count = roleIds == null ? 0 : (int) roleIds.stream().distinct().count();
+        log.info("分配用户角色 userId={} 角色数={} roleIds={} 该用户权限缓存已清空", userId, count, roleIds);
     }
 
     private void ensureUserExists(Long userId) {

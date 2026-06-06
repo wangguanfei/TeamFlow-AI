@@ -31,6 +31,8 @@ import com.teamflow.ai.modules.knowledge.entity.KnowledgeSpace;
 import com.teamflow.ai.modules.knowledge.mapper.KnowledgeSpaceMapper;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -51,6 +53,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class AiService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiService.class);
 
     private static final AtomicLong DEMO_TRANSIENT_ID = new AtomicLong(-1);
 
@@ -120,6 +124,7 @@ public class AiService {
         session.setUpdatedAt(LocalDateTime.now());
         session.setDeleted(0);
         sessionMapper.insert(session);
+        log.info("创建 AI 会话 sessionId={} userId={} type={}", session.getId(), userId, session.getSessionType());
         return toSessionItems(List.of(session)).get(0);
     }
 
@@ -157,6 +162,7 @@ public class AiService {
         getSessionEntity(id);
         sessionMapper.deleteById(id);
         messageMapper.delete(new LambdaQueryWrapper<AiMessage>().eq(AiMessage::getSessionId, id));
+        log.info("删除 AI 会话（含消息）sessionId={}", id);
     }
 
     @Transactional
@@ -164,7 +170,9 @@ public class AiService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        ids.stream().filter(Objects::nonNull).distinct().forEach(this::deleteSession);
+        List<Long> validIds = ids.stream().filter(Objects::nonNull).distinct().toList();
+        log.info("批量删除 AI 会话 sessionIds={}", validIds);
+        validIds.forEach(this::deleteSession);
     }
 
     @Transactional
@@ -214,6 +222,7 @@ public class AiService {
     @Transactional
     public void deleteMessage(Long id) {
         messageMapper.deleteById(id);
+        log.info("删除 AI 消息 messageId={}", id);
     }
 
     @Transactional
@@ -221,7 +230,9 @@ public class AiService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        ids.stream().filter(Objects::nonNull).distinct().forEach(this::deleteMessage);
+        List<Long> validIds = ids.stream().filter(Objects::nonNull).distinct().toList();
+        log.info("批量删除 AI 消息 messageIds={}", validIds);
+        validIds.forEach(this::deleteMessage);
     }
 
     @Transactional
@@ -245,7 +256,12 @@ public class AiService {
                 ? searchReferences(request.message(), request.spaceId())
                 : List.of();
         List<AiProvider.AiPromptMessage> prompts = buildPrompts(session, mode, references);
+        log.info("AI 对话开始 userId={} sessionId={} mode={} 引用条数={} model={}",
+                userId, session.getId(), mode, references.size(), request.model());
+        long startMillis = System.currentTimeMillis();
         AiProvider.AiAnswer answer = aiProvider.chat(prompts, mode, references, request.model());
+        log.info("AI 对话完成 userId={} sessionId={} model={} mock={} 耗时={}ms",
+                userId, session.getId(), answer.modelName(), answer.mock(), System.currentTimeMillis() - startMillis);
         AiMessage assistantMessage = saveChatMessage(session.getId(), "ASSISTANT", answer.content(), references);
 
         session.setModelName(answer.modelName());
@@ -295,6 +311,9 @@ public class AiService {
         final String capturedMode = mode;
         final String capturedModel = request.model();
 
+        log.info("AI 流式对话开始 userId={} sessionId={} mode={} 引用条数={} model={}",
+                userId, session.getId(), mode, references.size(), request.model());
+        final long streamStartMillis = System.currentTimeMillis();
         SSE_EXECUTOR.execute(() -> {
             try {
                 AiProvider.AiAnswer answer = aiProvider.chatStream(prompts, capturedMode, capturedReferences, capturedModel, token -> {
@@ -324,7 +343,12 @@ public class AiService {
                 donePayload.put("mock", answer.mock());
                 emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(donePayload)));
                 emitter.complete();
+                log.info("AI 流式对话完成 userId={} sessionId={} model={} mock={} 耗时={}ms",
+                        userId, capturedSession.getId(), answer.modelName(), answer.mock(),
+                        System.currentTimeMillis() - streamStartMillis);
             } catch (Exception error) {
+                log.error("AI 流式对话失败 userId={} sessionId={} 耗时={}ms",
+                        userId, capturedSession.getId(), System.currentTimeMillis() - streamStartMillis, error);
                 try {
                     String msg = error.getMessage() == null ? "AI 服务异常" : error.getMessage();
                     emitter.send(SseEmitter.event()
@@ -497,6 +521,7 @@ public class AiService {
     @Transactional
     public void deleteEmbedding(Long id) {
         embeddingMapper.deleteById(id);
+        log.info("删除向量切片 embeddingId={}", id);
     }
 
     @Transactional
@@ -504,7 +529,9 @@ public class AiService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        ids.stream().filter(Objects::nonNull).distinct().forEach(this::deleteEmbedding);
+        List<Long> validIds = ids.stream().filter(Objects::nonNull).distinct().toList();
+        log.info("批量删除向量切片 embeddingIds={}", validIds);
+        validIds.forEach(this::deleteEmbedding);
     }
 
     private void fillSession(AiSession session, AiSessionRequest request, Long userId) {

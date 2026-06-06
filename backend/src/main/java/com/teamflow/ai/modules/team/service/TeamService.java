@@ -11,6 +11,8 @@ import com.teamflow.ai.modules.team.entity.Team;
 import com.teamflow.ai.modules.team.mapper.TeamMapper;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class TeamService {
+
+    private static final Logger log = LoggerFactory.getLogger(TeamService.class);
 
     private final TeamMapper teamMapper;
     private final SysUserMapper userMapper;
@@ -66,6 +70,8 @@ public class TeamService {
         team.setUpdatedAt(LocalDateTime.now());
         team.setDeleted(0);
         teamMapper.insert(team);
+        log.info("创建团队 teamId={} teamCode={} teamName={} ownerId={} 创建人={}",
+                team.getId(), team.getTeamCode(), team.getTeamName(), ownerId, currentUserId);
         return toItem(team, loadUserNames(List.of(ownerId)).get(ownerId));
     }
 

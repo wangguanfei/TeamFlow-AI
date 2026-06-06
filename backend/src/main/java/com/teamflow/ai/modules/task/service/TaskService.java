@@ -40,6 +40,8 @@ import com.teamflow.ai.modules.task.mapper.TaskTagMapper;
 import com.teamflow.ai.modules.task.mapper.TaskWorklogMapper;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,8 +56,16 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 任务服务：覆盖任务的看板/列表/甘特视图、状态流转，以及评论、工时、附件、标签等子实体。
+ *
+ * <p>创建/删除任务、状态流转等会改变协作状态的操作记录 INFO 审计日志，
+ * 任务指派还会触发站内通知（见 {@link NotificationService}）。
+ */
 @Service
 public class TaskService {
+
+    private static final Logger log = LoggerFactory.getLogger(TaskService.class);
 
     private static final List<String> KANBAN_STATUSES = List.of("TODO", "DOING", "TESTING", "DONE");
 
@@ -161,6 +171,8 @@ public class TaskService {
         saveExecutors(task.getId(), executorIds);
         notifyTaskOwnerChanged(task, assigneeId, currentUserId, "你成为任务负责人");
         notifyTaskExecutorsAdded(task, executorIds, currentUserId);
+        log.info("创建任务 taskId={} projectId={} assigneeId={} 创建人={}",
+                task.getId(), request.projectId(), assigneeId, currentUserId);
         return getTask(task.getId());
     }
 
@@ -199,16 +211,19 @@ public class TaskService {
                     .toList();
             notifyTaskExecutorsAdded(task, addedExecutorIds, currentUserId);
         }
+        log.info("更新任务 taskId={} assignee {} -> {} 操作人={}", id, oldAssigneeId, assigneeId, currentUserId);
         return getTask(task.getId());
     }
 
     @Transactional
     public TaskListItem updateStatus(Long id, TaskStatusRequest request) {
         Task task = getTaskEntity(id);
+        String oldStatus = task.getStatus();
         task.setStatus(request.status());
         task.setSortNo(request.sortNo() == null ? task.getSortNo() : request.sortNo());
         task.setUpdatedAt(LocalDateTime.now());
         taskMapper.updateById(task);
+        log.info("任务状态流转 taskId={} {} -> {}", id, oldStatus, request.status());
         return buildTaskItems(List.of(task)).get(0);
     }
 
@@ -221,6 +236,7 @@ public class TaskService {
         tagMapper.delete(new LambdaQueryWrapper<TaskTag>().eq(TaskTag::getTaskId, id));
         attachmentMapper.delete(new LambdaQueryWrapper<TaskAttachment>().eq(TaskAttachment::getTaskId, id));
         executorMapper.delete(new LambdaQueryWrapper<TaskExecutor>().eq(TaskExecutor::getTaskId, id));
+        log.info("删除任务（含评论/工时/标签/附件/执行人）taskId={}", id);
     }
 
     @Transactional
@@ -235,6 +251,7 @@ public class TaskService {
         comment.setDeleted(0);
         commentMapper.insert(comment);
         notifyTaskCommented(task, currentUserId);
+        log.info("发表任务评论 commentId={} taskId={} 评论人={}", comment.getId(), request.taskId(), currentUserId);
         return toCommentItems(List.of(comment)).get(0);
     }
 
@@ -251,6 +268,7 @@ public class TaskService {
     @Transactional
     public void deleteComment(Long id) {
         commentMapper.deleteById(id);
+        log.info("删除任务评论 commentId={}", id);
     }
 
     @Transactional
@@ -267,6 +285,8 @@ public class TaskService {
         worklog.setDeleted(0);
         worklogMapper.insert(worklog);
         refreshActualHours(task.getId());
+        log.info("登记任务工时 worklogId={} taskId={} 工时={}h 登记人={}",
+                worklog.getId(), request.taskId(), request.hours(), currentUserId);
         return toWorklogItems(List.of(worklog)).get(0);
     }
 
@@ -289,6 +309,7 @@ public class TaskService {
         Long taskId = worklog.getTaskId();
         worklogMapper.deleteById(id);
         refreshActualHours(taskId);
+        log.info("删除任务工时 worklogId={} taskId={}", id, taskId);
     }
 
     @Transactional
@@ -301,6 +322,8 @@ public class TaskService {
         attachment.setCreatedBy(currentUserId);
         attachment.setCreatedAt(LocalDateTime.now());
         attachmentMapper.insert(attachment);
+        log.info("添加任务附件 attachmentId={} taskId={} fileId={} 操作人={}",
+                attachment.getId(), request.taskId(), request.fileId(), currentUserId);
         return toAttachmentItems(List.of(attachment)).get(0);
     }
 
@@ -315,12 +338,15 @@ public class TaskService {
     @Transactional
     public void deleteAttachment(Long id) {
         attachmentMapper.deleteById(id);
+        log.info("删除任务附件 attachmentId={}", id);
     }
 
     @Transactional
     public TaskTagItem createTag(TaskTagRequest request) {
         getTaskEntity(request.taskId());
-        return toTagItem(saveTag(request.taskId(), request.tagName(), request.tagColor()));
+        TaskTag tag = saveTag(request.taskId(), request.tagName(), request.tagColor());
+        log.info("创建任务标签 tagId={} taskId={} tagName={}", tag.getId(), request.taskId(), request.tagName());
+        return toTagItem(tag);
     }
 
     public PageResult<TaskTagItem> pageTags(long page, long size, Long taskId, String keyword) {
@@ -335,6 +361,7 @@ public class TaskService {
     @Transactional
     public void deleteTag(Long id) {
         tagMapper.deleteById(id);
+        log.info("删除任务标签 tagId={}", id);
     }
 
     private LambdaQueryWrapper<Task> baseTaskWrapper(Long projectId, String status, String keyword) {
@@ -711,8 +738,9 @@ public class TaskService {
     private void createNotification(Long targetUserId, Long senderId, String title, String content, String notifyType) {
         try {
             notificationService.create(new NotificationRequest(title, content, notifyType, "USER", targetUserId), senderId);
-        } catch (Exception ignored) {
-            // 通知属于辅助链路，不能影响任务创建、编辑或评论主流程。
+        } catch (Exception ex) {
+            // 通知属于辅助链路，不能影响任务创建、编辑或评论主流程，失败仅记录。
+            log.debug("发送任务通知失败（忽略）targetUserId={} type={} 原因={}", targetUserId, notifyType, ex.getMessage());
         }
     }
 

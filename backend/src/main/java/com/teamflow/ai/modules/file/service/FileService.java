@@ -89,6 +89,8 @@ public class FileService {
             bucket = LOCAL_BUCKET;
             uploadToLocal(multipartFile, objectKey);
         }
+        log.info("文件上传成功 originalName={} size={} objectKey={} bucket={} uploaderId={}",
+                originalName, multipartFile.getSize(), objectKey, bucket, uploaderId);
 
         FileInfo fileInfo = new FileInfo();
         fileInfo.setBizType(defaultBizType(bizType));
@@ -161,6 +163,8 @@ public class FileService {
             fileInfo.setFileExt(extractExt(fileInfo.getOriginalName()));
         }
         fileInfoMapper.updateById(fileInfo);
+        log.info("更新文件元数据 fileId={} originalName={} bizType={} bizId={}",
+                fileInfo.getId(), fileInfo.getOriginalName(), fileInfo.getBizType(), fileInfo.getBizId());
         return getFile(fileInfo.getId());
     }
 
@@ -170,6 +174,8 @@ public class FileService {
         fileInfoMapper.deleteById(id);
         fileShareMapper.delete(new LambdaQueryWrapper<FileShare>().eq(FileShare::getFileId, id));
         deleteObjectQuietly(fileInfo);
+        log.info("删除文件（含分享记录）fileId={} originalName={} objectKey={}",
+                id, fileInfo.getOriginalName(), fileInfo.getObjectKey());
     }
 
     @Transactional
@@ -177,7 +183,9 @@ public class FileService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        ids.stream().distinct().forEach(this::deleteFile);
+        List<Long> validIds = ids.stream().distinct().toList();
+        log.info("批量删除文件 fileIds={}", validIds);
+        validIds.forEach(this::deleteFile);
     }
 
     public FileContent loadContent(Long id) {
@@ -232,6 +240,8 @@ public class FileService {
         share.setCreatedAt(LocalDateTime.now());
         share.setDeleted(0);
         fileShareMapper.insert(share);
+        log.info("创建文件分享 fileId={} shareCode={} expireDays={} createdBy={}",
+                fileInfo.getId(), share.getShareCode(), expireDays, currentUserId);
         return toShareItems(List.of(share)).get(0);
     }
 
@@ -289,12 +299,15 @@ public class FileService {
         share.setExpireTime(LocalDateTime.now().plusDays(expireDays));
         share.setCreatedBy(currentUserId);
         fileShareMapper.updateById(share);
+        log.info("更新文件分享 shareId={} fileId={} expireDays={} 操作人={}",
+                share.getId(), request.fileId(), expireDays, currentUserId);
         return getShare(share.getId());
     }
 
     @Transactional
     public void deleteShare(Long id) {
         fileShareMapper.deleteById(id);
+        log.info("取消文件分享 shareId={}", id);
     }
 
     @Transactional
@@ -303,6 +316,7 @@ public class FileService {
             return;
         }
         fileShareMapper.deleteBatchIds(ids);
+        log.info("批量取消文件分享 shareIds={}", ids);
     }
 
     private String tryUploadToMinio(MultipartFile multipartFile, String objectKey, String contentType) {
@@ -315,7 +329,9 @@ public class FileService {
                     .contentType(contentType)
                     .build());
             return storageProperties.getBucket();
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            // MinIO 不可用时回退本地磁盘存储，记录原因便于排查（例如端点不通、凭据错误、bucket 权限）
+            log.warn("MinIO 上传失败，回退本地存储 objectKey={} 原因={}", objectKey, ex.getMessage());
             return null;
         }
     }
@@ -367,8 +383,10 @@ public class FileService {
                     .bucket(fileInfo.getBucketName())
                     .object(fileInfo.getObjectKey())
                     .build());
-        } catch (Exception ignored) {
-            // Metadata delete is authoritative for the product UI; storage cleanup is best effort.
+        } catch (Exception ex) {
+            // 元数据删除对产品 UI 是权威的，存储清理为尽力而为，失败仅记录不影响主流程
+            log.debug("删除存储对象失败（忽略）bucket={} objectKey={} 原因={}",
+                    fileInfo.getBucketName(), fileInfo.getObjectKey(), ex.getMessage());
         }
     }
 

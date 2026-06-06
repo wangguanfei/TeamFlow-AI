@@ -13,6 +13,8 @@ import com.teamflow.ai.modules.notification.mapper.NotificationMapper;
 import com.teamflow.ai.modules.notification.mapper.NotificationReadMapper;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class NotificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private static final String TARGET_USER = "USER";
     private static final String TARGET_ALL = "ALL";
@@ -62,6 +66,9 @@ public class NotificationService {
         notificationMapper.insert(notification);
         NotificationItem item = toItems(List.of(notification), notification.getTargetId()).get(0);
         webSocketHandler.push(item);
+        log.info("发送通知 notificationId={} type={} targetType={} targetId={} senderId={} 已 WebSocket 推送",
+                notification.getId(), notification.getNotifyType(), notification.getTargetType(),
+                notification.getTargetId(), senderId);
         return item;
     }
 
@@ -125,6 +132,7 @@ public class NotificationService {
     public void delete(Long id) {
         notificationMapper.deleteById(id);
         readMapper.delete(new LambdaQueryWrapper<NotificationRead>().eq(NotificationRead::getNotificationId, id));
+        log.info("删除通知（含已读记录）notificationId={}", id);
     }
 
     @Transactional
@@ -132,7 +140,9 @@ public class NotificationService {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        ids.stream().filter(id -> id != null && id > 0).distinct().forEach(this::delete);
+        List<Long> validIds = ids.stream().filter(id -> id != null && id > 0).distinct().toList();
+        log.info("批量删除通知 notificationIds={}", validIds);
+        validIds.forEach(this::delete);
     }
 
     private void ensureRead(Long notificationId, Long currentUserId) {

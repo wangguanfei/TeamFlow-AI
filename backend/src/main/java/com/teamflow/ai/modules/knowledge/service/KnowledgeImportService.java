@@ -9,6 +9,8 @@ import com.teamflow.ai.modules.knowledge.dto.KnowledgeDocRequest;
 import com.teamflow.ai.modules.knowledge.dto.KnowledgeImportResult;
 import com.teamflow.ai.modules.knowledge.dto.KnowledgePublishRequest;
 import org.apache.tika.Tika;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,6 +21,8 @@ import java.util.Locale;
 
 @Service
 public class KnowledgeImportService {
+
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeImportService.class);
 
     private final FileService fileService;
     private final KnowledgeService knowledgeService;
@@ -47,6 +51,8 @@ public class KnowledgeImportService {
         }
         String originalName = sanitizeFileName(file.getOriginalFilename());
         String docTitle = title == null || title.isBlank() ? stripExtension(originalName) : title.trim();
+        log.info("开始导入知识文档 fileName={} spaceId={} autoPublish={} 操作人={}",
+                originalName, spaceId, autoPublish, currentUserId);
         ExtractedDocument extracted = extractDocument(file, originalName, docTitle);
         FileItem uploadedFile = fileService.upload(file, "KNOWLEDGE", 0L, currentUserId);
 
@@ -65,6 +71,8 @@ public class KnowledgeImportService {
             doc = knowledgeService.publish(doc.id(), new KnowledgePublishRequest("从文件「" + originalName + "」导入并自动发布"), currentUserId);
             indexed = true;
         }
+        log.info("知识文档导入完成 docId={} fileId={} 解析方式={} autoPublish={} 已建索引={}",
+                doc.id(), linkedFile.id(), extracted.mode(), autoPublish, indexed);
         return new KnowledgeImportResult(doc, linkedFile, autoPublish, indexed, extracted.mode());
     }
 
@@ -86,6 +94,8 @@ public class KnowledgeImportService {
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
+            // 解析异常对用户统一返回友好提示，原始原因记 warn 便于排查（如不支持的格式、损坏文件）
+            log.warn("文档解析失败 fileName={} ext={} 原因={}", originalName, ext, exception.getMessage());
             throw new BusinessException("文档解析失败，请上传 md、txt、pdf 或 docx 文件");
         }
     }

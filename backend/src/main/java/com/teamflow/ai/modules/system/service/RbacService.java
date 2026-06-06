@@ -19,6 +19,8 @@ import com.teamflow.ai.modules.system.mapper.SysRolePermissionMapper;
 import com.teamflow.ai.common.cache.PermissionCacheService;
 import com.teamflow.ai.common.cache.JsonCacheService;
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,8 @@ import java.util.List;
 
 @Service
 public class RbacService {
+
+    private static final Logger log = LoggerFactory.getLogger(RbacService.class);
 
     /** 菜单树缓存键：全量菜单是低频变更的全局数据，缓存避免每次进入系统管理页都全表扫描。 */
     private static final String MENU_TREE_KEY = "system:menu:tree";
@@ -83,6 +87,8 @@ public class RbacService {
         role.setUpdatedAt(LocalDateTime.now());
         role.setDeleted(0);
         roleMapper.insert(role);
+        log.info("创建角色 roleId={} roleCode={} roleName={} scopeType={}",
+                role.getId(), role.getRoleCode(), role.getRoleName(), role.getScopeType());
         return role;
     }
 
@@ -106,6 +112,7 @@ public class RbacService {
         role.setUpdatedAt(LocalDateTime.now());
         roleMapper.updateById(role);
         permissionCacheService.evictAll();
+        log.info("更新角色 roleId={} roleCode={} 权限缓存已清空", role.getId(), role.getRoleCode());
         return role;
     }
 
@@ -114,6 +121,7 @@ public class RbacService {
         roleMapper.deleteById(id);
         rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>().eq(SysRolePermission::getRoleId, id));
         permissionCacheService.evictAll();
+        log.info("删除角色（含角色-权限关联）roleId={} 权限缓存已清空", id);
     }
 
     @Transactional
@@ -124,6 +132,7 @@ public class RbacService {
         roleMapper.deleteBatchIds(ids);
         rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>().in(SysRolePermission::getRoleId, ids));
         permissionCacheService.evictAll();
+        log.info("批量删除角色（含角色-权限关联）roleIds={} 权限缓存已清空", ids);
     }
 
     public List<Long> listRolePermissionIds(Long roleId) {
@@ -149,6 +158,8 @@ public class RbacService {
             }
         }
         permissionCacheService.evictAll();
+        int count = permissionIds == null ? 0 : (int) permissionIds.stream().distinct().count();
+        log.info("分配角色权限 roleId={} 权限数={} permissionIds={} 权限缓存已清空", roleId, count, permissionIds);
     }
 
     public PageResult<SysPermission> pagePermissions(long page, long size, String keyword) {
@@ -179,6 +190,8 @@ public class RbacService {
         permission.setDeleted(0);
         permissionMapper.insert(permission);
         permissionCacheService.evictAll();
+        log.info("创建权限 permissionId={} permissionCode={} resourcePath={}",
+                permission.getId(), permission.getPermissionCode(), permission.getResourcePath());
         return permission;
     }
 
@@ -203,6 +216,7 @@ public class RbacService {
         permission.setUpdatedAt(LocalDateTime.now());
         permissionMapper.updateById(permission);
         permissionCacheService.evictAll();
+        log.info("更新权限 permissionId={} permissionCode={} 权限缓存已清空", permission.getId(), permission.getPermissionCode());
         return permission;
     }
 
@@ -211,6 +225,7 @@ public class RbacService {
         permissionMapper.deleteById(id);
         rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>().eq(SysRolePermission::getPermissionId, id));
         permissionCacheService.evictAll();
+        log.info("删除权限（含角色-权限关联）permissionId={} 权限缓存已清空", id);
     }
 
     @Transactional
@@ -221,6 +236,7 @@ public class RbacService {
         permissionMapper.deleteBatchIds(ids);
         rolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>().in(SysRolePermission::getPermissionId, ids));
         permissionCacheService.evictAll();
+        log.info("批量删除权限（含角色-权限关联）permissionIds={} 权限缓存已清空", ids);
     }
 
     public PageResult<SysMenu> pageMenus(long page, long size, String keyword) {
@@ -258,6 +274,8 @@ public class RbacService {
         menu.setDeleted(0);
         menuMapper.insert(menu);
         jsonCacheService.evict(MENU_TREE_KEY);
+        log.info("创建菜单 menuId={} menuName={} parentId={} path={}",
+                menu.getId(), menu.getMenuName(), menu.getParentId(), menu.getPath());
         return menu;
     }
 
@@ -276,6 +294,7 @@ public class RbacService {
         menu.setUpdatedAt(LocalDateTime.now());
         menuMapper.updateById(menu);
         jsonCacheService.evict(MENU_TREE_KEY);
+        log.info("更新菜单 menuId={} menuName={} 菜单树缓存已清空", menu.getId(), menu.getMenuName());
         return menu;
     }
 
@@ -283,6 +302,7 @@ public class RbacService {
     public void deleteMenu(Long id) {
         menuMapper.deleteById(id);
         jsonCacheService.evict(MENU_TREE_KEY);
+        log.info("删除菜单 menuId={} 菜单树缓存已清空", id);
     }
 
     @Transactional
@@ -292,6 +312,7 @@ public class RbacService {
         }
         menuMapper.deleteBatchIds(ids);
         jsonCacheService.evict(MENU_TREE_KEY);
+        log.info("批量删除菜单 menuIds={} 菜单树缓存已清空", ids);
     }
 
     private void fillRole(SysRole role, RoleRequest request) {

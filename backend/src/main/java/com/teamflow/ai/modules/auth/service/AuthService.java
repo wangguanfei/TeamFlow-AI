@@ -22,6 +22,8 @@ import com.teamflow.ai.modules.system.service.PermissionQueryService;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final SysUserMapper userMapper;
     private final LoginLogMapper loginLogMapper;
@@ -77,6 +81,7 @@ public class AuthService {
                 loginRateLimitService.recordFailure(username, clientIp);
                 writeLoginLog(null, username, servletRequest, 0, "账号或密码错误");
             }
+            log.warn("登录失败：账号不存在 username={} ip={}", username, clientIp);
             throw new BusinessException("账号或密码错误");
         }
         if (user.getStatus() == null || user.getStatus() != 1) {
@@ -84,6 +89,7 @@ public class AuthService {
                 loginRateLimitService.recordFailure(username, clientIp);
                 writeLoginLog(user.getId(), user.getUsername(), servletRequest, 0, "账号已被禁用");
             }
+            log.warn("登录失败：账号已禁用 username={} userId={} ip={}", username, user.getId(), clientIp);
             throw new BusinessException("账号已被禁用");
         }
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
@@ -91,6 +97,7 @@ public class AuthService {
                 loginRateLimitService.recordFailure(username, clientIp);
                 writeLoginLog(user.getId(), user.getUsername(), servletRequest, 0, "账号或密码错误");
             }
+            log.warn("登录失败：密码错误 username={} userId={} ip={}", username, user.getId(), clientIp);
             throw new BusinessException("账号或密码错误");
         }
         if (!isReadOnlyDemoUser(user)) {
@@ -100,6 +107,7 @@ public class AuthService {
         user.setLastLoginIp(clientIp);
         userMapper.updateById(user);
         writeLoginLog(user.getId(), user.getUsername(), servletRequest, 1, "登录成功");
+        log.info("登录成功 username={} userId={} ip={}", username, user.getId(), clientIp);
         return buildTokenResponse(user);
     }
 
@@ -107,6 +115,7 @@ public class AuthService {
     public AuthTokenResponse register(RegisterRequest request) {
         SysUser existing = findByUsername(request.username());
         if (existing != null) {
+            log.warn("注册失败：账号已存在 username={}", request.username());
             throw new BusinessException("账号已存在");
         }
         SysUser user = new SysUser();
@@ -120,18 +129,22 @@ public class AuthService {
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
+        log.info("注册成功 username={} userId={}", user.getUsername(), user.getId());
         return buildTokenResponse(user);
     }
 
     public AuthTokenResponse refresh(RefreshTokenRequest request) {
         JwtClaims claims = jwtService.parse(request.refreshToken());
         if (claims.tokenType() != JwtTokenType.REFRESH) {
+            log.warn("刷新 Token 失败：tokenType 非 REFRESH userId={}", claims.userId());
             throw new BusinessException(401, "refreshToken无效");
         }
         SysUser user = userMapper.selectById(claims.userId());
         if (user == null || user.getDeleted() == 1 || user.getStatus() != 1) {
+            log.warn("刷新 Token 失败：账号不可用 userId={}", claims.userId());
             throw new BusinessException(401, "账号不可用");
         }
+        log.debug("刷新 Token 成功 userId={}", user.getId());
         return buildTokenResponse(user);
     }
 
@@ -146,8 +159,10 @@ public class AuthService {
         try {
             JwtClaims claims = jwtService.parse(accessToken);
             tokenBlacklistService.blacklist(accessToken, claims.expiresAt());
+            log.info("登出成功，access token 已加入黑名单 userId={}", claims.userId());
         } catch (RuntimeException ignored) {
             // token 无效或已过期，无需加入黑名单
+            log.debug("登出时 token 无效或已过期，忽略");
         }
     }
 

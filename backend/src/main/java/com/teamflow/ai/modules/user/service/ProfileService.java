@@ -24,6 +24,8 @@ import com.teamflow.ai.modules.user.dto.ProfileResponse;
 import com.teamflow.ai.modules.user.dto.ProfileUpdateRequest;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,8 @@ import java.util.Set;
 
 @Service
 public class ProfileService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProfileService.class);
 
     private static final long MAX_AVATAR_BYTES = 5L * 1024L * 1024L;
     private static final Set<String> ALLOWED_AVATAR_CONTENT_TYPES = Set.of(
@@ -95,6 +99,7 @@ public class ProfileService {
         user.setMobile(blankToNull(request.mobile()));
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+        log.info("更新个人资料 userId={} nickname={}", user.getId(), user.getNickname());
         return toResponse(user);
     }
 
@@ -114,6 +119,7 @@ public class ProfileService {
         user.setAvatarUrl("/api/profile/avatar-file/" + uploaded.id());
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+        log.info("更新头像 userId={} fileId={}", user.getId(), uploaded.id());
         return toResponse(user);
     }
 
@@ -140,6 +146,8 @@ public class ProfileService {
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+        // 安全敏感操作：仅记录修改人身份，绝不记录任何密码明文/密文
+        log.warn("用户修改本人密码 userId={} username={}", user.getId(), user.getUsername());
     }
 
     public ProfileOverviewResponse getOverview(Long userId) {

@@ -10,6 +10,8 @@ import com.teamflow.ai.modules.knowledge.entity.KnowledgeDoc;
 import com.teamflow.ai.modules.knowledge.entity.KnowledgeSpace;
 import com.teamflow.ai.modules.knowledge.mapper.KnowledgeDocMapper;
 import com.teamflow.ai.modules.knowledge.mapper.KnowledgeSpaceMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class AiKnowledgeIndexService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiKnowledgeIndexService.class);
 
     private static final int CHUNK_SIZE = 720;
     private static final int CHUNK_OVERLAP = 120;
@@ -85,6 +89,7 @@ public class AiKnowledgeIndexService {
             embedding.setUpdatedAt(now);
             embeddingMapper.insert(embedding);
         }
+        log.debug("重建文档向量索引 docId={} 版本号={} 分块数={}", doc.getId(), doc.getVersionNo(), chunks.size());
     }
 
     @Transactional
@@ -116,6 +121,7 @@ public class AiKnowledgeIndexService {
             return List.of();
         }
         ensureIndexes(docs);
+        log.debug("RAG 检索 spaceId={} topK={} 候选文档数={}", spaceId, topK, docs.size());
         Map<Long, KnowledgeDoc> docMap = docs.stream().collect(Collectors.toMap(KnowledgeDoc::getId, Function.identity()));
         Map<Long, KnowledgeSpace> spaceMap = loadSpaces(docs);
         List<AiEmbedding> embeddings = embeddingMapper.selectList(new LambdaQueryWrapper<AiEmbedding>()

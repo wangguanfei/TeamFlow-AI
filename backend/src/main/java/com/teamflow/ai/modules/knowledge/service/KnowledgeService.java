@@ -30,6 +30,8 @@ import com.teamflow.ai.modules.team.entity.Team;
 import com.teamflow.ai.modules.team.mapper.TeamMapper;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class KnowledgeService {
+
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeService.class);
 
     private final KnowledgeSpaceMapper spaceMapper;
     private final KnowledgeDocMapper docMapper;
@@ -92,6 +96,8 @@ public class KnowledgeService {
         space.setUpdatedAt(LocalDateTime.now());
         space.setDeleted(0);
         spaceMapper.insert(space);
+        log.info("创建知识空间 spaceId={} spaceName={} visibility={} ownerId={} 创建人={}",
+                space.getId(), space.getSpaceName(), space.getVisibility(), space.getOwnerId(), currentUserId);
         return toSpaceItems(List.of(space)).get(0);
     }
 
@@ -105,6 +111,7 @@ public class KnowledgeService {
         fillSpace(space, request, currentUserId);
         space.setUpdatedAt(LocalDateTime.now());
         spaceMapper.updateById(space);
+        log.info("更新知识空间 spaceId={} spaceName={}", space.getId(), space.getSpaceName());
         return getSpace(space.getId());
     }
 
@@ -123,6 +130,7 @@ public class KnowledgeService {
             favoriteMapper.delete(new LambdaQueryWrapper<KnowledgeFavorite>().eq(KnowledgeFavorite::getDocId, docId));
             knowledgeIndexService.deleteDocumentIndex(docId);
         }
+        log.info("删除知识空间（级联文档/标签/收藏/向量索引）spaceId={} 文档数={}", id, docIds.size());
     }
 
     public PageResult<KnowledgeDocItem> pageDocs(long page, long size, Long spaceId, String keyword, Long currentUserId) {
@@ -160,6 +168,8 @@ public class KnowledgeService {
         doc.setDeleted(0);
         docMapper.insert(doc);
         replaceTags(doc.getId(), request.tags());
+        log.info("创建知识文档 docId={} spaceId={} title={} 作者={}",
+                doc.getId(), doc.getSpaceId(), doc.getTitle(), currentUserId);
         return getDoc(doc.getId(), currentUserId);
     }
 
@@ -175,6 +185,7 @@ public class KnowledgeService {
         doc.setUpdatedAt(LocalDateTime.now());
         docMapper.updateById(doc);
         replaceTags(doc.getId(), request.tags());
+        log.info("更新知识文档 docId={} title={}", doc.getId(), doc.getTitle());
         return getDoc(doc.getId(), currentUserId);
     }
 
@@ -185,6 +196,7 @@ public class KnowledgeService {
         tagMapper.delete(new LambdaQueryWrapper<KnowledgeTag>().eq(KnowledgeTag::getDocId, id));
         favoriteMapper.delete(new LambdaQueryWrapper<KnowledgeFavorite>().eq(KnowledgeFavorite::getDocId, id));
         knowledgeIndexService.deleteDocumentIndex(id);
+        log.info("删除知识文档（含标签/收藏/向量索引）docId={}", id);
     }
 
     @Transactional
@@ -208,6 +220,7 @@ public class KnowledgeService {
         doc.setUpdatedAt(LocalDateTime.now());
         docMapper.updateById(doc);
         knowledgeIndexService.rebuildDocumentIndex(doc);
+        log.info("发布知识文档 docId={} 版本号={} 操作人={} 向量索引已重建", doc.getId(), nextVersion, currentUserId);
         return getDoc(doc.getId(), currentUserId);
     }
 
@@ -226,6 +239,8 @@ public class KnowledgeService {
         doc.setUpdatedAt(LocalDateTime.now());
         docMapper.updateById(doc);
         knowledgeIndexService.rebuildDocumentIndex(doc);
+        log.info("回滚知识文档 docId={} 回滚到版本号={} versionId={} 操作人={} 向量索引已重建",
+                doc.getId(), version.getVersionNo(), versionId, currentUserId);
         return getDoc(doc.getId(), currentUserId);
     }
 
