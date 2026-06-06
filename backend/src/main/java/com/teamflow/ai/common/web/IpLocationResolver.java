@@ -46,11 +46,15 @@ public class IpLocationResolver {
 
     private String formatRegion(String region) {
         if (region == null || region.isBlank()) return null;
-        // ip2region 格式: 国家|区域|省份|城市|ISP
+        // ip2region xdb v4 格式: 国家|省份|城市|ISP|国家代码
         String[] parts = region.split("\\|");
-        if (parts.length < 4) return region;
-        String province = "0".equals(parts[2]) ? "" : parts[2];
-        String city = "0".equals(parts[3]) ? "" : parts[3];
+        if (parts.length < 3) return region;
+        String province = "0".equals(parts[1]) ? "" : parts[1];
+        String city = "0".equals(parts[2]) ? "" : parts[2];
+        // 直辖市省份和城市重复时（如"天津"和"天津市"）只保留城市
+        if (!city.isEmpty() && (city.equals(province) || city.startsWith(province))) {
+            province = "";
+        }
         String result = (province + city).trim();
         return result.isEmpty() ? null : result;
     }
