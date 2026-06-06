@@ -27,6 +27,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,8 @@ public class DeployService {
     private static final long SSE_TIMEOUT_MS = 30L * 60 * 1000;
     private static final long AGENT_WAIT_MS = 30_000;
     private static final long TAIL_POLL_MS = 300;
+
+    private static final Pattern ANSI = Pattern.compile("\\[[0-9;]*[mGKHFABCDsuJn]|\r");
 
     private static final Pattern[] SENSITIVE = {
         Pattern.compile("(?i)(password|passwd|secret|api[_-]?key|token|credential)\\s*[=:]\\s*\\S+"),
@@ -163,16 +166,18 @@ public class DeployService {
 
             try (RandomAccessFile raf = new RandomAccessFile(logFile, "r")) {
                 while (System.currentTimeMillis() < deadline) {
-                    String line = raf.readLine();
-                    if (line == null) {
+                    // readLine() 按 ISO-8859-1 读字节；转回字节数组再用 UTF-8 解码，还原中文
+                    String raw = raf.readLine();
+                    if (raw == null) {
                         Thread.sleep(TAIL_POLL_MS);
                         continue;
                     }
+                    String line = new String(raw.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
                     if (line.startsWith("__EXIT__:")) {
                         exitCode = parseExit(line);
                         break;
                     }
-                    broadcast(deployId, "log", desensitize(line));
+                    broadcast(deployId, "log", desensitize(stripAnsi(line)));
                 }
             }
             if (System.currentTimeMillis() >= deadline) {
@@ -223,11 +228,12 @@ public class DeployService {
         try {
             File logFile = record.getLogFile() != null ? new File(record.getLogFile()) : null;
             if (logFile != null && logFile.exists()) {
-                try (BufferedReader reader = new BufferedReader(new FileReader(logFile))) {
+                try (BufferedReader reader = new BufferedReader(
+                        new java.io.InputStreamReader(new java.io.FileInputStream(logFile), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        if (line.startsWith("__EXIT__:")) continue; // 过滤内部标记行
-                        emitter.send(SseEmitter.event().data(toJson(Map.of("type", "log", "content", desensitize(line)))));
+                        if (line.startsWith("__EXIT__:")) continue;
+                        emitter.send(SseEmitter.event().data(toJson(Map.of("type", "log", "content", desensitize(stripAnsi(line))))));
                     }
                 }
             }
@@ -326,6 +332,10 @@ public class DeployService {
 
     private long toEpochMs(LocalDateTime dt) {
         return dt.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
+    private String stripAnsi(String line) {
+        return ANSI.matcher(line).replaceAll("");
     }
 
     private String desensitize(String line) {
