@@ -8,6 +8,8 @@ import com.teamflow.ai.modules.system.dto.LoginLogPageItem;
 import com.teamflow.ai.modules.system.entity.LoginLog;
 import com.teamflow.ai.modules.system.mapper.LoginLogMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,6 +21,12 @@ public class LoginLogService {
 
     public LoginLogService(LoginLogMapper loginLogMapper) {
         this.loginLogMapper = loginLogMapper;
+    }
+
+    /** 独立事务写入，外层事务回滚不影响日志落盘 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void insert(LoginLog loginLog) {
+        loginLogMapper.insert(loginLog);
     }
 
     public PageResult<LoginLogPageItem> page(long pageNo, long pageSize,

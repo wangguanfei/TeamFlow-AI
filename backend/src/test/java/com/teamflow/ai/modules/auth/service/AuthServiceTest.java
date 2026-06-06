@@ -9,6 +9,7 @@ import com.teamflow.ai.modules.auth.dto.LoginRequest;
 import com.teamflow.ai.modules.system.entity.LoginLog;
 import com.teamflow.ai.modules.system.entity.SysMenu;
 import com.teamflow.ai.modules.system.mapper.LoginLogMapper;
+import com.teamflow.ai.modules.system.service.LoginLogService;
 import com.teamflow.ai.modules.system.service.PermissionQueryService;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
@@ -40,7 +41,8 @@ class AuthServiceTest {
         RecordingLoginRateLimitService rateLimitService = new RecordingLoginRateLimitService();
         AuthService authService = new AuthService(
                 userMapperReturning(demoUser, updatedUser),
-                loginLogMapperRecording(insertedLoginLog),
+                null,
+                new StubLoginLogService(insertedLoginLog),
                 new StubPermissionQueryService(),
                 new DemoPasswordEncoder(),
                 jwtService(),
@@ -86,20 +88,6 @@ class AuthServiceTest {
                     case "selectOne" -> user;
                     case "updateById" -> {
                         updatedUser.set((SysUser) args[0]);
-                        yield 1;
-                    }
-                    default -> defaultValue(method.getReturnType());
-                }
-        );
-    }
-
-    private static LoginLogMapper loginLogMapperRecording(AtomicReference<LoginLog> insertedLoginLog) {
-        return (LoginLogMapper) Proxy.newProxyInstance(
-                LoginLogMapper.class.getClassLoader(),
-                new Class<?>[]{LoginLogMapper.class},
-                (proxy, method, args) -> switch (method.getName()) {
-                    case "insert" -> {
-                        insertedLoginLog.set((LoginLog) args[0]);
                         yield 1;
                     }
                     default -> defaultValue(method.getReturnType());
@@ -180,6 +168,20 @@ class AuthServiceTest {
         }
     }
 
+    private static class StubLoginLogService extends LoginLogService {
+        private final AtomicReference<LoginLog> captured;
+
+        StubLoginLogService(AtomicReference<LoginLog> captured) {
+            super(null);
+            this.captured = captured;
+        }
+
+        @Override
+        public void insert(LoginLog loginLog) {
+            captured.set(loginLog);
+        }
+    }
+
     private static class RecordingLoginRateLimitService extends LoginRateLimitService {
         private final AtomicInteger checkCount = new AtomicInteger();
         private final AtomicInteger failureCount = new AtomicInteger();
@@ -195,8 +197,9 @@ class AuthServiceTest {
         }
 
         @Override
-        public void recordFailure(String username, String ip) {
+        public int recordFailure(String username, String ip) {
             failureCount.incrementAndGet();
+            return 0;
         }
 
         @Override

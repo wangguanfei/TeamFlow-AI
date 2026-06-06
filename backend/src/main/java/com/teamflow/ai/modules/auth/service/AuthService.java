@@ -21,6 +21,7 @@ import com.teamflow.ai.modules.auth.dto.UserSummary;
 import com.teamflow.ai.modules.system.entity.LoginLog;
 import com.teamflow.ai.modules.system.entity.SysMenu;
 import com.teamflow.ai.modules.system.mapper.LoginLogMapper;
+import com.teamflow.ai.modules.system.service.LoginLogService;
 import com.teamflow.ai.modules.system.service.PermissionQueryService;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
@@ -45,6 +46,7 @@ public class AuthService {
 
     private final SysUserMapper userMapper;
     private final LoginLogMapper loginLogMapper;
+    private final LoginLogService loginLogService;
     private final PermissionQueryService permissionQueryService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -55,6 +57,7 @@ public class AuthService {
     public AuthService(
             SysUserMapper userMapper,
             LoginLogMapper loginLogMapper,
+            LoginLogService loginLogService,
             PermissionQueryService permissionQueryService,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
@@ -64,6 +67,7 @@ public class AuthService {
     ) {
         this.userMapper = userMapper;
         this.loginLogMapper = loginLogMapper;
+        this.loginLogService = loginLogService;
         this.permissionQueryService = permissionQueryService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -89,11 +93,12 @@ public class AuthService {
 
         SysUser user = findByUsername(username);
         if (user == null || user.getDeleted() == 1) {
-            if (!demoAccount) {
-                loginRateLimitService.recordFailure(username, clientIp);
-                writeLoginLog(null, username, servletRequest, 0, "账号或密码错误");
-            }
             log.warn("登录失败：账号不存在 username={} ip={}", username, clientIp);
+            if (!demoAccount) {
+                int failCount = loginRateLimitService.recordFailure(username, clientIp);
+                writeLoginLog(null, username, servletRequest, 0, "账号或密码错误");
+                throw new BusinessException(loginRateLimitService.buildLoginErrorMsg(failCount));
+            }
             throw new BusinessException("账号或密码错误");
         }
         if (user.getStatus() == null || user.getStatus() != 1) {
@@ -105,11 +110,12 @@ public class AuthService {
             throw new BusinessException("账号已被禁用");
         }
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            if (!isReadOnlyDemoUser(user)) {
-                loginRateLimitService.recordFailure(username, clientIp);
-                writeLoginLog(user.getId(), user.getUsername(), servletRequest, 0, "账号或密码错误");
-            }
             log.warn("登录失败：密码错误 username={} userId={} ip={}", username, user.getId(), clientIp);
+            if (!isReadOnlyDemoUser(user)) {
+                int failCount = loginRateLimitService.recordFailure(username, clientIp);
+                writeLoginLog(user.getId(), user.getUsername(), servletRequest, 0, "账号或密码错误");
+                throw new BusinessException(loginRateLimitService.buildLoginErrorMsg(failCount));
+            }
             throw new BusinessException("账号或密码错误");
         }
         if (!isReadOnlyDemoUser(user)) {
@@ -276,7 +282,7 @@ public class AuthService {
             } catch (Exception e) {
                 log.warn("登录日志富化失败: {}", e.getMessage());
             }
-            loginLogMapper.insert(loginLog);
+            loginLogService.insert(loginLog);
         } catch (Exception e) {
             log.error("写入登录日志失败: {}", e.getMessage());
         }
