@@ -129,6 +129,7 @@ const autoScroll = ref(true)
 const logEl = ref<HTMLPreElement | null>(null)
 
 let abortController: AbortController | null = null
+let userAborted = false
 
 const statusLabel = computed(() => {
   if (!logStatus.value) return '运行中'
@@ -177,32 +178,70 @@ function appendLog(line: string) {
 }
 
 async function startStream(deployId: number) {
-  abortController?.abort()
-  abortController = new AbortController()
+  userAborted = false
   logVisible.value = true
   logStatus.value = ''
 
-  try {
-    await deployLogStreamApi(
-      deployId,
-      (line) => appendLog(line),
-      (status, _exitCode, ms) => {
-        logStatus.value = status
-        costMs.value = ms
-        isRunning.value = false
-        loadHistory()
-      },
-      (msg) => {
-        ElMessage.error('日志流异常: ' + msg)
-        isRunning.value = false
-      },
-      abortController.signal
-    )
-  } catch (e: unknown) {
-    if (e instanceof Error && e.name !== 'AbortError') {
-      ElMessage.error('日志连接中断')
+  const MAX_RETRIES = 20   // 最多重试 20 次（后端启动最多约 100s）
+  const RETRY_DELAY = 5000 // 每次等 5s
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (userAborted) break
+
+    abortController?.abort()
+    abortController = new AbortController()
+    const signal = abortController.signal
+    let doneReceived = false
+
+    try {
+      await deployLogStreamApi(
+        deployId,
+        (line) => appendLog(line),
+        (status, _exitCode, ms) => {
+          doneReceived = true
+          logStatus.value = status
+          costMs.value = ms
+          isRunning.value = false
+          loadHistory()
+        },
+        (_msg) => {
+          // 502/503 等错误不弹 toast，走重连流程
+        },
+        signal
+      )
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === 'AbortError') return
     }
+
+    if (doneReceived || userAborted) break
+
+    // 连接断开但没收到 done，检查后端是否还在部署（容器重建场景）
+    try {
+      const current = await currentDeployApi()
+      if (current.running && current.deployId === deployId) {
+        const waitSec = Math.round(RETRY_DELAY / 1000)
+        appendLog(`\n[连接中断，${waitSec}s 后重连... (${attempt + 1}/${MAX_RETRIES})]`)
+        await new Promise<void>((resolve) => {
+          const t = setTimeout(resolve, RETRY_DELAY)
+          signal.addEventListener('abort', () => { clearTimeout(t); resolve() })
+        })
+        if (userAborted) break
+        appendLog('[重新连接...]')
+        continue
+      }
+    } catch {
+      // 后端还没起来，继续等
+      if (attempt < MAX_RETRIES) {
+        appendLog(`\n[后端重启中，${Math.round(RETRY_DELAY / 1000)}s 后重连... (${attempt + 1}/${MAX_RETRIES})]`)
+        await new Promise<void>((r) => setTimeout(r, RETRY_DELAY))
+        continue
+      }
+    }
+
+    // 后端确认已完成或超出重试次数
     isRunning.value = false
+    loadHistory()
+    break
   }
 }
 
@@ -237,6 +276,7 @@ async function viewLog(deployId: number) {
 }
 
 function closeLog() {
+  userAborted = true
   abortController?.abort()
   logVisible.value = false
 }
@@ -271,6 +311,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  userAborted = true
   abortController?.abort()
 })
 </script>
