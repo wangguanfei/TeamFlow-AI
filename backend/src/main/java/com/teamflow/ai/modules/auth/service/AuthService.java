@@ -78,7 +78,13 @@ public class AuthService {
         String clientIp = ClientIpResolver.resolve(servletRequest);
         boolean demoAccount = isReadOnlyDemoUsername(username);
         if (!demoAccount) {
-            loginRateLimitService.checkNotLocked(username, clientIp);
+            try {
+                loginRateLimitService.checkNotLocked(username, clientIp);
+            } catch (BusinessException e) {
+                writeLoginLog(null, username, servletRequest, 0, "登录失败次数过多，账号已锁定");
+                log.warn("登录失败：账号已锁定 username={} ip={}", username, clientIp);
+                throw e;
+            }
         }
 
         SysUser user = findByUsername(username);
