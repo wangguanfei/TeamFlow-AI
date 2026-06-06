@@ -49,7 +49,7 @@ public class AccessLogInterceptor implements HandlerInterceptor {
         String query = request.getQueryString();
         String fullPath = query == null ? path : path + "?" + query;
         String operator = currentOperator();
-        String clientIp = resolveClientIp(request);
+        String clientIp = ClientIpResolver.resolve(request);
 
         if (status >= 500 || cost >= SLOW_REQUEST_MILLIS) {
             log.warn("HTTP {} {} -> {} ({}ms) user={} ip={}{}",
@@ -74,14 +74,5 @@ public class AccessLogInterceptor implements HandlerInterceptor {
             return principal.getUsername() + "#" + principal.getUserId();
         }
         return "anonymous";
-    }
-
-    /** 解析真实客户端 IP，优先取反向代理透传的 X-Forwarded-For 首段。 */
-    private String resolveClientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 }

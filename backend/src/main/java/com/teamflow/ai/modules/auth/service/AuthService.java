@@ -8,6 +8,7 @@ import com.teamflow.ai.common.security.JwtService;
 import com.teamflow.ai.common.security.JwtTokenType;
 import com.teamflow.ai.common.security.TokenBlacklistService;
 import com.teamflow.ai.common.security.UserPrincipal;
+import com.teamflow.ai.common.web.ClientIpResolver;
 import com.teamflow.ai.modules.auth.dto.AuthTokenResponse;
 import com.teamflow.ai.modules.auth.dto.CurrentUserResponse;
 import com.teamflow.ai.modules.auth.dto.LoginRequest;
@@ -69,7 +70,7 @@ public class AuthService {
     @Transactional
     public AuthTokenResponse login(LoginRequest request, HttpServletRequest servletRequest) {
         String username = request.username();
-        String clientIp = resolveClientIp(servletRequest);
+        String clientIp = ClientIpResolver.resolve(servletRequest);
         boolean demoAccount = isReadOnlyDemoUsername(username);
         if (!demoAccount) {
             loginRateLimitService.checkNotLocked(username, clientIp);
@@ -249,19 +250,11 @@ public class AuthService {
         LoginLog log = new LoginLog();
         log.setUserId(userId);
         log.setUsername(username);
-        log.setLoginIp(resolveClientIp(request));
+        log.setLoginIp(ClientIpResolver.resolve(request));
         log.setUserAgent(request.getHeader("User-Agent"));
         log.setStatus(status);
         log.setMessage(message);
         log.setCreatedAt(LocalDateTime.now());
         loginLogMapper.insert(log);
-    }
-
-    private String resolveClientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 }
