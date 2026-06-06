@@ -6,6 +6,7 @@ import com.teamflow.ai.modules.system.dto.IdListRequest;
 import com.teamflow.ai.modules.system.dto.PermissionRequest;
 import com.teamflow.ai.modules.system.entity.SysPermission;
 import com.teamflow.ai.modules.system.service.RbacService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,6 +32,7 @@ public class PermissionController {
         this.rbacService = rbacService;
     }
 
+    @Log(module = "权限管理", type = "新增")
     @Operation(summary = "创建权限")
     @PostMapping
     @PreAuthorize("hasAuthority('system:permission:create')")
@@ -56,6 +58,7 @@ public class PermissionController {
         return ApiResult.success(rbacService.getPermission(id));
     }
 
+    @Log(module = "权限管理", type = "修改")
     @Operation(summary = "更新权限")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:permission:update')")
@@ -63,6 +66,7 @@ public class PermissionController {
         return ApiResult.success(rbacService.updatePermission(id, request));
     }
 
+    @Log(module = "权限管理", type = "删除")
     @Operation(summary = "删除权限")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:permission:delete')")
@@ -71,6 +75,7 @@ public class PermissionController {
         return ApiResult.success();
     }
 
+    @Log(module = "权限管理", type = "批量删除")
     @Operation(summary = "批量删除权限")
     @PostMapping("/batch-delete")
     @PreAuthorize("hasAuthority('system:permission:delete')")

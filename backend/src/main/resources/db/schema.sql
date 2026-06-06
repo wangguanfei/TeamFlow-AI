@@ -448,15 +448,20 @@ CREATE TABLE IF NOT EXISTS `login_log` (
 CREATE TABLE IF NOT EXISTS `operation_log` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'PK',
   `user_id` BIGINT DEFAULT NULL COMMENT '用户ID',
+  `username` VARCHAR(64) DEFAULT NULL COMMENT '操作人账号',
   `module_name` VARCHAR(64) DEFAULT NULL COMMENT '模块',
   `operation_type` VARCHAR(64) DEFAULT NULL COMMENT '操作类型',
   `request_method` VARCHAR(16) DEFAULT NULL COMMENT 'HTTP方法',
   `request_uri` VARCHAR(255) DEFAULT NULL COMMENT 'URI',
-  `request_params` TEXT DEFAULT NULL COMMENT '参数',
+  `request_params` TEXT DEFAULT NULL COMMENT '参数（敏感字段已脱敏）',
   `response_status` INT DEFAULT NULL COMMENT '响应码',
-  `cost_ms` BIGINT DEFAULT NULL COMMENT '耗时',
+  `error_message` VARCHAR(500) DEFAULT NULL COMMENT '异常信息',
+  `cost_ms` BIGINT DEFAULT NULL COMMENT '耗时（毫秒）',
   `client_ip` VARCHAR(64) DEFAULT NULL COMMENT 'IP',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '时间',
   PRIMARY KEY (`id`),
-  KEY `idx_user_id` (`user_id`)
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_username` (`username`),
+  KEY `idx_module` (`module_name`),
+  KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='operation_log';

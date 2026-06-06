@@ -190,3 +190,37 @@ export function batchDeleteLoginLogApi(ids: number[]) {
 export function cleanLoginLogApi(beforeDays: number) {
   return http.post<unknown, number>('/login-logs/clean', { beforeDays })
 }
+
+export interface OperationLogItem {
+  id: number
+  userId?: number
+  username?: string
+  moduleName?: string
+  operationType?: string
+  requestMethod?: string
+  requestUri?: string
+  requestParams?: string
+  responseStatus?: number
+  errorMessage?: string
+  costMs?: number
+  clientIp?: string
+  createdAt: string
+}
+
+export interface OperationLogQueryParams {
+  page?: number
+  size?: number
+  username?: string
+  moduleName?: string
+  operationType?: string
+  startTime?: string
+  endTime?: string
+}
+
+export function operationLogPageApi(params: OperationLogQueryParams) {
+  return http.get<unknown, PageResult<OperationLogItem>>('/operation-logs/page', { params })
+}
+
+export function batchDeleteOperationLogApi(ids: number[]) {
+  return http.post<unknown, null>('/operation-logs/batch-delete', { ids })
+}

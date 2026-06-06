@@ -8,6 +8,7 @@ import com.teamflow.ai.modules.project.dto.ProjectListItem;
 import com.teamflow.ai.modules.project.dto.ProjectRequest;
 import com.teamflow.ai.modules.project.dto.ProjectStats;
 import com.teamflow.ai.modules.project.service.ProjectService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -34,6 +35,7 @@ public class ProjectController {
         this.projectService = projectService;
     }
 
+    @Log(module = "项目管理", type = "新增")
     @Operation(summary = "创建项目")
     @PostMapping
     @PreAuthorize("hasAuthority('project:create')")
@@ -67,6 +69,7 @@ public class ProjectController {
         return ApiResult.success(projectService.getProject(id));
     }
 
+    @Log(module = "项目管理", type = "修改")
     @Operation(summary = "更新项目")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('project:update')")
@@ -74,6 +77,7 @@ public class ProjectController {
         return ApiResult.success(projectService.updateProject(id, request));
     }
 
+    @Log(module = "项目管理", type = "删除")
     @Operation(summary = "删除项目")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('project:delete')")

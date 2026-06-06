@@ -8,6 +8,7 @@ import com.teamflow.ai.modules.user.dto.UserPageItem;
 import com.teamflow.ai.modules.user.dto.UserRoleRequest;
 import com.teamflow.ai.modules.user.dto.UserUpdateRequest;
 import com.teamflow.ai.modules.user.service.UserAdminService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -34,6 +35,7 @@ public class UserAdminController {
         this.userAdminService = userAdminService;
     }
 
+    @Log(module = "用户管理", type = "新增")
     @Operation(summary = "创建用户")
     @PostMapping
     @PreAuthorize("hasAuthority('system:user:create')")
@@ -59,6 +61,7 @@ public class UserAdminController {
         return ApiResult.success(userAdminService.listAssignableUsers());
     }
 
+    @Log(module = "用户管理", type = "修改")
     @Operation(summary = "更新用户资料")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:user:update')")
@@ -66,6 +69,7 @@ public class UserAdminController {
         return ApiResult.success(userAdminService.updateUser(id, request));
     }
 
+    @Log(module = "用户管理", type = "重置密码")
     @Operation(summary = "重置用户密码")
     @PutMapping("/{id}/password")
     @PreAuthorize("hasAuthority('system:user:update')")
@@ -81,6 +85,7 @@ public class UserAdminController {
         return ApiResult.success(userAdminService.listUserRoleIds(id));
     }
 
+    @Log(module = "用户管理", type = "分配角色")
     @Operation(summary = "分配用户角色")
     @PutMapping("/{id}/roles")
     @PreAuthorize("hasAuthority('system:user:update')")

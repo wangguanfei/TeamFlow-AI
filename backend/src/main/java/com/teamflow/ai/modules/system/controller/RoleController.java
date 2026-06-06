@@ -6,6 +6,7 @@ import com.teamflow.ai.modules.system.dto.IdListRequest;
 import com.teamflow.ai.modules.system.dto.RoleRequest;
 import com.teamflow.ai.modules.system.entity.SysRole;
 import com.teamflow.ai.modules.system.service.RbacService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,6 +34,7 @@ public class RoleController {
         this.rbacService = rbacService;
     }
 
+    @Log(module = "角色管理", type = "新增")
     @Operation(summary = "创建角色")
     @PostMapping
     @PreAuthorize("hasAuthority('system:role:create')")
@@ -58,6 +60,7 @@ public class RoleController {
         return ApiResult.success(rbacService.getRole(id));
     }
 
+    @Log(module = "角色管理", type = "修改")
     @Operation(summary = "更新角色")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:role:update')")
@@ -65,6 +68,7 @@ public class RoleController {
         return ApiResult.success(rbacService.updateRole(id, request));
     }
 
+    @Log(module = "角色管理", type = "删除")
     @Operation(summary = "删除角色")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:role:delete')")
@@ -73,6 +77,7 @@ public class RoleController {
         return ApiResult.success();
     }
 
+    @Log(module = "角色管理", type = "批量删除")
     @Operation(summary = "批量删除角色")
     @PostMapping("/batch-delete")
     @PreAuthorize("hasAuthority('system:role:delete')")
@@ -88,6 +93,7 @@ public class RoleController {
         return ApiResult.success(rbacService.listRolePermissionIds(id));
     }
 
+    @Log(module = "角色管理", type = "分配权限")
     @Operation(summary = "分配角色权限")
     @PutMapping("/{id}/permissions")
     @PreAuthorize("hasAuthority('system:role:update')")

@@ -8,6 +8,7 @@ import com.teamflow.ai.modules.file.dto.FileItem;
 import com.teamflow.ai.modules.file.dto.FileUpdateRequest;
 import com.teamflow.ai.modules.file.dto.IdListRequest;
 import com.teamflow.ai.modules.file.service.FileService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -47,6 +48,7 @@ public class FileController {
         return ApiResult.success(fileService.createMetadata(request, principal.getUserId()));
     }
 
+    @Log(module = "文件管理", type = "上传")
     @Operation(summary = "文件上传")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAuthority('file:upload')")
@@ -79,6 +81,7 @@ public class FileController {
         return ApiResult.success(fileService.getFile(id));
     }
 
+    @Log(module = "文件管理", type = "修改")
     @Operation(summary = "更新文件")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('file:update')")
@@ -86,6 +89,7 @@ public class FileController {
         return ApiResult.success(fileService.updateFile(id, request));
     }
 
+    @Log(module = "文件管理", type = "删除")
     @Operation(summary = "删除文件")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('file:delete')")
@@ -94,6 +98,7 @@ public class FileController {
         return ApiResult.success();
     }
 
+    @Log(module = "文件管理", type = "批量删除")
     @Operation(summary = "批量删除文件")
     @PostMapping("/batch-delete")
     @PreAuthorize("hasAuthority('file:delete')")

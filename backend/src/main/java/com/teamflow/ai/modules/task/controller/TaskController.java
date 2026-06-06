@@ -10,6 +10,7 @@ import com.teamflow.ai.modules.task.dto.TaskListItem;
 import com.teamflow.ai.modules.task.dto.TaskRequest;
 import com.teamflow.ai.modules.task.dto.TaskStatusRequest;
 import com.teamflow.ai.modules.task.service.TaskService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -38,6 +39,7 @@ public class TaskController {
         this.taskService = taskService;
     }
 
+    @Log(module = "任务管理", type = "新增")
     @Operation(summary = "创建任务")
     @PostMapping
     @PreAuthorize("hasAuthority('task:create')")
@@ -86,6 +88,7 @@ public class TaskController {
         return ApiResult.success(taskService.getTask(id));
     }
 
+    @Log(module = "任务管理", type = "修改")
     @Operation(summary = "更新任务")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('task:update')")
@@ -95,6 +98,7 @@ public class TaskController {
         return ApiResult.success(taskService.updateTask(id, request, principal.getUserId()));
     }
 
+    @Log(module = "任务管理", type = "状态变更")
     @Operation(summary = "修改任务状态/看板拖拽")
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('task:update')")
@@ -102,6 +106,7 @@ public class TaskController {
         return ApiResult.success(taskService.updateStatus(id, request));
     }
 
+    @Log(module = "任务管理", type = "删除")
     @Operation(summary = "删除任务")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('task:delete')")

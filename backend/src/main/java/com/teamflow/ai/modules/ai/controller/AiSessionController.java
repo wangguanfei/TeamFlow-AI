@@ -7,6 +7,7 @@ import com.teamflow.ai.modules.ai.dto.AiSessionItem;
 import com.teamflow.ai.modules.ai.dto.AiSessionRequest;
 import com.teamflow.ai.modules.ai.dto.IdListRequest;
 import com.teamflow.ai.modules.ai.service.AiService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -70,6 +71,7 @@ public class AiSessionController {
         return ApiResult.success(aiService.updateSession(id, request, principal.getUserId()));
     }
 
+    @Log(module = "AI助手", type = "删除会话")
     @Operation(summary = "删除AI会话")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ai:session')")
@@ -78,6 +80,7 @@ public class AiSessionController {
         return ApiResult.success();
     }
 
+    @Log(module = "AI助手", type = "批量删除会话")
     @Operation(summary = "批量删除AI会话")
     @PostMapping("/batch-delete")
     @PreAuthorize("hasAuthority('ai:session')")

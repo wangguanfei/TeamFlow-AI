@@ -10,6 +10,7 @@ import com.teamflow.ai.modules.knowledge.dto.KnowledgeImportResult;
 import com.teamflow.ai.modules.knowledge.dto.KnowledgePublishRequest;
 import com.teamflow.ai.modules.knowledge.service.KnowledgeImportService;
 import com.teamflow.ai.modules.knowledge.service.KnowledgeService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -44,6 +45,7 @@ public class KnowledgeDocController {
         this.knowledgeImportService = knowledgeImportService;
     }
 
+    @Log(module = "知识库", type = "新增文档")
     @Operation(summary = "创建知识文档")
     @PostMapping
     @PreAuthorize("hasAuthority('knowledge:doc:create')")
@@ -106,6 +108,7 @@ public class KnowledgeDocController {
         return ApiResult.success(knowledgeService.getDoc(id, principal.getUserId()));
     }
 
+    @Log(module = "知识库", type = "修改文档")
     @Operation(summary = "更新知识文档")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('knowledge:doc:update')")
@@ -115,6 +118,7 @@ public class KnowledgeDocController {
         return ApiResult.success(knowledgeService.updateDoc(id, request, principal.getUserId()));
     }
 
+    @Log(module = "知识库", type = "发布文档")
     @Operation(summary = "发布知识文档")
     @PostMapping("/{id}/publish")
     @PreAuthorize("hasAuthority('knowledge:doc:publish')")
@@ -124,6 +128,7 @@ public class KnowledgeDocController {
         return ApiResult.success(knowledgeService.publish(id, request, principal.getUserId()));
     }
 
+    @Log(module = "知识库", type = "回滚版本")
     @Operation(summary = "回滚知识文档历史版本")
     @PostMapping("/{id}/restore/{versionId}")
     @PreAuthorize("hasAuthority('knowledge:doc:restore')")
@@ -133,6 +138,7 @@ public class KnowledgeDocController {
         return ApiResult.success(knowledgeService.restore(id, versionId, principal.getUserId()));
     }
 
+    @Log(module = "知识库", type = "删除文档")
     @Operation(summary = "删除知识文档")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('knowledge:doc:delete')")

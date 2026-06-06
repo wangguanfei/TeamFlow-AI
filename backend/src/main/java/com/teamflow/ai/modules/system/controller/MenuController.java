@@ -6,6 +6,7 @@ import com.teamflow.ai.modules.system.dto.IdListRequest;
 import com.teamflow.ai.modules.system.dto.MenuRequest;
 import com.teamflow.ai.modules.system.entity.SysMenu;
 import com.teamflow.ai.modules.system.service.RbacService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,6 +34,7 @@ public class MenuController {
         this.rbacService = rbacService;
     }
 
+    @Log(module = "菜单管理", type = "新增")
     @Operation(summary = "创建菜单")
     @PostMapping
     @PreAuthorize("hasAuthority('system:menu:create')")
@@ -65,6 +67,7 @@ public class MenuController {
         return ApiResult.success(rbacService.getMenu(id));
     }
 
+    @Log(module = "菜单管理", type = "修改")
     @Operation(summary = "更新菜单")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:menu:update')")
@@ -72,6 +75,7 @@ public class MenuController {
         return ApiResult.success(rbacService.updateMenu(id, request));
     }
 
+    @Log(module = "菜单管理", type = "删除")
     @Operation(summary = "删除菜单")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:menu:delete')")
@@ -80,6 +84,7 @@ public class MenuController {
         return ApiResult.success();
     }
 
+    @Log(module = "菜单管理", type = "批量删除")
     @Operation(summary = "批量删除菜单")
     @PostMapping("/batch-delete")
     @PreAuthorize("hasAuthority('system:menu:delete')")

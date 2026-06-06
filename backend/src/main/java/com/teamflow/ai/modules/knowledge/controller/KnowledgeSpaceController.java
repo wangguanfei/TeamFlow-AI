@@ -6,6 +6,7 @@ import com.teamflow.ai.common.security.UserPrincipal;
 import com.teamflow.ai.modules.knowledge.dto.KnowledgeSpaceItem;
 import com.teamflow.ai.modules.knowledge.dto.KnowledgeSpaceRequest;
 import com.teamflow.ai.modules.knowledge.service.KnowledgeService;
+import com.teamflow.ai.common.log.Log;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,6 +33,7 @@ public class KnowledgeSpaceController {
         this.knowledgeService = knowledgeService;
     }
 
+    @Log(module = "知识库", type = "新增空间")
     @Operation(summary = "创建知识空间")
     @PostMapping
     @PreAuthorize("hasAuthority('knowledge:space:create')")
@@ -58,6 +60,7 @@ public class KnowledgeSpaceController {
         return ApiResult.success(knowledgeService.getSpace(id));
     }
 
+    @Log(module = "知识库", type = "修改空间")
     @Operation(summary = "更新知识空间")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('knowledge:space:update')")
@@ -67,6 +70,7 @@ public class KnowledgeSpaceController {
         return ApiResult.success(knowledgeService.updateSpace(id, request, principal.getUserId()));
     }
 
+    @Log(module = "知识库", type = "删除空间")
     @Operation(summary = "删除知识空间")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('knowledge:space:delete')")
