@@ -4,7 +4,13 @@
 
 English | [中文](./README.md)
 
-![TeamFlow AI Module Map](./teamflow-ai-module.png)
+<table>
+  <tr>
+    <td width="50%"><img src="./login.jpg" alt="TeamFlow AI login screen" width="100%" /></td>
+    <td width="50%"><img src="./ai.jpg" alt="TeamFlow AI assistant screen" width="100%" /></td>
+  </tr>
+ 
+</table>
 
 ## Live Demo
 

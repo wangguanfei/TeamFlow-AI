@@ -4,7 +4,13 @@
 
 [English](./README.en.md) | 中文
 
-![TeamFlow AI Module Map](./teamflow-ai-module.png)
+<table>
+  <tr>
+    <td width="50%"><img src="./login.jpg" alt="TeamFlow AI 登录界面" width="100%" /></td>
+    <td width="50%"><img src="./ai.jpg" alt="TeamFlow AI 助手界面" width="100%" /></td>
+  </tr>
+  
+</table>
 
 ## 在线演示
 
