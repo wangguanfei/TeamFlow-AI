@@ -151,24 +151,25 @@ if [[ "$SKIP_PULL" == false ]]; then
     err "当前目录不是 git 仓库，无法拉取代码"
   fi
 
-  REPO_URL="https://github.com/wangguanfei/TeamFlow-AI.git"
-  # 读取 .env 中的 GITHUB_PROXY，默认使用 ghproxy.com 加速（腾讯云直连 GitHub 经常超时）
-  # 若不想走代理，在 .env 中设置 GITHUB_PROXY=none
-  _PROXY=$(grep -E '^GITHUB_PROXY=' "$DEPLOY_DIR/.env" 2>/dev/null \
-    | cut -d= -f2- | tr -d '"' | tr -d "'" | xargs || true)
-  _PROXY="${_PROXY:-https://ghproxy.com}"
-
-  if [[ "$_PROXY" == "none" ]]; then
-    FETCH_URL="$REPO_URL"
-    log "直连 GitHub 拉取（GITHUB_PROXY=none）..."
+  # 优先使用 origin remote（SSH 方式，需服务器配好 ~/.ssh/config 走 443 端口）
+  # 若 origin 未配置，回退到硬编码 SSH URL
+  if git remote get-url origin &>/dev/null; then
+    FETCH_TARGET="origin"
+    FETCH_ARGS="origin $BRANCH:refs/remotes/origin/$BRANCH"
+    log "使用 remote: $(git remote get-url origin)"
   else
-    FETCH_URL="${_PROXY}/${REPO_URL}"
-    log "通过代理拉取: $_PROXY"
+    FETCH_TARGET="fallback"
+    FETCH_ARGS="git@github.com:wangguanfei/TeamFlow-AI.git $BRANCH:refs/remotes/origin/$BRANCH"
+    log "origin 未配置，回退到默认 SSH URL"
   fi
 
-  GIT_TERMINAL_PROMPT=0 timeout 120 git fetch "$FETCH_URL" "$BRANCH:refs/remotes/origin/$BRANCH" \
+  GIT_TERMINAL_PROMPT=0 timeout 120 git fetch $FETCH_ARGS \
     >> "$BUILD_LOG" 2>&1 \
-    || err "git fetch 失败（超时或网络错误），部署中止。如需跳过拉取请用 --skip-pull"
+    || err "git fetch 失败，部署中止。
+  排查建议：
+    1. 确认服务器已配置 GitHub SSH key: ssh -T git@github.com
+    2. 确认 ~/.ssh/config 已添加 Port 443 配置
+    3. 如需跳过拉取直接用本地代码: ./deploy.sh --skip-pull"
   git reset --hard "origin/$BRANCH" >> "$BUILD_LOG" 2>&1 \
     || err "git reset 失败，部署中止"
   ok "当前版本: $(git log -1 --format='%h %s' 2>/dev/null)"
