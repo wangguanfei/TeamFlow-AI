@@ -127,12 +127,13 @@ public class DeployService {
         record.setTriggerUsername(principal.getUsername());
         record.setStartedAt(LocalDateTime.now());
         record.setCreatedAt(LocalDateTime.now());
-
-        File logFile = new File(logDir, System.currentTimeMillis() + "-" + request.target() + ".log");
-        record.setLogFile(logFile.getAbsolutePath());
         recordMapper.insert(record);
 
         Long deployId = record.getId();
+        // 日志文件名与 deploy-agent.sh 保持一致：{deployId}.log
+        File logFile = new File(logDir, deployId + ".log");
+        record.setLogFile(logFile.getAbsolutePath());
+        recordMapper.updateById(record);
         runningDeployId = deployId;
         logBuffers.put(deployId, new CopyOnWriteArrayList<>());
         emitters.put(deployId, new CopyOnWriteArrayList<>());
