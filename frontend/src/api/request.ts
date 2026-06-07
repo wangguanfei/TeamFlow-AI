@@ -33,6 +33,7 @@ http.interceptors.response.use(
   (error: AxiosError<ApiResult<unknown>>) => {
     doneProgress()
     const status = error.response?.status
+    const silentError = !!(error.config as unknown as Record<string, unknown>)?.silentError
     const message = error.response?.data?.message || error.message || '网络异常'
     if (status === 401) {
       localStorage.removeItem('teamflow_access_token')
@@ -40,7 +41,7 @@ http.interceptors.response.use(
       if (window.location.pathname !== '/login') {
         window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`
       }
-    } else {
+    } else if (!silentError) {
       ElMessage.error(message)
     }
     return Promise.reject(error)

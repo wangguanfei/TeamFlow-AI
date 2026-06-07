@@ -2,22 +2,25 @@
   <PageContainer title="部署管理">
     <!-- 触发区域 -->
     <el-card class="trigger-card">
-      <div class="trigger-row">
-        <div class="trigger-options">
-          <span class="label">部署目标：</span>
-          <el-radio-group v-model="triggerForm.target" :disabled="isRunning">
-            <el-radio-button value="all">全量</el-radio-button>
-            <el-radio-button value="backend">仅后端</el-radio-button>
-            <el-radio-button value="frontend">仅前端</el-radio-button>
-          </el-radio-group>
-          <el-switch
-            v-model="triggerForm.skipPull"
-            :disabled="isRunning"
-            active-text="跳过 git pull"
-            style="margin-left: 24px"
-          />
+      <div class="trigger-inner">
+        <div class="trigger-left">
+          <div class="trigger-field">
+            <span class="field-label">部署目标</span>
+            <el-radio-group v-model="triggerForm.target" :disabled="isRunning" size="default">
+              <el-radio-button value="all">全量部署</el-radio-button>
+              <el-radio-button value="backend">仅后端</el-radio-button>
+              <el-radio-button value="frontend">仅前端</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div class="trigger-field">
+            <el-switch
+              v-model="triggerForm.skipPull"
+              :disabled="isRunning"
+              active-text="跳过 git pull"
+            />
+          </div>
         </div>
-        <div class="trigger-actions">
+        <div class="trigger-right">
           <el-tag v-if="isRunning" type="warning" effect="dark" class="running-tag">
             <el-icon class="is-loading"><Loading /></el-icon>
             部署中
@@ -28,6 +31,7 @@
             :icon="Promotion"
             :loading="isRunning"
             :disabled="isRunning"
+            size="large"
             @click="handleTrigger"
           >
             {{ isRunning ? '部署中...' : '立即部署' }}
@@ -40,7 +44,10 @@
     <el-card v-if="logVisible" class="log-card">
       <template #header>
         <div class="log-header">
-          <span>部署日志</span>
+          <div class="log-title">
+            <el-icon><Document /></el-icon>
+            <span>部署日志</span>
+          </div>
           <div class="log-controls">
             <el-tag :type="statusTagType" size="small" effect="dark">{{ statusLabel }}</el-tag>
             <span v-if="costMs" class="cost-text">耗时 {{ (costMs / 1000).toFixed(1) }}s</span>
@@ -53,15 +60,32 @@
     </el-card>
 
     <!-- 历史记录 -->
-    <el-card>
+    <el-card class="history-card">
       <template #header>
-        <span>部署历史</span>
+        <div class="history-header">
+          <div class="history-title">
+            <el-icon><Timer /></el-icon>
+            <span>部署历史</span>
+          </div>
+          <div class="history-stats">
+            <span class="stat-item">
+              共 <strong>{{ total }}</strong> 次
+            </span>
+            <span class="stat-item success">
+              成功 <strong>{{ successCount }}</strong>
+            </span>
+            <span class="stat-item danger">
+              失败 <strong>{{ failedCount }}</strong>
+            </span>
+          </div>
+        </div>
       </template>
-      <el-table :data="records" v-loading="loading" stripe size="small">
+
+      <el-table :data="records" v-loading="loading" stripe size="small" style="width: 100%">
         <el-table-column prop="startedAt" label="时间" width="175">
           <template #default="{ row }">{{ formatDateTime(row.startedAt) }}</template>
         </el-table-column>
-        <el-table-column prop="triggerUsername" label="触发人" width="120" />
+        <el-table-column prop="triggerUsername" label="触发人" min-width="120" />
         <el-table-column prop="target" label="目标" width="100">
           <template #default="{ row }">
             <el-tag size="small" effect="plain">{{ targetLabel(row.target) }}</el-tag>
@@ -79,12 +103,13 @@
             {{ row.costMs != null ? (row.costMs / 1000).toFixed(1) + 's' : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-button text size="small" type="primary" @click="viewLog(row.id)">查看日志</el-button>
           </template>
         </el-table-column>
       </el-table>
+
       <div class="pagination-row">
         <el-pagination
           v-model:current-page="currentPage"
@@ -101,7 +126,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading, Promotion, Close } from '@element-plus/icons-vue'
+import { Loading, Promotion, Close, Document, Timer } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
 import PermissionButton from '@/components/PermissionButton.vue'
 import {
@@ -130,6 +155,9 @@ const logEl = ref<HTMLPreElement | null>(null)
 
 let abortController: AbortController | null = null
 let userAborted = false
+
+const successCount = computed(() => records.value.filter(r => r.status === 'SUCCESS').length)
+const failedCount = computed(() => records.value.filter(r => r.status === 'FAILED').length)
 
 const statusLabel = computed(() => {
   if (!logStatus.value) return '运行中'
@@ -182,8 +210,8 @@ async function startStream(deployId: number) {
   logVisible.value = true
   logStatus.value = ''
 
-  const MAX_RETRIES = 20   // 最多重试 20 次（后端启动最多约 100s）
-  const RETRY_DELAY = 5000 // 每次等 5s
+  const MAX_RETRIES = 20
+  const RETRY_DELAY = 5000
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     if (userAborted) break
@@ -202,7 +230,7 @@ async function startStream(deployId: number) {
           logStatus.value = status
           costMs.value = ms
           isRunning.value = false
-          loadHistory()
+          loadHistory().catch(() => {/* ignore if backend briefly unavailable */})
         },
         (_msg) => {
           // 502/503 等错误不弹 toast，走重连流程
@@ -215,9 +243,9 @@ async function startStream(deployId: number) {
 
     if (doneReceived || userAborted) break
 
-    // 连接断开但没收到 done，检查后端是否还在部署（容器重建场景）
+    // 连接断开但没收到 done，检查后端是否还在部署
     try {
-      const current = await currentDeployApi()
+      const current = await currentDeployApi(true) // silent=true，后端重启期间不弹错误
       if (current.running && current.deployId === deployId) {
         const waitSec = Math.round(RETRY_DELAY / 1000)
         appendLog(`\n[连接中断，${waitSec}s 后重连... (${attempt + 1}/${MAX_RETRIES})]`)
@@ -230,7 +258,7 @@ async function startStream(deployId: number) {
         continue
       }
     } catch {
-      // 后端还没起来，继续等
+      // 后端还没起来，继续等（静默，不弹 toast）
       if (attempt < MAX_RETRIES) {
         appendLog(`\n[后端重启中，${Math.round(RETRY_DELAY / 1000)}s 后重连... (${attempt + 1}/${MAX_RETRIES})]`)
         await new Promise<void>((r) => setTimeout(r, RETRY_DELAY))
@@ -238,9 +266,8 @@ async function startStream(deployId: number) {
       }
     }
 
-    // 后端确认已完成或超出重试次数
     isRunning.value = false
-    loadHistory()
+    loadHistory().catch(() => {/* ignore */})
     break
   }
 }
@@ -294,7 +321,7 @@ async function loadHistory() {
 
 async function checkRunning() {
   try {
-    const res = await currentDeployApi()
+    const res = await currentDeployApi(true)
     if (res.running && res.deployId) {
       isRunning.value = true
       ElMessage.info('检测到进行中的部署，自动连接日志...')
@@ -317,30 +344,55 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.trigger-card { margin-bottom: 16px; }
+/* ── 触发卡片 ── */
+.trigger-card {
+  margin-bottom: 16px;
+}
 
-.trigger-row {
+.trigger-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
 }
 
-.trigger-options {
+.trigger-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
-.label { color: var(--el-text-color-regular); font-size: 14px; }
+.trigger-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-.trigger-actions { display: flex; align-items: center; gap: 10px; }
+.field-label {
+  color: var(--el-text-color-regular);
+  font-size: 14px;
+  white-space: nowrap;
+}
 
-.running-tag { display: flex; align-items: center; gap: 4px; }
+.trigger-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 
-.log-card { margin-bottom: 16px; }
+.running-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── 日志卡片 ── */
+.log-card {
+  margin-bottom: 16px;
+}
 
 .log-header {
   display: flex;
@@ -348,9 +400,23 @@ onUnmounted(() => {
   justify-content: space-between;
 }
 
-.log-controls { display: flex; align-items: center; gap: 12px; }
+.log-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
 
-.cost-text { font-size: 12px; color: var(--el-text-color-secondary); }
+.log-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cost-text {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
 
 .log-panel {
   background: #1e1e1e;
@@ -359,12 +425,52 @@ onUnmounted(() => {
   font-size: 12px;
   line-height: 1.6;
   padding: 12px 16px;
-  border-radius: 4px;
+  border-radius: 6px;
   height: 420px;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
   margin: 0;
+}
+
+/* ── 历史卡片 ── */
+.history-card {
+  /* fills remaining space */
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.history-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+.stat-item strong {
+  color: var(--el-text-color-primary);
+}
+
+.stat-item.success strong {
+  color: var(--el-color-success);
+}
+
+.stat-item.danger strong {
+  color: var(--el-color-danger);
 }
 
 .pagination-row {

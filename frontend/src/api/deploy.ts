@@ -29,8 +29,10 @@ export function triggerDeployApi(data: DeployTriggerRequest) {
   return http.post<unknown, number>('/deploy/trigger', data)
 }
 
-export function currentDeployApi() {
-  return http.get<unknown, DeployCurrentResponse>('/deploy/current')
+export function currentDeployApi(silent = false) {
+  return http.get<unknown, DeployCurrentResponse>('/deploy/current',
+    silent ? ({ silentError: true } as never) : undefined
+  )
 }
 
 export function deployPageApi(params: { page?: number; size?: number }) {
