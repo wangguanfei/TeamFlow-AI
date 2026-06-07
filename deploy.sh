@@ -151,24 +151,35 @@ if [[ "$SKIP_PULL" == false ]]; then
     err "当前目录不是 git 仓库，无法拉取代码"
   fi
 
-  # 优先使用 origin remote（SSH 方式，需服务器配好 ~/.ssh/config 走 443 端口）
-  # 若 origin 未配置，回退到硬编码 SSH URL
+  # 组装 GIT_SSH_COMMAND：兜住 systemd 服务缺少 SSH agent/config 的情况
+  # 优先使用 github_deploy 密钥，其次 ed25519/rsa；同时保留 ~/.ssh/config 中的 Host 映射
+  _SSH_OPTS="-o BatchMode=yes -o StrictHostKeyChecking=no"
+  for _k in "$HOME/.ssh/github_deploy" "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_rsa"; do
+    if [[ -f "$_k" ]]; then
+      _SSH_OPTS="-i $_k $_SSH_OPTS"
+      log "SSH 密钥: $_k"
+      break
+    fi
+  done
+  [[ -f "$HOME/.ssh/config" ]] && _SSH_OPTS="-F $HOME/.ssh/config $_SSH_OPTS"
+  export GIT_SSH_COMMAND="ssh $_SSH_OPTS"
+  export GIT_TERMINAL_PROMPT=0
+
+  # 优先使用 origin remote；若未配置则回退到硬编码 SSH URL
   if git remote get-url origin &>/dev/null; then
-    FETCH_TARGET="origin"
     FETCH_ARGS="origin $BRANCH:refs/remotes/origin/$BRANCH"
     log "使用 remote: $(git remote get-url origin)"
   else
-    FETCH_TARGET="fallback"
     FETCH_ARGS="git@github.com:wangguanfei/TeamFlow-AI.git $BRANCH:refs/remotes/origin/$BRANCH"
     log "origin 未配置，回退到默认 SSH URL"
   fi
 
-  GIT_TERMINAL_PROMPT=0 timeout 120 git fetch $FETCH_ARGS \
+  timeout 120 git fetch $FETCH_ARGS \
     >> "$BUILD_LOG" 2>&1 \
     || err "git fetch 失败，部署中止。
   排查建议：
-    1. 确认服务器已配置 GitHub SSH key: ssh -T git@github.com
-    2. 确认 ~/.ssh/config 已添加 Port 443 配置
+    1. 确认 SSH 密钥存在: ls -la ~/.ssh/github_deploy
+    2. 手动测试: ssh -T git@github.com（或 ssh -T -p 443 git@ssh.github.com）
     3. 如需跳过拉取直接用本地代码: ./deploy.sh --skip-pull"
   git reset --hard "origin/$BRANCH" >> "$BUILD_LOG" 2>&1 \
     || err "git reset 失败，部署中止"

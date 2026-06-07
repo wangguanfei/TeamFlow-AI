@@ -18,6 +18,10 @@ LOG_BASE_DIR="$SCRIPT_DIR/logs/backend/deploy"
 
 # ── 安装为 systemd 服务 ────────────────────────────────────────
 if [[ "${1:-}" == "--install" ]]; then
+  # sudo 运行时 $USER 是 root，用 $SUDO_USER 获取实际用户
+  ACTUAL_USER="${SUDO_USER:-$USER}"
+  ACTUAL_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
+
   SERVICE_FILE="/etc/systemd/system/teamflow-deploy-agent.service"
   cat > "$SERVICE_FILE" << EOF
 [Unit]
@@ -26,11 +30,12 @@ After=network.target docker.service
 
 [Service]
 Type=simple
-User=$USER
+User=$ACTUAL_USER
 WorkingDirectory=$SCRIPT_DIR
 ExecStart=/usr/bin/bash $SCRIPT_DIR/deploy-agent.sh
 Restart=always
 RestartSec=5
+Environment=HOME=$ACTUAL_HOME
 StandardOutput=journal
 StandardError=journal
 
@@ -40,7 +45,7 @@ EOF
   systemctl daemon-reload
   systemctl enable teamflow-deploy-agent
   systemctl start teamflow-deploy-agent
-  echo "✅ deploy-agent 已安装并启动"
+  echo "✅ deploy-agent 已安装并启动（用户: $ACTUAL_USER，HOME: $ACTUAL_HOME）"
   echo "   查看日志: journalctl -u teamflow-deploy-agent -f"
   exit 0
 fi
