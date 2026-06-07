@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public record DeployRecordItem(
         Long id,
         String target,
+        Boolean skipPull,
         String status,
         String triggerUsername,
         Integer exitCode,
@@ -16,7 +17,7 @@ public record DeployRecordItem(
 ) {
     public static DeployRecordItem from(DeployRecord r) {
         return new DeployRecordItem(
-                r.getId(), r.getTarget(), r.getStatus(),
+                r.getId(), r.getTarget(), r.getSkipPull(), r.getStatus(),
                 r.getTriggerUsername(), r.getExitCode(),
                 r.getStartedAt(), r.getFinishedAt(), r.getCostMs()
         );

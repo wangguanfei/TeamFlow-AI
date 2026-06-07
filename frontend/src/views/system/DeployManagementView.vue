@@ -81,34 +81,69 @@
         </div>
       </template>
 
-      <el-table :data="records" v-loading="loading" stripe size="small" style="width: 100%">
-        <el-table-column prop="startedAt" label="时间" width="175">
-          <template #default="{ row }">{{ formatDateTime(row.startedAt) }}</template>
-        </el-table-column>
-        <el-table-column prop="triggerUsername" label="触发人" min-width="120" />
-        <el-table-column prop="target" label="目标" width="100">
-          <template #default="{ row }">
-            <el-tag size="small" effect="plain">{{ targetLabel(row.target) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="recordTagType(row.status)" size="small" effect="dark">
+      <div v-loading="loading" class="record-list">
+        <div v-if="records.length === 0 && !loading" class="record-empty">
+          <el-empty description="暂无部署记录" :image-size="64" />
+        </div>
+        <div
+          v-for="row in records"
+          :key="row.id"
+          class="record-card"
+          :class="'record-card--' + row.status.toLowerCase()"
+        >
+          <!-- 首行：状态 · 目标 · 退出码 ······ 编号 · 查看日志 -->
+          <div class="rc-main">
+            <el-tag :type="recordTagType(row.status)" effect="dark" size="small" class="rc-status-tag">
               {{ statusText(row.status) }}
             </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="costMs" label="耗时" width="100">
-          <template #default="{ row }">
-            {{ row.costMs != null ? (row.costMs / 1000).toFixed(1) + 's' : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
-          <template #default="{ row }">
-            <el-button text size="small" type="primary" @click="viewLog(row.id)">查看日志</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            <span class="rc-target-text">{{ targetLabelFull(row.target) }}</span>
+            <el-tag
+              v-if="row.skipPull != null"
+              :type="row.skipPull ? 'info' : 'success'"
+              effect="plain"
+              size="small"
+              class="rc-pull-tag"
+            >
+              {{ row.skipPull ? '跳过 pull' : '已 pull' }}
+            </el-tag>
+            <span v-else class="rc-pull-na">—</span>
+            <el-tag
+              v-if="row.status === 'FAILED' && row.exitCode != null"
+              type="danger"
+              effect="plain"
+              size="small"
+            >
+              exit {{ row.exitCode }}
+            </el-tag>
+            <span class="rc-id">#{{ row.id }}</span>
+            <el-button class="rc-log-btn" text size="small" type="primary" @click="viewLog(row.id)">
+              查看日志
+            </el-button>
+          </div>
+
+          <!-- 次行：开始 · 触发人 · 耗时 · 完成 -->
+          <div class="rc-meta">
+            <span class="rc-meta-item">
+              <el-icon><VideoPlay /></el-icon>
+              开始 {{ formatShort(row.startedAt) }}
+            </span>
+            <span class="rc-meta-sep">·</span>
+            <span class="rc-meta-item">
+              <el-icon><User /></el-icon>
+              {{ row.triggerUsername }}
+            </span>
+            <span class="rc-meta-sep">·</span>
+            <span class="rc-meta-item">
+              <el-icon><Timer /></el-icon>
+              耗时 {{ row.costMs != null ? (row.costMs / 1000).toFixed(1) + 's' : '—' }}
+            </span>
+            <template v-if="row.finishedAt">
+              <span class="rc-meta-sep">·</span>
+              <span class="rc-meta-item">完成 {{ formatTimeOnly(row.finishedAt) }}</span>
+            </template>
+          </div>
+        </div>
+      </div>
 
       <div class="pagination-row">
         <el-pagination
@@ -126,7 +161,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading, Promotion, Close, Document, Timer } from '@element-plus/icons-vue'
+import { Loading, Promotion, Close, Document, Timer, User, VideoPlay } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
 import PermissionButton from '@/components/PermissionButton.vue'
 import {
@@ -184,9 +219,25 @@ function targetLabel(target: string) {
   return target === 'all' ? '全量' : target === 'backend' ? '后端' : '前端'
 }
 
+function targetLabelFull(target: string) {
+  return target === 'all' ? '全量部署' : target === 'backend' ? '仅后端' : '仅前端'
+}
+
 function formatDateTime(s: string | null) {
   if (!s) return '-'
   return s.replace('T', ' ').slice(0, 19)
+}
+
+// MM-DD HH:mm（去掉年份和秒，次行更紧凑）
+function formatShort(s: string | null) {
+  if (!s) return '-'
+  return s.replace('T', ' ').slice(5, 16)
+}
+
+// 仅 HH:mm:ss（完成时间与开始同日，时分秒足够）
+function formatTimeOnly(s: string | null) {
+  if (!s) return '-'
+  return s.replace('T', ' ').slice(11, 19)
 }
 
 function scrollToBottom() {
@@ -434,10 +485,6 @@ onUnmounted(() => {
 }
 
 /* ── 历史卡片 ── */
-.history-card {
-  /* fills remaining space */
-}
-
 .history-header {
   display: flex;
   align-items: center;
@@ -461,16 +508,104 @@ onUnmounted(() => {
   color: var(--el-text-color-regular);
 }
 
-.stat-item strong {
+.stat-item strong { color: var(--el-text-color-primary); }
+.stat-item.success strong { color: var(--el-color-success); }
+.stat-item.danger strong { color: var(--el-color-danger); }
+
+/* ── 卡片式记录列表 ── */
+.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 80px;
+}
+
+.record-empty {
+  padding: 24px 0;
+}
+
+.record-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-left-width: 3px;
+  background: var(--el-bg-color);
+  transition: background 0.15s, box-shadow 0.15s;
+  cursor: default;
+}
+
+.record-card:hover {
+  background: var(--el-fill-color-light);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+}
+
+.record-card--success { border-left-color: var(--el-color-success); }
+.record-card--failed  { border-left-color: var(--el-color-danger); }
+.record-card--running { border-left-color: var(--el-color-warning); }
+
+/* 首行：状态 · 目标 · 退出码 ······ 编号 · 查看日志 */
+.rc-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rc-status-tag {
+  flex-shrink: 0;
+}
+
+.rc-target-text {
+  font-size: 14px;
+  font-weight: 600;
   color: var(--el-text-color-primary);
 }
 
-.stat-item.success strong {
-  color: var(--el-color-success);
+.rc-pull-tag {
+  flex-shrink: 0;
 }
 
-.stat-item.danger strong {
-  color: var(--el-color-danger);
+.rc-pull-na {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.rc-id {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-log-btn {
+  flex-shrink: 0;
+}
+
+/* 次行：元信息 */
+.rc-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.rc-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-meta-item .el-icon {
+  font-size: 13px;
+}
+
+.rc-meta-sep {
+  color: var(--el-border-color);
 }
 
 .pagination-row {

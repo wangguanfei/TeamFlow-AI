@@ -125,6 +125,7 @@ public class DeployService {
 
         DeployRecord record = new DeployRecord();
         record.setTarget(request.target());
+        record.setSkipPull(request.skipPull());
         record.setStatus("RUNNING");
         record.setTriggerUserId(principal.getUserId());
         record.setTriggerUsername(principal.getUsername());

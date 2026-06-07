@@ -12,6 +12,7 @@ public class DeployRecord {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String target;
+    private Boolean skipPull;
     private String status;
     private Long triggerUserId;
     private String triggerUsername;
@@ -26,6 +27,8 @@ public class DeployRecord {
     public void setId(Long id) { this.id = id; }
     public String getTarget() { return target; }
     public void setTarget(String target) { this.target = target; }
+    public Boolean getSkipPull() { return skipPull; }
+    public void setSkipPull(Boolean skipPull) { this.skipPull = skipPull; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
     public Long getTriggerUserId() { return triggerUserId; }

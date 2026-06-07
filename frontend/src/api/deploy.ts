@@ -7,6 +7,7 @@ export type DeployStatus = 'RUNNING' | 'SUCCESS' | 'FAILED'
 export interface DeployRecordItem {
   id: number
   target: DeployTarget
+  skipPull: boolean
   status: DeployStatus
   triggerUsername: string
   exitCode: number | null

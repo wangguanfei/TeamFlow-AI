@@ -25,6 +25,7 @@ public class DeploySchemaUpgrade implements CommandLineRunner {
     @Override
     public void run(String... args) {
         ensureTable();
+        ensureColumns();
         ensurePermissions();
         ensureMenu();
     }
@@ -38,6 +39,7 @@ public class DeploySchemaUpgrade implements CommandLineRunner {
                     CREATE TABLE deploy_record (
                       id               BIGINT       NOT NULL AUTO_INCREMENT,
                       target           VARCHAR(16)  NOT NULL COMMENT '部署目标 all/backend/frontend',
+                      skip_pull        TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否跳过 git pull',
                       status           VARCHAR(16)  NOT NULL COMMENT 'RUNNING/SUCCESS/FAILED',
                       trigger_user_id  BIGINT       DEFAULT NULL,
                       trigger_username VARCHAR(64)  DEFAULT NULL,
@@ -53,6 +55,18 @@ public class DeploySchemaUpgrade implements CommandLineRunner {
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部署记录'
                     """);
             log.info("创建表 deploy_record 完成");
+        }
+    }
+
+    // 幂等补列：兼容旧版本已创建但缺少 skip_pull 列的表
+    private void ensureColumns() {
+        boolean hasSkipPull = !jdbcTemplate.query(
+                "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'deploy_record' AND COLUMN_NAME = 'skip_pull'",
+                (rs, i) -> 1).isEmpty();
+        if (!hasSkipPull) {
+            jdbcTemplate.execute(
+                    "ALTER TABLE deploy_record ADD COLUMN skip_pull TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否跳过 git pull' AFTER target");
+            log.info("deploy_record 补列 skip_pull 完成");
         }
     }
 
