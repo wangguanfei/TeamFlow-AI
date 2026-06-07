@@ -85,5 +85,5 @@ while true; do
 
     echo "[deploy-agent] 完成: id=$DEPLOY_ID log=$LOG_FILE"
   done
-  sleep 1
+  sleep 0.2
 done

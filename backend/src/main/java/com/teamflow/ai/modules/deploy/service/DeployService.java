@@ -45,7 +45,7 @@ public class DeployService {
 
     private static final long SSE_TIMEOUT_MS = 30L * 60 * 1000;
     private static final long AGENT_WAIT_MS = 30_000;
-    private static final long TAIL_POLL_MS = 300;
+    private static final long TAIL_POLL_MS = 80;
 
     private static final Pattern ANSI = Pattern.compile("\\[[0-9;]*[mGKHFABCDsuJn]|\r");
 
@@ -154,7 +154,7 @@ public class DeployService {
             // 等待 agent 创建日志文件
             long waitDeadline = System.currentTimeMillis() + AGENT_WAIT_MS;
             while (!logFile.exists() && System.currentTimeMillis() < waitDeadline) {
-                Thread.sleep(500);
+                Thread.sleep(100);
             }
             if (!logFile.exists()) {
                 broadcast(deployId, "log", "[等待部署代理超时，请确认宿主机 deploy-agent.sh 已启动]");
