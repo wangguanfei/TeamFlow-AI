@@ -26,6 +26,8 @@ spring:
       mode: always
       encoding: UTF-8
       schema-locations: classpath:db/schema.sql
+      # 容错：兼容旧库的 ALTER ADD COLUMN 在新库会因列已存在而报错，需跳过继续
+      continue-on-error: true
 
 mybatis-plus:
   configuration:
@@ -63,6 +65,31 @@ teamflow:
     base-url: ${AI_BASE_URL:https://api.deepseek.com/v1}
     api-key: ${AI_API_KEY:}
     model: ${AI_MODEL:deepseek-chat}
+  rag:
+    enabled: ${RAG_ENABLED:true}
+    local-embedding: ${RAG_LOCAL_EMBEDDING:true}
+    min-available-memory-mb: ${RAG_MIN_AVAILABLE_MEMORY_MB:250}
+    qdrant:
+      base-url: ${QDRANT_BASE_URL:http://127.0.0.1:6333}
+      api-key: ${QDRANT_API_KEY:}
+      collection: ${QDRANT_COLLECTION:teamflow_ai_knowledge_chunks}
+      vector-name: ${QDRANT_VECTOR_NAME:dense}
+      dimension: ${EMBEDDING_DIMENSION:512}
+    embedding:
+      base-url: ${EMBEDDING_BASE_URL:http://127.0.0.1:8000}
+      model: ${EMBEDDING_MODEL:BAAI/bge-small-zh-v1.5}
+      max-text-chars: ${EMBEDDING_MAX_TEXT_CHARS:4000}
+    retrieval:
+      dense-top-k: ${RAG_DENSE_TOP_K:20}
+      keyword-top-k: ${RAG_KEYWORD_TOP_K:20}
+      final-top-k: ${RAG_FINAL_TOP_K:5}
+      dense-weight: ${RAG_DENSE_WEIGHT:0.7}
+      keyword-weight: ${RAG_KEYWORD_WEIGHT:0.3}
+    index:
+      worker-enabled: ${RAG_INDEX_WORKER_ENABLED:true}
+      max-attempts: ${RAG_INDEX_MAX_ATTEMPTS:3}
+      worker-delay-ms: ${RAG_INDEX_WORKER_DELAY_MS:5000}
+      retry-backoff-ms: ${RAG_INDEX_RETRY_BACKOFF_MS:30000}
   deploy:
     enabled: ${DEPLOY_ENABLED:false}
     script-path: ${DEPLOY_SCRIPT_PATH:}

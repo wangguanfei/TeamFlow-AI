@@ -679,6 +679,13 @@ public class AiService {
                         embedding.getChunkText(),
                         embedding.getEmbeddingHash(),
                         embedding.getEmbeddingText(),
+                        embedding.getEmbeddingModel(),
+                        embedding.getEmbeddingDim(),
+                        embedding.getVectorPointId(),
+                        embedding.getContentHash(),
+                        embedding.getIndexStatus(),
+                        embedding.getIndexedAt(),
+                        embedding.getIndexError(),
                         embedding.getCreatedAt(),
                         embedding.getUpdatedAt()))
                 .toList();
@@ -716,6 +723,8 @@ public class AiService {
         embedding.setEmbeddingText(request.embeddingText() == null || request.embeddingText().isBlank()
                 ? "demo-vector:" + sha256(request.chunkText())
                 : request.embeddingText());
+        embedding.setContentHash(embedding.getEmbeddingHash());
+        embedding.setIndexStatus("MANUAL");
     }
 
     private String normalizeMode(String mode) {

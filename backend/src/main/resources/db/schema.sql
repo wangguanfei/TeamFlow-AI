@@ -362,12 +362,49 @@ CREATE TABLE IF NOT EXISTS `ai_embedding` (
   `chunk_index` INT DEFAULT NULL COMMENT '切片序号',
   `chunk_text` TEXT DEFAULT NULL COMMENT '切片文本',
   `embedding_hash` VARCHAR(128) DEFAULT NULL COMMENT '向量哈希',
-  `embedding_text` MEDIUMTEXT DEFAULT NULL COMMENT '向量字符串,演示用',
+  `embedding_text` MEDIUMTEXT DEFAULT NULL COMMENT '兼容字段,旧版演示向量字符串',
+  `embedding_model` VARCHAR(128) DEFAULT NULL COMMENT 'Embedding模型',
+  `embedding_dim` INT DEFAULT NULL COMMENT '向量维度',
+  `vector_point_id` VARCHAR(64) DEFAULT NULL COMMENT 'Qdrant point id',
+  `content_hash` VARCHAR(128) DEFAULT NULL COMMENT '切片内容哈希',
+  `index_status` VARCHAR(32) DEFAULT NULL COMMENT 'PENDING/READY/FAILED/MANUAL',
+  `indexed_at` DATETIME DEFAULT NULL COMMENT '索引完成时间',
+  `index_error` VARCHAR(1000) DEFAULT NULL COMMENT '索引错误',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  KEY `idx_doc_id` (`doc_id`)
+  KEY `idx_doc_id` (`doc_id`),
+  KEY `idx_vector_point_id` (`vector_point_id`),
+  KEY `idx_index_status` (`index_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ai_embedding';
+
+-- 兼容旧库：为已存在的 ai_embedding 旧表补齐 RAG 新列。
+-- 注意：MySQL 8 不支持 `ADD COLUMN IF NOT EXISTS`（那是 MariaDB/PostgreSQL 语法）。
+-- 这里去掉 IF NOT EXISTS，靠 spring.sql.init.continue-on-error=true 实现幂等：
+-- 旧表缺列时 ADD 成功补列；新库 CREATE TABLE 已含这些列，重复 ADD 报错会被容错跳过。
+ALTER TABLE `ai_embedding` ADD COLUMN `embedding_model` VARCHAR(128) DEFAULT NULL COMMENT 'Embedding模型';
+ALTER TABLE `ai_embedding` ADD COLUMN `embedding_dim` INT DEFAULT NULL COMMENT '向量维度';
+ALTER TABLE `ai_embedding` ADD COLUMN `vector_point_id` VARCHAR(64) DEFAULT NULL COMMENT 'Qdrant point id';
+ALTER TABLE `ai_embedding` ADD COLUMN `content_hash` VARCHAR(128) DEFAULT NULL COMMENT '切片内容哈希';
+ALTER TABLE `ai_embedding` ADD COLUMN `index_status` VARCHAR(32) DEFAULT NULL COMMENT 'PENDING/READY/FAILED/MANUAL';
+ALTER TABLE `ai_embedding` ADD COLUMN `indexed_at` DATETIME DEFAULT NULL COMMENT '索引完成时间';
+ALTER TABLE `ai_embedding` ADD COLUMN `index_error` VARCHAR(1000) DEFAULT NULL COMMENT '索引错误';
+
+CREATE TABLE IF NOT EXISTS `ai_index_job` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'PK',
+  `doc_id` BIGINT NOT NULL COMMENT '文档ID',
+  `action_type` VARCHAR(32) NOT NULL COMMENT 'REBUILD/DELETE',
+  `job_status` VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/RUNNING/DONE/FAILED',
+  `attempts` INT NOT NULL DEFAULT 0 COMMENT '尝试次数',
+  `error_message` VARCHAR(1000) DEFAULT NULL COMMENT '错误信息',
+  `locked_at` DATETIME DEFAULT NULL COMMENT '锁定时间',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_doc_id` (`doc_id`),
+  KEY `idx_job_status` (`job_status`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ai_index_job';
 
 CREATE TABLE IF NOT EXISTS `file_info` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'PK',

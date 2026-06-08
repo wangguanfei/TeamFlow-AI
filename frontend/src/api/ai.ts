@@ -10,6 +10,10 @@ export interface AiReferenceItem {
   versionNo?: number
   chunkIndex?: number
   score?: number
+  chunkId?: string
+  denseScore?: number
+  keywordScore?: number
+  retrievalSource?: 'VECTOR' | 'KEYWORD' | 'HYBRID'
 }
 
 export interface AiSessionItem {
@@ -51,8 +55,38 @@ export interface AiProviderStatus {
   mock: boolean
 }
 
+export interface RagStatus {
+  enabled: boolean
+  workerEnabled: boolean
+  qdrantAvailable: boolean
+  embeddingAvailable: boolean
+  memoryGatePassed: boolean
+  memAvailableMb: number
+  pendingJobs: number
+  runningJobs: number
+  failedJobs: number
+  qdrantCollection: string
+  embeddingModel: string
+}
+
+export interface RagRebuildResponse {
+  queuedJobs: number
+}
+
 export function aiProviderStatusApi() {
   return http.get<unknown, AiProviderStatus>('/ai/status')
+}
+
+export function ragStatusApi() {
+  return http.get<unknown, RagStatus>('/rag/status')
+}
+
+export function rebuildRagDocumentApi(docId: number) {
+  return http.post<unknown, RagRebuildResponse>(`/rag/index/documents/${docId}/rebuild`)
+}
+
+export function rebuildRagIndexApi(params?: { spaceId?: number }) {
+  return http.post<unknown, RagRebuildResponse>('/rag/index/rebuild', undefined, { params })
 }
 
 export function aiSessionPageApi(params: { page?: number; size?: number; keyword?: string; mine?: boolean }) {

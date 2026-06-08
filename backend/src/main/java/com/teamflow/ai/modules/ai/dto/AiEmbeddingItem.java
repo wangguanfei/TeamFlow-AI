@@ -9,6 +9,13 @@ public record AiEmbeddingItem(
         String chunkText,
         String embeddingHash,
         String embeddingText,
+        String embeddingModel,
+        Integer embeddingDim,
+        String vectorPointId,
+        String contentHash,
+        String indexStatus,
+        LocalDateTime indexedAt,
+        String indexError,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

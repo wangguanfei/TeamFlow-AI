@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -49,6 +50,17 @@ public class JsonCacheService {
      * @param loader 缓存未命中时的数据加载逻辑
      */
     public <T> T getOrLoad(String key, Duration ttl, TypeReference<T> type, Supplier<T> loader) {
+        return getOrLoad(key, ttl, type, loader, value -> true);
+    }
+
+    /**
+     * 同 {@link #getOrLoad(String, Duration, TypeReference, Supplier)}，但仅当 {@code shouldCache}
+     * 判定为 true 时才回填缓存。用于「降级结果不应写缓存」的场景（如 RAG 向量检索故障退化为纯关键词时，
+     * 不缓存降级结果，避免服务恢复后仍在 TTL 内返回降级数据）。
+     *
+     * @param shouldCache 对 loader 结果的判定：返回 false 则本次不写缓存
+     */
+    public <T> T getOrLoad(String key, Duration ttl, TypeReference<T> type, Supplier<T> loader, Predicate<T> shouldCache) {
         try {
             String cached = redisTemplate.opsForValue().get(key);
             if (cached != null) {
@@ -58,11 +70,13 @@ public class JsonCacheService {
             log.warn("读取缓存失败，回退数据库 key={}", key, ex);
         }
         T value = loader.get();
-        try {
-            String json = objectMapper.writeValueAsString(value);
-            redisTemplate.opsForValue().set(key, json, ttl);
-        } catch (Exception ex) {
-            log.warn("写入缓存失败 key={}", key, ex);
+        if (shouldCache.test(value)) {
+            try {
+                String json = objectMapper.writeValueAsString(value);
+                redisTemplate.opsForValue().set(key, json, ttl);
+            } catch (Exception ex) {
+                log.warn("写入缓存失败 key={}", key, ex);
+            }
         }
         return value;
     }

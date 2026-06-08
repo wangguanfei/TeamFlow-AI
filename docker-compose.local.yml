@@ -1,77 +1,43 @@
+name: teamflow-ai-local
+
 services:
-  mysql:
-    image: mysql:8.4
-    container_name: teamflow-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-teamflow_ai}
-      TZ: ${TZ:-Asia/Shanghai}
-    # 不对宿主机暴露 3306，仅 compose 内网访问，避免公网爆破
-    expose:
-      - "3306"
-    volumes:
-      - teamflow_mysql:/var/lib/mysql
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci", "--max-connections=80"]
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-
-  redis:
-    image: redis:7.4-alpine
-    container_name: teamflow-redis
-    expose:
-      - "6379"
-    volumes:
-      - teamflow_redis:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
-
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
-    container_name: teamflow-minio
+    container_name: teamflow-local-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
-    # 文件下载由后端流式代理，浏览器无需直连 MinIO，故不对公网暴露。
-    # 需访问 Console(9001) 或 API(9000) 时建议用 SSH 隧道，而非放行公网端口。
-    expose:
-      - "9000"
-      - "9001"
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${LOCAL_MINIO_API_PORT:-19000}:9000"
+      - "${LOCAL_MINIO_CONSOLE_PORT:-19001}:9001"
     volumes:
-      - teamflow_minio:/data
+      - teamflow_local_minio:/data
 
   qdrant:
     image: ${QDRANT_IMAGE:-qdrant/qdrant:latest}
-    container_name: teamflow-qdrant
-    expose:
-      - "6333"
+    container_name: teamflow-local-qdrant
+    ports:
+      - "${LOCAL_QDRANT_PORT:-6333}:6333"
     volumes:
-      - teamflow_qdrant:/qdrant/storage
+      - teamflow_local_qdrant:/qdrant/storage
     mem_limit: ${QDRANT_MEM_LIMIT:-384m}
     cpus: ${QDRANT_CPUS:-0.75}
 
   embedding:
     build:
       context: ./embedding-service
-    container_name: teamflow-embedding
+    container_name: teamflow-local-embedding
     environment:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
       EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-1}
       EMBEDDING_MAX_TEXT_CHARS: ${EMBEDDING_MAX_TEXT_CHARS:-4000}
       HF_HOME: /models/huggingface
       TRANSFORMERS_CACHE: /models/huggingface
-    expose:
-      - "8000"
+    ports:
+      - "${LOCAL_EMBEDDING_PORT:-18000}:8000"
     volumes:
-      - teamflow_embedding_cache:/models
+      - teamflow_local_embedding_cache:/models
     mem_limit: ${EMBEDDING_MEM_LIMIT:-768m}
     cpus: ${EMBEDDING_CPUS:-1.0}
     healthcheck:
@@ -84,34 +50,33 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: teamflow-backend
+    container_name: teamflow-local-backend
     depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
       minio:
         condition: service_started
       qdrant:
         condition: service_started
       embedding:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       TZ: ${TZ:-Asia/Shanghai}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms128m -Xmx256m -Duser.timezone=Asia/Shanghai}
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-teamflow_ai}
-      MYSQL_USERNAME: root
-      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      MYSQL_HOST: ${LOCAL_MYSQL_HOST:-host.docker.internal}
+      MYSQL_PORT: ${LOCAL_MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${LOCAL_MYSQL_DATABASE:-teamflow_ai}
+      MYSQL_USERNAME: ${LOCAL_MYSQL_USERNAME:-root}
+      MYSQL_PASSWORD: ${LOCAL_MYSQL_PASSWORD:-wgf123456}
+      REDIS_HOST: ${LOCAL_REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${LOCAL_REDIS_PORT:-6379}
+      REDIS_DATABASE: ${LOCAL_REDIS_DATABASE:-0}
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      JWT_SECRET: ${JWT_SECRET:-teamflow-ai-local-development-secret-change-me-64bytes}
       SERVER_FORWARD_HEADERS_STRATEGY: framework
-      TEAMFLOW_CORS_ALLOWED_ORIGINS: ${TEAMFLOW_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://81.69.248.152,https://81.69.248.152,https://ai2026.vip,https://www.ai2026.vip}
+      TEAMFLOW_CORS_ALLOWED_ORIGINS: ${TEAMFLOW_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080}
       DEMO_DATA_ENABLED: ${DEMO_DATA_ENABLED:-false}
       AI_PROVIDER: ${AI_PROVIDER:-deepseek}
       AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com/v1}
@@ -134,14 +99,12 @@ services:
       RAG_INDEX_WORKER_DELAY_MS: ${RAG_INDEX_WORKER_DELAY_MS:-5000}
       DEPLOY_ENABLED: ${DEPLOY_ENABLED:-false}
       DEPLOY_LOG_DIR: ${DEPLOY_LOG_DIR:-/app/logs/deploy}
-    # 日志落盘到宿主机，容器重建/重启也不丢；对应 logback 默认 LOG_DIR=./logs(容器内 /app/logs)
-    # 部署管理：触发文件和日志文件通过 logs/backend 卷与宿主机 deploy-agent.sh 共享
     volumes:
       - ./logs/backend:/app/logs
-    # 仅 compose 内网暴露 8080，前端通过 nginx 反代访问；如需公网直连调试再改回 ports 映射
-    expose:
-      - "8080"
-    # temurin(JRE) 镜像不带 wget/curl，用 bash 的 /dev/tcp 做 TCP 端口探测
+    ports:
+      - "${LOCAL_BACKEND_PORT:-8080}:8080"
+    mem_limit: ${BACKEND_MEM_LIMIT:-512m}
+    cpus: ${BACKEND_CPUS:-1.0}
     healthcheck:
       test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8080"]
       interval: 15s
@@ -152,12 +115,12 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: teamflow-frontend
+    container_name: teamflow-local-frontend
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "80:80"
+      - "${LOCAL_FRONTEND_PORT:-5173}:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1"]
       interval: 15s
@@ -166,8 +129,6 @@ services:
       start_period: 10s
 
 volumes:
-  teamflow_mysql:
-  teamflow_redis:
-  teamflow_minio:
-  teamflow_qdrant:
-  teamflow_embedding_cache:
+  teamflow_local_minio:
+  teamflow_local_qdrant:
+  teamflow_local_embedding_cache:
