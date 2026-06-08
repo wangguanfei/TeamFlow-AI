@@ -10,6 +10,7 @@
               <el-radio-button value="all">全量部署</el-radio-button>
               <el-radio-button value="backend">仅后端</el-radio-button>
               <el-radio-button value="frontend">仅前端</el-radio-button>
+              <el-radio-button value="rag">仅 RAG</el-radio-button>
             </el-radio-group>
           </div>
           <div class="trigger-field">
@@ -216,11 +217,13 @@ function statusText(status: string) {
 }
 
 function targetLabel(target: string) {
-  return target === 'all' ? '全量' : target === 'backend' ? '后端' : '前端'
+  const map: Record<string, string> = { all: '全量', backend: '后端', frontend: '前端', rag: 'RAG' }
+  return map[target] ?? target
 }
 
 function targetLabelFull(target: string) {
-  return target === 'all' ? '全量部署' : target === 'backend' ? '仅后端' : '仅前端'
+  const map: Record<string, string> = { all: '全量部署', backend: '仅后端', frontend: '仅前端', rag: '仅 RAG' }
+  return map[target] ?? target
 }
 
 function formatDateTime(s: string | null) {

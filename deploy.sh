@@ -22,9 +22,9 @@ SKIP_PULL=false
 
 for arg in "$@"; do
   case $arg in
-    all|backend|frontend) TARGET=$arg ;;
+    all|backend|frontend|rag) TARGET=$arg ;;
     --skip-pull) SKIP_PULL=true ;;
-    *) echo "未知参数: $arg  (all|backend|frontend|--skip-pull)"; exit 1 ;;
+    *) echo "未知参数: $arg  (all|backend|frontend|rag|--skip-pull)"; exit 1 ;;
   esac
 done
 
@@ -47,6 +47,7 @@ case $TARGET in
   all)      MODE_LABEL="全量部署" ;;
   backend)  MODE_LABEL="仅后端" ;;
   frontend) MODE_LABEL="仅前端" ;;
+  rag)      MODE_LABEL="仅 RAG" ;;
 esac
 
 sep
@@ -110,13 +111,20 @@ check_healthy() {
 
 if [[ "$TARGET" == "backend" ]]; then
   log "检查基础服务是否在线..."
-  for svc in teamflow-mysql teamflow-redis teamflow-minio; do
+  for svc in teamflow-mysql teamflow-redis teamflow-minio teamflow-qdrant; do
     if check_running "$svc"; then
       ok "$svc 运行中"
     else
       err "$svc 未运行，请先执行全量部署: ./deploy.sh all"
     fi
   done
+  if check_healthy "teamflow-embedding"; then
+    ok "teamflow-embedding 健康"
+  elif check_running "teamflow-embedding"; then
+    warn "teamflow-embedding 运行中但未通过健康检查，RAG 功能可能不可用"
+  else
+    err "teamflow-embedding 未运行，请先执行全量部署: ./deploy.sh all"
+  fi
 fi
 
 if [[ "$TARGET" == "frontend" ]]; then
@@ -127,6 +135,15 @@ if [[ "$TARGET" == "frontend" ]]; then
     warn "teamflow-backend 运行中但未通过健康检查，前端可能无法正常工作"
   else
     err "teamflow-backend 未运行，请先部署后端: ./deploy.sh backend"
+  fi
+fi
+
+if [[ "$TARGET" == "rag" ]]; then
+  log "检查 Qdrant 是否在线..."
+  if check_running "teamflow-qdrant"; then
+    ok "teamflow-qdrant 运行中"
+  else
+    err "teamflow-qdrant 未运行，请先执行全量部署: ./deploy.sh all"
   fi
 fi
 
@@ -226,6 +243,12 @@ case $TARGET in
     log "重启前端容器..."
     $COMPOSE_CMD up -d frontend 2>&1 | tee -a "$BUILD_LOG"
     ;;
+  rag)
+    log "重建 Embedding 服务（不影响其他服务）..."
+    build_service "embedding"
+    log "重启 Embedding 容器..."
+    $COMPOSE_CMD up -d embedding 2>&1 | tee -a "$BUILD_LOG"
+    ;;
 esac
 ok "容器已启动"
 
@@ -255,16 +278,20 @@ wait_healthy() {
 
 case $TARGET in
   all)
-    wait_healthy "teamflow-mysql"    120
-    wait_healthy "teamflow-redis"     60
-    wait_healthy "teamflow-backend"  180
-    wait_healthy "teamflow-frontend"  60
+    wait_healthy "teamflow-mysql"      120
+    wait_healthy "teamflow-redis"       60
+    wait_healthy "teamflow-embedding"  180
+    wait_healthy "teamflow-backend"    180
+    wait_healthy "teamflow-frontend"    60
     ;;
   backend)
-    wait_healthy "teamflow-backend"  180
+    wait_healthy "teamflow-backend"    180
     ;;
   frontend)
-    wait_healthy "teamflow-frontend"  60
+    wait_healthy "teamflow-frontend"    60
+    ;;
+  rag)
+    wait_healthy "teamflow-embedding"  180
     ;;
 esac
 
@@ -283,5 +310,6 @@ echo -e "  构建日志:  $BUILD_LOG"
 case $TARGET in
   all|backend) echo -e "  后端日志:  docker logs teamflow-backend -f" ;;
   frontend)    echo -e "  前端日志:  docker logs teamflow-frontend -f" ;;
+  rag)         echo -e "  Embedding 日志:  docker logs teamflow-embedding -f" ;;
 esac
 sep

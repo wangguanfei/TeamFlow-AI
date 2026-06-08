@@ -1,7 +1,7 @@
 import http from './request'
 import type { PageResult } from './system'
 
-export type DeployTarget = 'all' | 'backend' | 'frontend'
+export type DeployTarget = 'all' | 'backend' | 'frontend' | 'rag'
 export type DeployStatus = 'RUNNING' | 'SUCCESS' | 'FAILED'
 
 export interface DeployRecordItem {
