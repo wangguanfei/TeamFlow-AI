@@ -65,6 +65,7 @@ teamflow:
     base-url: ${AI_BASE_URL:https://api.deepseek.com/v1}
     api-key: ${AI_API_KEY:}
     model: ${AI_MODEL:deepseek-chat}
+    demo-daily-limit: ${AI_DEMO_DAILY_LIMIT:100}
   rag:
     enabled: ${RAG_ENABLED:true}
     local-embedding: ${RAG_LOCAL_EMBEDDING:true}

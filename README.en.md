@@ -9,7 +9,7 @@ English | [中文](./README.md)
     <td width="50%"><img src="./login.jpg" alt="TeamFlow AI login screen" width="100%" /></td>
     <td width="50%"><img src="./ai.jpg" alt="TeamFlow AI assistant screen" width="100%" /></td>
   </tr>
- 
+
 </table>
 
 ## Live Demo
@@ -79,7 +79,7 @@ Spring Boot 3 Application
 - Self-registration is disabled for enterprise backend usage.
 - Full user, role, permission, and menu management.
 - Dynamic menus, button permissions, and API permissions.
-- Read-only demo account `demo` is protected by backend enforcement. All write requests are blocked.
+- Read-only demo account `demo` is protected by backend enforcement, with only AI chat writes allowed under the daily quota.
 
 ### Dashboard
 
@@ -266,7 +266,7 @@ Account roles:
 
 - `admin`: super administrator with full system management permissions.
 - `dev`: developer role for project, task, knowledge, file, AI, and notification demos.
-- `demo`: read-only viewer. All non-read requests are blocked by the backend.
+- `demo`: read-only viewer. AI chat can use the real provider and RAG with saved chat history under a daily account quota; other create, update, delete, upload, and read-state write requests are still blocked by the backend.
 
 ## AI Configuration
 
@@ -277,12 +277,14 @@ export AI_PROVIDER=deepseek
 export AI_BASE_URL=https://api.deepseek.com/v1
 export AI_API_KEY=your-api-key
 export AI_MODEL=deepseek-chat
+export AI_DEMO_DAILY_LIMIT=100
 ```
 
 Notes:
 
 - `AI_PROVIDER` can be `deepseek`, `openai`, or another compatible provider label.
 - `AI_BASE_URL` must point to a service compatible with `/chat/completions`.
+- `AI_DEMO_DAILY_LIMIT` controls the demo account's daily AI call limit. It defaults to `100` and resets by the Asia/Shanghai calendar day.
 - If `AI_API_KEY` is missing or the upstream provider fails, the application falls back to `MockAIProvider`.
 - Do not commit real API keys. For production, inject secrets through `.env`, container environment variables, or cloud secret management.
 
@@ -302,6 +304,7 @@ Fill in the key settings in `.env`:
 | `MYSQL_ROOT_PASSWORD` | Yes | MySQL root password |
 | `MINIO_ROOT_PASSWORD` | Yes | MinIO admin password |
 | `AI_API_KEY` | Recommended | Falls back to MockAIProvider when empty |
+| `AI_DEMO_DAILY_LIMIT` | No | Daily AI call limit for the demo account; default `100` |
 | `RAG_ENABLED` | No | Default `true`; set to `false` to disable vector retrieval |
 | `RAG_LOCAL_EMBEDDING` | No | Default `true`; set to `false` to skip the local Embedding service |
 | `DEPLOY_ENABLED` | No | Default `false`; set to `true` to enable the deploy management page |

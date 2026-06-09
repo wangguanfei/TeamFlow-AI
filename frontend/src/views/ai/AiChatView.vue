@@ -4,7 +4,7 @@
       <aside class="ai-session-panel">
         <div class="ai-session-toolbar">
           <strong>会话列表</strong>
-          <PermissionButton permission="ai:session" type="primary" :icon="Plus" @click="startNewChat">新建会话</PermissionButton>
+          <PermissionButton permission="ai:chat" type="primary" :icon="Plus" @click="startNewChat">新建会话</PermissionButton>
         </div>
         <el-input
           v-model="sessionKeyword"
@@ -30,7 +30,8 @@
               <small>{{ session.sessionType }} · {{ session.messageCount }} 条消息</small>
             </span>
             <el-tag v-if="session.modelName === 'mock-ai'" size="small" type="warning">Mock</el-tag>
-            <el-button
+            <PermissionButton
+              permission="ai:session"
               link
               type="danger"
               size="small"

@@ -82,6 +82,7 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com/v1}
       AI_API_KEY: ${AI_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-deepseek-chat}
+      AI_DEMO_DAILY_LIMIT: ${AI_DEMO_DAILY_LIMIT:-100}
       RAG_ENABLED: ${RAG_ENABLED:-true}
       RAG_LOCAL_EMBEDDING: ${RAG_LOCAL_EMBEDDING:-true}
       RAG_MIN_AVAILABLE_MEMORY_MB: ${RAG_MIN_AVAILABLE_MEMORY_MB:-250}

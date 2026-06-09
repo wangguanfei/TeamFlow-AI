@@ -9,7 +9,7 @@
     <td width="50%"><img src="./login.jpg" alt="TeamFlow AI 登录界面" width="100%" /></td>
     <td width="50%"><img src="./ai.jpg" alt="TeamFlow AI 助手界面" width="100%" /></td>
   </tr>
-  
+
 </table>
 
 ## 在线演示
@@ -79,7 +79,7 @@ Spring Boot 3 Application
 - 企业后台关闭自主注册，由管理员创建用户。
 - 用户、角色、权限、菜单完整管理。
 - 动态菜单、按钮权限、接口权限联动。
-- 只读演示账号 `demo` 具备后端强制只读保护，所有写入请求直接拦截。
+- 只读演示账号 `demo` 具备后端强制只读保护，仅 AI 聊天写入按每日限额受控放行。
 
 ### 工作台
 
@@ -266,7 +266,7 @@ VITE_PROXY_TARGET=http://127.0.0.1:18080 npm run dev
 
 - `admin`：超级管理员，拥有完整系统管理权限。
 - `dev`：普通开发角色，适合演示项目、任务、知识库、文件、AI、通知等业务模块。
-- `demo`：只读演示角色，仅允许查看数据；后端会拦截所有新增、编辑、删除、上传、已读标记、AI 会话写入等非只读请求。
+- `demo`：只读演示角色，仅允许查看数据；AI 聊天可使用真实模型和 RAG 并保存会话，后端会按账号限制每日调用量，其他新增、编辑、删除、上传、已读标记等写请求仍会被拦截。
 
 ## AI 配置
 
@@ -277,12 +277,14 @@ export AI_PROVIDER=deepseek
 export AI_BASE_URL=https://api.deepseek.com/v1
 export AI_API_KEY=your-api-key
 export AI_MODEL=deepseek-chat
+export AI_DEMO_DAILY_LIMIT=100
 ```
 
 说明：
 
 - `AI_PROVIDER` 可填写 `deepseek`、`openai` 或其他兼容标识。
 - `AI_BASE_URL` 需要指向兼容 `/chat/completions` 的服务地址。
+- `AI_DEMO_DAILY_LIMIT` 控制 demo 账号每日 AI 调用上限，默认 `100`，按北京时间自然日重置。
 - 未配置 `AI_API_KEY` 或上游调用失败时，系统自动回退到 `MockAIProvider`。
 - 不要把真实 API Key 写入仓库。生产环境建议通过 `.env`、容器环境变量或云服务密钥管理注入。
 
@@ -302,6 +304,7 @@ cp .env.example .env
 | `MYSQL_ROOT_PASSWORD` | 是 | MySQL root 密码 |
 | `MINIO_ROOT_PASSWORD` | 是 | MinIO 管理密码 |
 | `AI_API_KEY` | 建议 | 为空时退回 MockAIProvider |
+| `AI_DEMO_DAILY_LIMIT` | 否 | demo 账号每日 AI 调用上限，默认 `100` |
 | `RAG_ENABLED` | 否 | 默认 `true`，关闭时禁用向量检索 |
 | `RAG_LOCAL_EMBEDDING` | 否 | 默认 `true`，关闭时不启动本地 Embedding 服务 |
 | `DEPLOY_ENABLED` | 否 | 默认 `false`，开启后管理页面可触发部署 |

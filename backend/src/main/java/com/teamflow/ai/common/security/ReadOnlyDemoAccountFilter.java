@@ -25,11 +25,14 @@ public class ReadOnlyDemoAccountFilter extends OncePerRequestFilter {
             HttpMethod.HEAD.name(),
             HttpMethod.OPTIONS.name()
     );
-    private static final Set<String> ALLOWED_AUTH_ENDPOINTS = Set.of(
+    private static final Set<String> ALLOWED_WRITE_ENDPOINTS = Set.of(
             "/api/auth/login",
             "/api/auth/refresh-token",
             "/api/auth/logout",
-            "/api/ai/chat/stream"
+            "/api/ai/chat/stream",
+            "/api/ai/knowledge/ask",
+            "/api/ai/doc/summary",
+            "/api/ai/code/generate"
     );
 
     private final ObjectMapper objectMapper;
@@ -49,7 +52,7 @@ public class ReadOnlyDemoAccountFilter extends OncePerRequestFilter {
     }
 
     private boolean isBlockedDemoWrite(HttpServletRequest request) {
-        if (SAFE_METHODS.contains(request.getMethod()) || ALLOWED_AUTH_ENDPOINTS.contains(request.getRequestURI())) {
+        if (SAFE_METHODS.contains(request.getMethod()) || ALLOWED_WRITE_ENDPOINTS.contains(request.getRequestURI())) {
             return false;
         }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

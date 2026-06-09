@@ -139,7 +139,7 @@ export async function aiChatStreamApi(
   })
 
   if (!response.ok) {
-    onError(`请求失败 (${response.status})`)
+    onError(await readErrorMessage(response))
     return
   }
 
@@ -177,6 +177,20 @@ export async function aiChatStreamApi(
       } catch {
         // ignore malformed SSE events
       }
+    }
+  }
+}
+
+async function readErrorMessage(response: Response): Promise<string> {
+  try {
+    const payload = await response.clone().json() as { message?: string }
+    return payload.message || `请求失败 (${response.status})`
+  } catch {
+    try {
+      const text = await response.text()
+      return text || `请求失败 (${response.status})`
+    } catch {
+      return `请求失败 (${response.status})`
     }
   }
 }

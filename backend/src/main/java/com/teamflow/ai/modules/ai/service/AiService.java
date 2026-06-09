@@ -26,7 +26,6 @@ import com.teamflow.ai.modules.ai.mapper.AiMessageMapper;
 import com.teamflow.ai.modules.ai.mapper.AiSessionMapper;
 import com.teamflow.ai.modules.ai.provider.AiProvider;
 import com.teamflow.ai.modules.ai.provider.AiProperties;
-import com.teamflow.ai.modules.ai.provider.MockAiProvider;
 import com.teamflow.ai.modules.knowledge.entity.KnowledgeSpace;
 import com.teamflow.ai.modules.knowledge.mapper.KnowledgeSpaceMapper;
 import com.teamflow.ai.modules.user.entity.SysUser;
@@ -47,7 +46,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,8 +53,6 @@ import java.util.stream.Collectors;
 public class AiService {
 
     private static final Logger log = LoggerFactory.getLogger(AiService.class);
-
-    private static final AtomicLong DEMO_TRANSIENT_ID = new AtomicLong(-1);
 
     private static final ExecutorService SSE_EXECUTOR = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "sse-stream");
@@ -70,10 +66,10 @@ public class AiService {
     private final KnowledgeSpaceMapper spaceMapper;
     private final SysUserMapper userMapper;
     private final AiProvider aiProvider;
-    private final MockAiProvider mockAiProvider;
     private final AiProperties properties;
     private final ObjectMapper objectMapper;
     private final AiKnowledgeIndexService knowledgeIndexService;
+    private final DemoAiQuotaService demoAiQuotaService;
 
     public AiService(
             AiSessionMapper sessionMapper,
@@ -82,10 +78,10 @@ public class AiService {
             KnowledgeSpaceMapper spaceMapper,
             SysUserMapper userMapper,
             AiProvider aiProvider,
-            MockAiProvider mockAiProvider,
             AiProperties properties,
             ObjectMapper objectMapper,
-            AiKnowledgeIndexService knowledgeIndexService
+            AiKnowledgeIndexService knowledgeIndexService,
+            DemoAiQuotaService demoAiQuotaService
     ) {
         this.sessionMapper = sessionMapper;
         this.messageMapper = messageMapper;
@@ -93,10 +89,10 @@ public class AiService {
         this.spaceMapper = spaceMapper;
         this.userMapper = userMapper;
         this.aiProvider = aiProvider;
-        this.mockAiProvider = mockAiProvider;
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.knowledgeIndexService = knowledgeIndexService;
+        this.demoAiQuotaService = demoAiQuotaService;
     }
 
     public AiProviderStatus providerStatus() {
@@ -110,9 +106,6 @@ public class AiService {
     }
 
     public AiProviderStatus providerStatus(Long userId) {
-        if (isDemoUser(userId)) {
-            return new AiProviderStatus("mock", "mock-ai", false, true);
-        }
         return providerStatus();
     }
 
@@ -237,13 +230,15 @@ public class AiService {
 
     @Transactional
     public AiChatResponse chat(AiChatRequest request, Long userId) {
-        if (isDemoUser(userId)) {
-            return demoChat(request, userId);
-        }
-        AiSession session = request.sessionId() == null
-                ? createChatSession(request, userId)
-                : getSessionEntity(request.sessionId());
         String mode = normalizeMode(request.mode());
+        AiSession existingSession = request.sessionId() == null
+                ? null
+                : getOwnedSessionEntity(request.sessionId(), userId);
+        consumeDemoQuotaIfNeeded(userId);
+
+        AiSession session = existingSession == null
+                ? createChatSession(request, userId)
+                : existingSession;
         if (!mode.equals(session.getSessionType())) {
             session.setSessionType(mode);
         }
@@ -281,16 +276,17 @@ public class AiService {
     }
 
     public SseEmitter chatStream(AiChatRequest request, Long userId) {
-        if (isDemoUser(userId)) {
-            return demoChatStream(request, userId);
-        }
-        AiSession session = request.sessionId() == null
-                ? createChatSession(request, userId)
-                : getSessionEntity(request.sessionId());
         String mode = normalizeMode(request.mode());
+        AiSession existingSession = request.sessionId() == null
+                ? null
+                : getOwnedSessionEntity(request.sessionId(), userId);
+        consumeDemoQuotaIfNeeded(userId);
+
+        AiSession session = existingSession == null
+                ? createChatSession(request, userId)
+                : existingSession;
         if (!mode.equals(session.getSessionType())) {
             session.setSessionType(mode);
-            sessionMapper.updateById(session);
         }
         if (request.spaceId() != null) {
             session.setSpaceId(request.spaceId());
@@ -374,94 +370,6 @@ public class AiService {
     @Transactional
     public AiChatResponse codeGenerate(AiChatRequest request, Long userId) {
         return chat(new AiChatRequest(request.sessionId(), request.spaceId(), "CODE", request.useKnowledge(), request.model(), request.message()), userId);
-    }
-
-    private AiChatResponse demoChat(AiChatRequest request, Long userId) {
-        String mode = normalizeMode(request.mode());
-        List<AiReferenceItem> references = resolveRag(request, mode)
-                ? searchReferences(request.message(), request.spaceId())
-                : List.of();
-        AiProvider.AiAnswer answer = mockAiProvider.chat(buildDemoPrompts(request.message(), mode, references), mode, references);
-        LocalDateTime now = LocalDateTime.now();
-        Long sessionId = nextDemoTransientId();
-        AiSessionItem session = new AiSessionItem(
-                sessionId,
-                userId,
-                "只读演示账号",
-                request.spaceId(),
-                resolveSpaceName(request.spaceId()),
-                titleFrom(request.message()),
-                answer.modelName(),
-                mode,
-                2,
-                now,
-                now
-        );
-        AiMessageItem userMessage = new AiMessageItem(
-                nextDemoTransientId(),
-                sessionId,
-                "USER",
-                request.message(),
-                estimateTokens(request.message()),
-                List.of(),
-                now
-        );
-        AiMessageItem assistantMessage = new AiMessageItem(
-                nextDemoTransientId(),
-                sessionId,
-                "ASSISTANT",
-                answer.content(),
-                answer.tokens(),
-                references,
-                now
-        );
-        return new AiChatResponse(session, userMessage, assistantMessage, references, true);
-    }
-
-    private SseEmitter demoChatStream(AiChatRequest request, Long userId) {
-        SseEmitter emitter = new SseEmitter(120_000L);
-        emitter.onTimeout(emitter::complete);
-        emitter.onError(e -> emitter.complete());
-        SSE_EXECUTOR.execute(() -> {
-            try {
-                AiChatResponse response = demoChat(request, userId);
-                emitter.send(SseEmitter.event()
-                        .data(objectMapper.writeValueAsString(Map.of(
-                                "type", "token",
-                                "content", response.assistantMessage().content()
-                        ))));
-
-                Map<String, Object> donePayload = new LinkedHashMap<>();
-                donePayload.put("type", "done");
-                donePayload.put("session", response.session());
-                donePayload.put("userMessage", response.userMessage());
-                donePayload.put("assistantMessage", response.assistantMessage());
-                donePayload.put("references", response.references());
-                donePayload.put("mock", true);
-                emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(donePayload)));
-                emitter.complete();
-            } catch (Exception error) {
-                try {
-                    String msg = error.getMessage() == null ? "AI 演示服务异常" : error.getMessage();
-                    emitter.send(SseEmitter.event()
-                            .data(objectMapper.writeValueAsString(Map.of("type", "error", "message", msg))));
-                } catch (Exception ignored) {}
-                emitter.completeWithError(error);
-            }
-        });
-        return emitter;
-    }
-
-    private List<AiProvider.AiPromptMessage> buildDemoPrompts(String message, String mode, List<AiReferenceItem> references) {
-        String referenceText = references.isEmpty()
-                ? ""
-                : "\n\n知识库引用:\n" + references.stream()
-                .map(reference -> reference.title() + "\n" + reference.snippet())
-                .collect(Collectors.joining("\n"));
-        return List.of(
-                new AiProvider.AiPromptMessage("SYSTEM", "你是 TeamFlow AI 演示助手。当前是只读演示账号，必须使用 Mock 模式，不调用外部大模型。" + referenceText),
-                new AiProvider.AiPromptMessage("USER", message == null ? "" : message)
-        );
     }
 
     /**
@@ -576,16 +484,18 @@ public class AiService {
         return user != null && DemoAccountConstants.USERNAME.equals(user.getUsername());
     }
 
-    private Long nextDemoTransientId() {
-        return DEMO_TRANSIENT_ID.getAndDecrement();
+    private void consumeDemoQuotaIfNeeded(Long userId) {
+        if (isDemoUser(userId)) {
+            demoAiQuotaService.consumeForDemo();
+        }
     }
 
-    private String resolveSpaceName(Long spaceId) {
-        if (spaceId == null) {
-            return null;
+    private AiSession getOwnedSessionEntity(Long id, Long userId) {
+        AiSession session = getSessionEntity(id);
+        if (userId != null && !Objects.equals(session.getUserId(), userId)) {
+            throw new BusinessException(403, "AI会话无访问权限");
         }
-        KnowledgeSpace space = spaceMapper.selectById(spaceId);
-        return space == null ? null : space.getSpaceName();
+        return session;
     }
 
     private List<AiProvider.AiPromptMessage> buildPrompts(AiSession session, String mode, List<AiReferenceItem> references) {
