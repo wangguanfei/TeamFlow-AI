@@ -51,6 +51,7 @@ public class RagProperties {
         private String baseUrl = "http://127.0.0.1:8000";
         private String model = "BAAI/bge-small-zh-v1.5";
         private int maxTextChars = 4000;
+        private int readTimeoutSeconds = 30;
 
         public String getBaseUrl() { return baseUrl; }
         public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
@@ -58,6 +59,8 @@ public class RagProperties {
         public void setModel(String model) { this.model = model; }
         public int getMaxTextChars() { return maxTextChars; }
         public void setMaxTextChars(int maxTextChars) { this.maxTextChars = maxTextChars; }
+        public int getReadTimeoutSeconds() { return readTimeoutSeconds; }
+        public void setReadTimeoutSeconds(int readTimeoutSeconds) { this.readTimeoutSeconds = readTimeoutSeconds; }
     }
 
     public static class Retrieval {

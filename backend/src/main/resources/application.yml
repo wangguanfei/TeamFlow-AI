@@ -79,6 +79,7 @@ teamflow:
       base-url: ${EMBEDDING_BASE_URL:http://127.0.0.1:8000}
       model: ${EMBEDDING_MODEL:BAAI/bge-small-zh-v1.5}
       max-text-chars: ${EMBEDDING_MAX_TEXT_CHARS:4000}
+      read-timeout-seconds: ${EMBEDDING_READ_TIMEOUT_SECONDS:30}
     retrieval:
       dense-top-k: ${RAG_DENSE_TOP_K:20}
       keyword-top-k: ${RAG_KEYWORD_TOP_K:20}

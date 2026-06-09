@@ -18,18 +18,17 @@ public class EmbeddingClient {
 
     private static final Logger log = LoggerFactory.getLogger(EmbeddingClient.class);
 
-    /** Embedding 为 CPU 推理，给较宽的读超时；但必须有上限，避免拖垮同步 chat 路径。 */
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(2);
-    private static final Duration READ_TIMEOUT = Duration.ofSeconds(15);
 
     private final RagProperties properties;
     private final RestClient restClient;
 
     public EmbeddingClient(RagProperties properties, RestClient.Builder builder) {
         this.properties = properties;
+        Duration readTimeout = Duration.ofSeconds(properties.getEmbedding().getReadTimeoutSeconds());
         ClientHttpRequestFactorySettings settings = ClientHttpRequestFactorySettings.DEFAULTS
                 .withConnectTimeout(CONNECT_TIMEOUT)
-                .withReadTimeout(READ_TIMEOUT);
+                .withReadTimeout(readTimeout);
         this.restClient = builder.requestFactory(ClientHttpRequestFactories.get(settings)).build();
     }
 

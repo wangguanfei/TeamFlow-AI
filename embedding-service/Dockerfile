@@ -26,5 +26,12 @@ RUN pip install --no-cache-dir --timeout 300 \
 
 COPY app.py .
 
+# 构建时通过 hf-mirror.com 下载模型，烧入镜像层，运行时无需联网
+ARG EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5
+ENV HF_ENDPOINT=https://hf-mirror.com \
+    HF_HOME=/app/models \
+    TRANSFORMERS_CACHE=/app/models
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('${EMBEDDING_MODEL}', device='cpu')"
+
 EXPOSE 8000
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
