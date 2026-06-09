@@ -10,10 +10,10 @@
         <el-button :icon="Search" @click="loadData">查询</el-button>
       </div>
       <el-table v-loading="loading" :data="pageData.records" row-key="id">
-        <el-table-column prop="permissionCode" label="权限编码" min-width="220" />
-        <el-table-column prop="permissionName" label="权限名称" min-width="160" />
+        <el-table-column prop="permissionCode" label="权限编码" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="permissionName" label="权限名称" min-width="160" show-overflow-tooltip />
         <el-table-column prop="resourceType" label="类型" width="110" />
-        <el-table-column prop="resourcePath" label="资源路径" min-width="220" />
+        <el-table-column prop="resourcePath" label="资源路径" min-width="220" show-overflow-tooltip />
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <PermissionButton permission="system:permission:update" link type="primary" @click="openEdit(row)">编辑</PermissionButton>

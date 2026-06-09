@@ -650,9 +650,15 @@ function formatDate(value?: string) {
 }
 
 .file-biz-id {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 120px;
   margin-left: 6px;
   color: var(--tf-muted);
   font-size: 12px;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .file-preview-dialog :deep(.el-dialog__body) {

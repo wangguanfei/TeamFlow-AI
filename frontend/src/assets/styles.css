@@ -664,6 +664,7 @@ a {
 
 .global-search-result {
   width: 100%;
+  min-width: 0;
   min-height: 54px;
   display: grid;
   gap: 2px;
@@ -1232,7 +1233,7 @@ a {
 }
 
 .dashboard-todo-item__date {
-  max-width: 112px;
+  max-width: 140px;
   padding: 3px 8px;
   border-radius: 999px;
   background: var(--tf-soft-blue);
@@ -1494,7 +1495,11 @@ a {
 }
 
 .role-tag {
+  max-width: 160px;
   margin-right: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inline-role-group {
@@ -1619,11 +1624,15 @@ a {
 .project-name-cell {
   display: grid;
   gap: 3px;
+  min-width: 0;
 }
 
 .project-name-cell strong {
+  overflow: hidden;
   color: var(--tf-text);
   font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-name-cell span,
@@ -1652,6 +1661,7 @@ a {
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  min-width: 0;
 }
 
 .task-user-tags .el-tag {
@@ -1930,18 +1940,28 @@ a {
 }
 
 .kanban-task-card h3 {
+  display: -webkit-box;
+  overflow: hidden;
   margin: 10px 0 6px;
   color: var(--tf-text);
   font-size: 15px;
   line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
 }
 
 .kanban-task-card p {
+  display: -webkit-box;
+  overflow: hidden;
   min-height: 40px;
   margin: 0 0 10px;
   color: var(--tf-muted);
   font-size: 12px;
   line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  word-break: break-word;
 }
 
 .kanban-task-card footer {
@@ -1994,6 +2014,8 @@ a {
   margin: 0;
   color: var(--tf-muted);
   line-height: 1.7;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .task-detail-tabs {
@@ -2087,6 +2109,8 @@ a {
   margin: 4px 0;
   color: #374151;
   line-height: 1.6;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .task-activity-row span {
@@ -2125,7 +2149,10 @@ a {
 }
 
 .gantt-task-title strong {
+  overflow: hidden;
   color: var(--tf-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .gantt-task-title span,

@@ -10,10 +10,10 @@
         <el-button :icon="Search" @click="loadData">查询</el-button>
       </div>
       <el-table v-loading="loading" :data="pageData.records" row-key="id">
-        <el-table-column prop="menuName" label="菜单名称" min-width="150" />
-        <el-table-column prop="path" label="路由" min-width="180" />
-        <el-table-column prop="component" label="组件" min-width="180" />
-        <el-table-column prop="permissionCode" label="权限码" min-width="180" />
+        <el-table-column prop="menuName" label="菜单名称" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="path" label="路由" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="component" label="组件" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="permissionCode" label="权限码" min-width="180" show-overflow-tooltip />
         <el-table-column prop="menuType" label="类型" width="90" />
         <el-table-column prop="sortNo" label="排序" width="90" />
         <el-table-column label="显示" width="90">

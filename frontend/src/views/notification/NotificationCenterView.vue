@@ -243,13 +243,21 @@ function formatDate(value?: string) {
 }
 
 .notification-item__main strong {
+  overflow: hidden;
   margin-bottom: 4px;
   font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .notification-item__main small {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--tf-muted);
   line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
 }
 
 .notification-item__meta,

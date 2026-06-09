@@ -554,6 +554,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .rc-status-tag {
@@ -561,9 +562,12 @@ onUnmounted(() => {
 }
 
 .rc-target-text {
+  overflow: hidden;
   font-size: 14px;
   font-weight: 600;
   color: var(--el-text-color-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rc-pull-tag {
