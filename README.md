@@ -194,6 +194,8 @@ Spring Boot 3 Application
 | Redis | `127.0.0.1:6379` |
 | MinIO API | `http://127.0.0.1:9000` |
 | MinIO Console | `http://127.0.0.1:9001` |
+| Qdrant | `http://127.0.0.1:6333` |
+| Embedding 服务 | `http://127.0.0.1:8000` |
 
 ### 启动后端
 
