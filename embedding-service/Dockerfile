@@ -14,9 +14,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --timeout 600 --retries 5 \
+RUN pip install --no-cache-dir --timeout 300 \
     -i https://mirrors.aliyun.com/pypi/simple/ \
-    --extra-index-url https://mirror.sjtu.edu.cn/pytorch-wheels/cpu \
+    filelock typing-extensions sympy networkx jinja2 fsspec mpmath MarkupSafe
+RUN pip install --no-cache-dir --timeout 600 --retries 5 --no-deps \
+    --index-url https://mirror.sjtu.edu.cn/pytorch-wheels/cpu \
     "torch==2.7.1+cpu"
 RUN pip install --no-cache-dir --timeout 300 \
     -i https://mirrors.aliyun.com/pypi/simple/ \
