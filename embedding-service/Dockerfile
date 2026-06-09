@@ -15,7 +15,8 @@ RUN apt-get update \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --timeout 600 --retries 5 \
-    --index-url https://mirror.sjtu.edu.cn/pytorch-wheels/cpu \
+    -i https://mirrors.aliyun.com/pypi/simple/ \
+    --extra-index-url https://mirror.sjtu.edu.cn/pytorch-wheels/cpu \
     "torch==2.7.1+cpu"
 RUN pip install --no-cache-dir --timeout 300 \
     -i https://mirrors.aliyun.com/pypi/simple/ \
