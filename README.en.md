@@ -27,7 +27,7 @@ The project is designed as a production-minded SaaS backend and frontend system.
 
 - **AI-native collaboration**: chat, knowledge Q&A, document summary, code generation, SQL assistant, DeepSeek / OpenAI-compatible provider, and MockAIProvider fallback.
 - **Complete RBAC pipeline**: JWT, Spring Security, role-permission model, dynamic menus, button-level permissions, and API-level authorization, with user permissions cached in Redis to eliminate repeated lookups in the JWT filter on every request.
-- **Knowledge RAG foundation**: Markdown, TXT, PDF, and DOCX import, document publishing, searchable knowledge slices, and AI knowledge Q&A.
+- **Lightweight local RAG**: Qdrant vector database + bge-small-zh local Embedding service + BM25 keyword retrieval + RRF fusion ranking, runnable on 2C2G; Markdown, TXT, PDF, and DOCX import, automatic slice refresh on publish, end-to-end knowledge Q&A.
 - **Project and task workflow**: projects, members, tags, task list, Kanban drag-and-drop, Gantt view, comments, worklogs, attachments, and executors.
 - **Enterprise file center**: MinIO storage, upload, preview, download, sharing, business archive, and large-file support.
 - **Real-time notification**: unread badges, search, read status, deletion, and WebSocket push.
@@ -51,10 +51,12 @@ Spring Boot 3 Application
   |-- Project / Task / Knowledge / File / AI / Notification Modules
   |-- MyBatis-Plus Data Access
   |
-  |-- MySQL 8      relational data
-  |-- Redis        permission cache and runtime support
-  |-- MinIO        object storage
-  |-- AI Provider  DeepSeek / OpenAI compatible / Mock fallback
+  |-- MySQL 8           relational data
+  |-- Redis             permission cache and runtime support
+  |-- MinIO             object storage
+  |-- AI Provider       DeepSeek / OpenAI compatible / Mock fallback
+  |-- Qdrant            vector database (RAG)
+  |-- Embedding Service bge-small-zh local embedding (RAG)
 ```
 
 ## Tech Stack
@@ -66,7 +68,8 @@ Spring Boot 3 Application
 | Data | MySQL 8, Redis, MyBatis-Plus |
 | File Storage | MinIO, multipart upload, 500MB upload limit |
 | AI | OpenAI-compatible HTTP client, DeepSeek-compatible config, MockAIProvider fallback |
-| Deployment | Docker, Docker Compose, Nginx, health checks, reverse proxy |
+| RAG | Qdrant vector database, bge-small-zh local Embedding service, BM25 keyword retrieval, RRF fusion ranking |
+| Deployment | Docker, Docker Compose, Nginx, health checks, reverse proxy, deploy-agent.sh host proxy |
 
 ## Feature Map
 
@@ -101,11 +104,14 @@ Spring Boot 3 Application
 
 ### Knowledge Base and RAG
 
-- Knowledge spaces, document tree, document creation, editing, and deletion.
-- Markdown editing and preview.
+- Knowledge space create, edit, and delete; document tree management.
+- Markdown document create, edit, and delete.
 - Publishing, version history, rollback, and favorites.
 - Markdown, TXT, PDF, and DOCX import.
-- Published documents refresh AI retrieval slices for knowledge Q&A.
+- Published documents automatically refresh AI retrieval slices for knowledge Q&A.
+- Lightweight local RAG: Qdrant vector store + bge-small-zh local Embedding + BM25 keyword retrieval + RRF fusion ranking, runnable on 2C2G.
+- `/api/rag/status` health check, `/api/rag/rebuild` manual index rebuild.
+- `RAG_ENABLED` / `RAG_LOCAL_EMBEDDING` feature flags for mode switching without code changes.
 
 ### File Center
 
@@ -125,6 +131,15 @@ Spring Boot 3 Application
 - DeepSeek / OpenAI-compatible API.
 - MockAIProvider fallback for fully offline demos without an API key.
 
+### System Administration
+
+- User management: create, edit, disable, and role assignment.
+- Role management: role CRUD and permission binding.
+- Permission management: maintain permission codes, names, and resource paths.
+- Menu management: maintain frontend dynamic routes, icons, and permission codes.
+- Operation log: AOP `@Log` annotation records all write operations automatically; query by operator, time range, and module.
+- Deploy management: trigger `deploy.sh` with one click from the admin page, with real-time SSE log streaming; requires `deploy-agent.sh` installed on the host and `DEPLOY_ENABLED=true`.
+
 ### Notification and Profile Center
 
 - Notification pagination, search, unread-only filtering, mark all as read, and deletion.
@@ -139,7 +154,7 @@ Spring Boot 3 Application
 ├── backend
 │   ├── src/main/java/com/teamflow/ai
 │   │   ├── common              # API result, exception, security, trace, config
-│   │   └── modules             # auth, user, system, project, task, knowledge, file, ai, notification
+│   │   └── modules             # auth, user, system, project, task, knowledge, file, ai, notification, rag
 │   └── src/main/resources
 │       ├── application.yml
 │       └── db/schema.sql       # runtime schema and demo data bootstrap
@@ -151,8 +166,11 @@ Spring Boot 3 Application
 │       ├── router              # dynamic route sync
 │       ├── stores              # Pinia stores
 │       └── views               # feature pages
+├── embedding-service           # bge-small-zh local Embedding service (Flask + sentence-transformers)
 ├── deploy/nginx                # Nginx reverse proxy configs
+├── deploy-agent.sh             # host-side deploy agent, triggered by the backend to run deploy.sh
 ├── docker-compose.yml
+├── docker-compose.local.yml    # local Docker verification (reuses host MySQL/Redis)
 ├── README.md
 └── README.en.md
 ```
@@ -274,7 +292,17 @@ Copy the environment template:
 cp .env.example .env
 ```
 
-Fill `JWT_SECRET`, `MYSQL_ROOT_PASSWORD`, `MINIO_ROOT_PASSWORD`, `AI_API_KEY`, and other production settings in `.env`.
+Fill in the key settings in `.env`:
+
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `JWT_SECRET` | Yes | 64-byte random string |
+| `MYSQL_ROOT_PASSWORD` | Yes | MySQL root password |
+| `MINIO_ROOT_PASSWORD` | Yes | MinIO admin password |
+| `AI_API_KEY` | Recommended | Falls back to MockAIProvider when empty |
+| `RAG_ENABLED` | No | Default `true`; set to `false` to disable vector retrieval |
+| `RAG_LOCAL_EMBEDDING` | No | Default `true`; set to `false` to skip the local Embedding service |
+| `DEPLOY_ENABLED` | No | Default `false`; set to `true` to enable the deploy management page |
 
 Build and start:
 
@@ -367,12 +395,12 @@ TeamFlow AI combines enterprise collaboration and AI capabilities in one coheren
 
 Contributions are welcome. Useful directions include:
 
-- production-grade vector retrieval,
 - AI Agent workflows,
 - multi-tenant organization models,
-- audit logs and operation tracing,
 - end-to-end test coverage,
-- responsive mobile experience.
+- responsive mobile experience,
+- OAuth2 / SSO single sign-on support,
+- Redis login rate limiting and JWT denylist.
 
 ## License
 
