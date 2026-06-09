@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Code 能力检索台</title>
+  <script defer src="http://81.69.248.152:8091/script.js" data-website-id="SKILL_FINDER_WEBSITE_ID"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-strong: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #d9e2ec;
+      --line-strong: #c6d3df;
+      --teal: #0f766e;
+      --teal-soft: #e6f4f1;
+      --blue: #2563eb;
+      --blue-soft: #e9f0ff;
+      --amber: #b7791f;
+      --amber-soft: #fff5dd;
+      --red: #b42318;
+      --red-soft: #fff0ed;
+      --shadow: 0 18px 48px rgba(20, 37, 63, .12);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      letter-spacing: 0;
+    }
+    button, input { font: inherit; }
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      flex: 0 0 auto;
+      color: var(--teal);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      color: #111827;
+    }
+    .brand p {
+      margin: 5px 0 0;
+      color: var(--muted);
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: #344054;
+      display: inline-grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .icon-btn:hover, .icon-btn.active {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-soft);
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: 304px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .rail, .main-panel, .search-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .rail {
+      position: sticky;
+      top: 18px;
+      padding: 16px;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--panel-strong);
+    }
+    .stat b {
+      display: block;
+      font-size: 22px;
+      line-height: 1.1;
+      color: #111827;
+    }
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .section-title {
+      margin: 18px 0 10px;
+      font-size: 13px;
+      color: #475467;
+      font-weight: 700;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #344054;
+      padding: 6px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .chip:hover, .chip.active {
+      border-color: var(--teal);
+      background: var(--teal-soft);
+      color: var(--teal);
+    }
+    .note {
+      margin: 16px 0 0;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--amber-soft);
+      color: #614700;
+      border: 1px solid #f2d891;
+      font-size: 13px;
+    }
+    .main-panel { overflow: hidden; }
+    .search-panel {
+      box-shadow: none;
+      border-width: 0 0 1px;
+      border-radius: 0;
+      padding: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .search-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .search-box {
+      position: relative;
+    }
+    .search-box svg {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #667085;
+      pointer-events: none;
+    }
+    #searchInput {
+      width: 100%;
+      height: 46px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 0 14px 0 42px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+    #searchInput:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, .14);
+    }
+    .result-meta {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .type-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .type-tab {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 34px;
+      padding: 6px 10px;
+      background: #fff;
+      color: #344054;
+      cursor: pointer;
+    }
+    .type-tab.active {
+      background: #111827;
+      color: #fff;
+      border-color: #111827;
+    }
+    .results {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 12px;
+    }
+    .results.list {
+      grid-template-columns: 1fr;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      min-height: 214px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+    }
+    .list .card {
+      min-height: 0;
+    }
+    .card-head {
+      padding: 13px 14px 10px;
+      border-bottom: 1px solid #edf1f5;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+    }
+    .name {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge.skill { color: var(--teal); background: var(--teal-soft); }
+    .badge.command { color: var(--blue); background: var(--blue-soft); }
+    .badge.agent { color: var(--amber); background: var(--amber-soft); }
+    .badge.rule { color: var(--red); background: var(--red-soft); }
+    .card-body {
+      padding: 12px 14px;
+    }
+    .purpose {
+      margin: 0;
+      color: #344054;
+    }
+    .tag-row {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tag {
+      font-size: 12px;
+      color: #475467;
+      background: #f2f4f7;
+      border: 1px solid #e4e7ec;
+      border-radius: 999px;
+      padding: 2px 7px;
+    }
+    .card-foot {
+      padding: 12px 14px 14px;
+      border-top: 1px solid #edf1f5;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      background: #fbfcfd;
+    }
+    .example {
+      margin: 0;
+      color: #475467;
+      font-size: 13px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .copy-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: #344054;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-soft);
+    }
+    .empty {
+      grid-column: 1 / -1;
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      padding: 48px 16px;
+      text-align: center;
+      color: var(--muted);
+      background: #fff;
+    }
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      padding: 10px 12px;
+      background: #111827;
+      color: #fff;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity .16s ease, transform .16s ease;
+      z-index: 20;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (max-width: 940px) {
+      .page { padding: 16px; }
+      .topbar { grid-template-columns: 1fr; }
+      .toolbar { justify-content: flex-start; }
+      .shell { grid-template-columns: 1fr; }
+      .rail { position: static; }
+      .search-panel { position: static; }
+    }
+    @media (max-width: 560px) {
+      .brand { align-items: flex-start; }
+      .brand-mark { width: 42px; height: 42px; }
+      .brand h1 { font-size: 20px; }
+      .search-row { grid-template-columns: 1fr; }
+      .result-meta { white-space: normal; }
+      .results { grid-template-columns: 1fr; padding: 12px; }
+      .card-foot { grid-template-columns: 1fr auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="7" y="8" width="50" height="48" rx="8" fill="currentColor" opacity=".12"></rect>
+          <path d="M19 21h22M19 32h26M19 43h16" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"></path>
+          <circle cx="47" cy="21" r="4" fill="#b7791f"></circle>
+          <circle cx="47" cy="43" r="4" fill="#2563eb"></circle>
+        </svg>
+        <div>
+          <h1>Claude Code 能力检索台</h1>
+          <p>快速查找本机 ~/.claude 当前启用的技能、命令、代理和规则</p>
+        </div>
+      </div>
+      <div class="toolbar" aria-label="视图工具">
+        <a href="Claude-Code-Tutorial.html" title="实战教程" style="display:inline-flex;align-items:center;gap:6px;padding:0 12px;height:40px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:#344054;font-size:13px;font-weight:500;text-decoration:none;white-space:nowrap;" onmouseover="this.style.borderColor='var(--teal)';this.style.color='var(--teal)';this.style.background='var(--teal-soft)'" onmouseout="this.style.borderColor='var(--line)';this.style.color='#344054';this.style.background='var(--panel)'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          实战教程
+        </a>
+        <button class="icon-btn active" id="gridBtn" title="卡片视图" aria-label="卡片视图">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" id="listBtn" title="列表视图" aria-label="列表视图">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="icon-btn" id="resetBtn" title="清空筛选" aria-label="清空筛选">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7H4M18 7l-1 13H7L6 7M10 11v6M14 11v6M9 7V4h6v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="rail">
+        <div class="stat-grid">
+          <div class="stat"><b>53</b><span>技能</span></div>
+          <div class="stat"><b>38</b><span>命令</span></div>
+          <div class="stat"><b>25</b><span>代理</span></div>
+          <div class="stat"><b>6</b><span>规则</span></div>
+        </div>
+        <div class="section-title">常见场景</div>
+        <div class="chips" id="tagChips"></div>
+        <div class="note">
+          数据快照：2026-06-09（更新 v2）<br>
+          共 53 技能 / 38 命令（含 12 个内置）/ 25 代理 / 6 规则，合计 122 项。
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <section class="search-panel">
+          <div class="search-row">
+            <label class="search-box">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <input id="searchInput" autocomplete="off" placeholder="搜索技能、场景或关键词">
+            </label>
+            <div class="result-meta" id="resultMeta"></div>
+          </div>
+          <div class="type-tabs" id="typeTabs" aria-label="类别筛选"></div>
+        </section>
+        <section class="results" id="results" aria-live="polite"></section>
+      </main>
+    </div>
+  </div>
+  <div class="toast" id="toast">已复制调用示例</div>
+  <script id="capability-data" type="application/json">{"items":[{"id":"skill-0","type":"skill","typeLabel":"技能","name":"agent-sort","purpose":"根据任务类型、复杂度和风险选择合适的代理组合。","example":"请用 agent-sort 帮我判断这个任务该交给哪些代理。","tags":["计划","上下文","代理"],"search":"技能 agent-sort 根据任务类型、复杂度和风险选择合适的代理组合。 请用 agent-sort 帮我判断这个任务该交给哪些代理。 计划 上下文 代理"},{"id":"skill-1","type":"skill","typeLabel":"技能","name":"ai-regression-testing","purpose":"为 AI 或 LLM 相关流程设计回归测试，避免提示词、模型或工具变更带来行为漂移。","example":"使用 ai-regression-testing 为这个 LLM 流程设计回归用例。","tags":["测试","评测","LLM"],"search":"技能 ai-regression-testing 为 ai 或 llm 相关流程设计回归测试，避免提示词、模型或工具变更带来行为漂移。 使用 ai-regression-testing 为这个 llm 流程设计回归用例。 测试 评测 llm"},{"id":"skill-2","type":"skill","typeLabel":"技能","name":"api-design","purpose":"用于接口设计和评审，关注资源边界、请求响应结构、错误码、兼容性和可维护性。","example":"按 api-design 帮我评审这组 REST 接口。","tags":["后端","接口","评审"],"search":"技能 api-design 用于接口设计和评审，关注资源边界、请求响应结构、错误码、兼容性和可维护性。 按 api-design 帮我评审这组 rest 接口。 后端 接口 评审"},{"id":"skill-3","type":"skill","typeLabel":"技能","name":"automation-audit-ops","purpose":"审计自动化任务和运维脚本，检查触发条件、幂等性、日志、告警和失败恢复。","example":"用 automation-audit-ops 检查这些定时脚本是否可靠。","tags":["运维","自动化","安全"],"search":"技能 automation-audit-ops 审计自动化任务和运维脚本，检查触发条件、幂等性、日志、告警和失败恢复。 用 automation-audit-ops 检查这些定时脚本是否可靠。 运维 自动化 安全"},{"id":"skill-4","type":"skill","typeLabel":"技能","name":"backend-patterns","purpose":"提供后端开发通用模式，覆盖分层、服务边界、错误处理、事务和可测试性。","example":"按 backend-patterns 设计这个后端模块。","tags":["后端","架构"],"search":"技能 backend-patterns 提供后端开发通用模式，覆盖分层、服务边界、错误处理、事务和可测试性。 按 backend-patterns 设计这个后端模块。 后端 架构"},{"id":"skill-5","type":"skill","typeLabel":"技能","name":"blueprint","purpose":"在动手前输出实现蓝图，明确目标、模块、数据流、风险和验证方式。","example":"使用 blueprint 先输出实现蓝图，不要马上改代码。","tags":["计划","架构"],"search":"技能 blueprint 在动手前输出实现蓝图，明确目标、模块、数据流、风险和验证方式。 使用 blueprint 先输出实现蓝图，不要马上改代码。 计划 架构"},{"id":"skill-6","type":"skill","typeLabel":"技能","name":"claude-api","purpose":"提供 Claude API 相关开发指导，包含请求结构、模型选择、工具调用和错误处理。","example":"用 claude-api 说明这个 Claude API 调用该怎么写。","tags":["Claude","接口","LLM"],"search":"技能 claude-api 提供 claude api 相关开发指导，包含请求结构、模型选择、工具调用和错误处理。 用 claude-api 说明这个 claude api 调用该怎么写。 claude 接口 llm"},{"id":"skill-7","type":"skill","typeLabel":"技能","name":"code-tour","purpose":"用于代码导览，帮助快速理解模块结构、入口、数据流和关键依赖。","example":"用 code-tour 带我过一遍这个模块的数据流。","tags":["探索","代码理解"],"search":"技能 code-tour 用于代码导览，帮助快速理解模块结构、入口、数据流和关键依赖。 用 code-tour 带我过一遍这个模块的数据流。 探索 代码理解"},{"id":"skill-8","type":"skill","typeLabel":"技能","name":"coding-standards","purpose":"应用通用编码规范，关注命名、结构、可读性、错误处理和测试质量。","example":"按 coding-standards 检查这次改动。","tags":["质量","评审"],"search":"技能 coding-standards 应用通用编码规范，关注命名、结构、可读性、错误处理和测试质量。 按 coding-standards 检查这次改动。 质量 评审"},{"id":"skill-9","type":"skill","typeLabel":"技能","name":"content-hash-cache-pattern","purpose":"设计基于内容哈希的缓存策略，适合昂贵计算、文件处理和可复用结果缓存。","example":"用 content-hash-cache-pattern 设计一个内容哈希缓存。","tags":["缓存","后端"],"search":"技能 content-hash-cache-pattern 设计基于内容哈希的缓存策略，适合昂贵计算、文件处理和可复用结果缓存。 用 content-hash-cache-pattern 设计一个内容哈希缓存。 缓存 后端"},{"id":"skill-10","type":"skill","typeLabel":"技能","name":"database-migrations","purpose":"指导数据库迁移设计，关注表结构变更、回滚、数据迁移、兼容发布和 ORM 约束。","example":"按 database-migrations 检查这次表结构迁移。","tags":["数据库","迁移"],"search":"技能 database-migrations 指导数据库迁移设计，关注表结构变更、回滚、数据迁移、兼容发布和 orm 约束。 按 database-migrations 检查这次表结构迁移。 数据库 迁移"},{"id":"skill-11","type":"skill","typeLabel":"技能","name":"deployment-patterns","purpose":"提供部署流程模式，覆盖构建、配置、健康检查、回滚和发布前检查。","example":"用 deployment-patterns 给我部署前检查清单。","tags":["部署","运维"],"search":"技能 deployment-patterns 提供部署流程模式，覆盖构建、配置、健康检查、回滚和发布前检查。 用 deployment-patterns 给我部署前检查清单。 部署 运维"},{"id":"skill-12","type":"skill","typeLabel":"技能","name":"docker-patterns","purpose":"指导 Docker 与 Compose 使用，关注本地开发、镜像、网络、卷、安全和多服务编排。","example":"按 docker-patterns 看一下这个 compose 配置。","tags":["Docker","部署"],"search":"技能 docker-patterns 指导 docker 与 compose 使用，关注本地开发、镜像、网络、卷、安全和多服务编排。 按 docker-patterns 看一下这个 compose 配置。 docker 部署"},{"id":"skill-13","type":"skill","typeLabel":"技能","name":"e2e-testing","purpose":"提供端到端测试模式，覆盖页面对象、测试数据、稳定性、产物和持续集成。","example":"用 e2e-testing 给这个流程补端到端测试。","tags":["测试","前端"],"search":"技能 e2e-testing 提供端到端测试模式，覆盖页面对象、测试数据、稳定性、产物和持续集成。 用 e2e-testing 给这个流程补端到端测试。 测试 前端"},{"id":"skill-14","type":"skill","typeLabel":"技能","name":"eval-harness","purpose":"为 Claude Code 或 LLM 流程构建正式评测框架，支撑回归、对比和质量评估。","example":"使用 eval-harness 设计一套评测工具链。","tags":["评测","LLM"],"search":"技能 eval-harness 为 claude code 或 llm 流程构建正式评测框架，支撑回归、对比和质量评估。 使用 eval-harness 设计一套评测工具链。 评测 llm"},{"id":"skill-15","type":"skill","typeLabel":"技能","name":"frontend-design","purpose":"用于生产级前端界面设计，关注信息层级、交互状态、视觉质量和可用性。","example":"按 frontend-design 优化这个页面的信息层级。","tags":["前端","设计"],"search":"技能 frontend-design 用于生产级前端界面设计，关注信息层级、交互状态、视觉质量和可用性。 按 frontend-design 优化这个页面的信息层级。 前端 设计"},{"id":"skill-16","type":"skill","typeLabel":"技能","name":"frontend-patterns","purpose":"提供前端开发模式，覆盖组件拆分、状态管理、性能、可维护性和界面最佳实践。","example":"按 frontend-patterns 拆这个前端组件。","tags":["前端","组件"],"search":"技能 frontend-patterns 提供前端开发模式，覆盖组件拆分、状态管理、性能、可维护性和界面最佳实践。 按 frontend-patterns 拆这个前端组件。 前端 组件"},{"id":"skill-17","type":"skill","typeLabel":"技能","name":"github-ops","purpose":"指导 GitHub 仓库操作，包含议题、拉取请求、检查、发布、状态和安全监控。","example":"用 github-ops 帮我检查 PR/issue 操作步骤。","tags":["GitHub","协作"],"search":"技能 github-ops 指导 github 仓库操作，包含议题、拉取请求、检查、发布、状态和安全监控。 用 github-ops 帮我检查 pr/issue 操作步骤。 github 协作"},{"id":"skill-18","type":"skill","typeLabel":"技能","name":"iterative-retrieval","purpose":"通过多轮检索和收敛来解决上下文不足问题，适合信息分散或事实需要确认的任务。","example":"用 iterative-retrieval 分轮检索并收敛结论。","tags":["检索","上下文"],"search":"技能 iterative-retrieval 通过多轮检索和收敛来解决上下文不足问题，适合信息分散或事实需要确认的任务。 用 iterative-retrieval 分轮检索并收敛结论。 检索 上下文"},{"id":"skill-19","type":"skill","typeLabel":"技能","name":"java-coding-standards","purpose":"应用 Java 编码规范，关注命名、不可变性、Optional、异常、泛型和项目结构。","example":"按 java-coding-standards 审查这些 Java 文件。","tags":["Java","质量"],"search":"技能 java-coding-standards 应用 java 编码规范，关注命名、不可变性、optional、异常、泛型和项目结构。 按 java-coding-standards 审查这些 java 文件。 java 质量"},{"id":"skill-20","type":"skill","typeLabel":"技能","name":"jpa-patterns","purpose":"指导 JPA/Hibernate 设计，关注实体关系、查询优化、事务、审计、索引和分页。","example":"用 jpa-patterns 检查实体映射和查询。","tags":["Java","数据库"],"search":"技能 jpa-patterns 指导 jpa/hibernate 设计，关注实体关系、查询优化、事务、审计、索引和分页。 用 jpa-patterns 检查实体映射和查询。 java 数据库"},{"id":"skill-21","type":"skill","typeLabel":"技能","name":"karpathy-guidelines","purpose":"用于降低 LLM 编码常见错误，适合写代码、审查代码和重构时使用。","example":"按 karpathy-guidelines 优化这个提示词或代码审查过程。","tags":["质量","LLM"],"search":"技能 karpathy-guidelines 用于降低 llm 编码常见错误，适合写代码、审查代码和重构时使用。 按 karpathy-guidelines 优化这个提示词或代码审查过程。 质量 llm"},{"id":"skill-22","type":"skill","typeLabel":"技能","name":"knowledge-ops","purpose":"整理和维护项目知识，适合沉淀经验、索引资料和形成可复用上下文。","example":"用 knowledge-ops 整理这批项目知识。","tags":["知识","文档"],"search":"技能 knowledge-ops 整理和维护项目知识，适合沉淀经验、索引资料和形成可复用上下文。 用 knowledge-ops 整理这批项目知识。 知识 文档"},{"id":"skill-23","type":"skill","typeLabel":"技能","name":"learned","purpose":"记录已学到的本地经验和项目规律，便于后续任务复用。","example":"把这次经验按 learned 的方式沉淀。","tags":["知识","记忆"],"search":"技能 learned 记录已学到的本地经验和项目规律，便于后续任务复用。 把这次经验按 learned 的方式沉淀。 知识 记忆"},{"id":"skill-24","type":"skill","typeLabel":"技能","name":"mcp-server-patterns","purpose":"指导 MCP 服务端设计，关注工具定义、资源、鉴权、错误处理和可观测性。","example":"按 mcp-server-patterns 设计这个 MCP server。","tags":["MCP","后端"],"search":"技能 mcp-server-patterns 指导 mcp 服务端设计，关注工具定义、资源、鉴权、错误处理和可观测性。 按 mcp-server-patterns 设计这个 mcp server。 mcp 后端"},{"id":"skill-25","type":"skill","typeLabel":"技能","name":"postgres-patterns","purpose":"提供 PostgreSQL 开发模式，关注 SQL、索引、事务、约束、性能和迁移。","example":"用 postgres-patterns 检查 SQL 和索引。","tags":["数据库","PostgreSQL"],"search":"技能 postgres-patterns 提供 postgresql 开发模式，关注 sql、索引、事务、约束、性能和迁移。 用 postgres-patterns 检查 sql 和索引。 数据库 postgresql"},{"id":"skill-26","type":"skill","typeLabel":"技能","name":"prompt-optimizer","purpose":"优化提示词，明确目标、上下文、输出格式、约束和失败处理。","example":"使用 prompt-optimizer 优化这个系统提示词。","tags":["提示词","LLM"],"search":"技能 prompt-optimizer 优化提示词，明确目标、上下文、输出格式、约束和失败处理。 使用 prompt-optimizer 优化这个系统提示词。 提示词 llm"},{"id":"skill-27","type":"skill","typeLabel":"技能","name":"python-patterns","purpose":"提供 Python 开发模式，关注模块结构、类型、异常、依赖和可测试性。","example":"按 python-patterns 评审这个 Python 模块。","tags":["Python","后端"],"search":"技能 python-patterns 提供 python 开发模式，关注模块结构、类型、异常、依赖和可测试性。 按 python-patterns 评审这个 python 模块。 python 后端"},{"id":"skill-28","type":"skill","typeLabel":"技能","name":"python-testing","purpose":"指导 Python 测试，覆盖 pytest、夹具、模拟、边界条件和回归验证。","example":"用 python-testing 给这些函数补 pytest。","tags":["Python","测试"],"search":"技能 python-testing 指导 python 测试，覆盖 pytest、夹具、模拟、边界条件和回归验证。 用 python-testing 给这些函数补 pytest。 python 测试"},{"id":"skill-29","type":"skill","typeLabel":"技能","name":"regex-vs-llm-structured-text","purpose":"判断结构化文本处理该用正则、解析器还是 LLM，避免过度或错误使用模型。","example":"用 regex-vs-llm-structured-text 判断这里该正则还是 LLM。","tags":["文本","LLM"],"search":"技能 regex-vs-llm-structured-text 判断结构化文本处理该用正则、解析器还是 llm，避免过度或错误使用模型。 用 regex-vs-llm-structured-text 判断这里该正则还是 llm。 文本 llm"},{"id":"skill-30","type":"skill","typeLabel":"技能","name":"search-first","purpose":"要求先查找可靠事实依据再回答，适合文档、版本、政策和不确定事实。","example":"先按 search-first 找事实依据，再回答。","tags":["检索","事实"],"search":"技能 search-first 要求先查找可靠事实依据再回答，适合文档、版本、政策和不确定事实。 先按 search-first 找事实依据，再回答。 检索 事实"},{"id":"skill-31","type":"skill","typeLabel":"技能","name":"security-review","purpose":"按安全审查方式检查代码和配置，关注注入、鉴权、权限、密钥、日志和数据泄露。","example":"按 security-review 做安全审查。","tags":["安全","评审"],"search":"技能 security-review 按安全审查方式检查代码和配置，关注注入、鉴权、权限、密钥、日志和数据泄露。 按 security-review 做安全审查。 安全 评审"},{"id":"skill-32","type":"skill","typeLabel":"技能","name":"security-scan","purpose":"扫描敏感信息和高危模式，适合发布前或提交前做安全兜底。","example":"使用 security-scan 检查敏感信息和高危模式。","tags":["安全","扫描"],"search":"技能 security-scan 扫描敏感信息和高危模式，适合发布前或提交前做安全兜底。 使用 security-scan 检查敏感信息和高危模式。 安全 扫描"},{"id":"skill-33","type":"skill","typeLabel":"技能","name":"springboot-patterns","purpose":"提供 Spring Boot 开发模式，关注控制器、服务、仓储、配置、异常和测试边界。","example":"按 springboot-patterns 设计这个 Spring Boot 服务。","tags":["Spring Boot","后端"],"search":"技能 springboot-patterns 提供 spring boot 开发模式，关注控制器、服务、仓储、配置、异常和测试边界。 按 springboot-patterns 设计这个 spring boot 服务。 spring boot 后端"},{"id":"skill-34","type":"skill","typeLabel":"技能","name":"springboot-security","purpose":"指导 Spring Boot 安全配置，覆盖认证、授权、过滤器、令牌、跨域和 CSRF。","example":"用 springboot-security 检查认证授权配置。","tags":["Spring Boot","安全"],"search":"技能 springboot-security 指导 spring boot 安全配置，覆盖认证、授权、过滤器、令牌、跨域和 csrf。 用 springboot-security 检查认证授权配置。 spring boot 安全"},{"id":"skill-35","type":"skill","typeLabel":"技能","name":"springboot-tdd","purpose":"按测试驱动方式开发 Spring Boot 功能，先写控制器、服务或仓储测试再实现。","example":"按 springboot-tdd 先写测试再实现。","tags":["Spring Boot","测试"],"search":"技能 springboot-tdd 按测试驱动方式开发 spring boot 功能，先写控制器、服务或仓储测试再实现。 按 springboot-tdd 先写测试再实现。 spring boot 测试"},{"id":"skill-36","type":"skill","typeLabel":"技能","name":"springboot-verification","purpose":"验证 Spring Boot 功能链路，覆盖启动、接口、数据库、鉴权和测试命令。","example":"按 springboot-verification 验证接口和启动路径。","tags":["Spring Boot","验证"],"search":"技能 springboot-verification 验证 spring boot 功能链路，覆盖启动、接口、数据库、鉴权和测试命令。 按 springboot-verification 验证接口和启动路径。 spring boot 验证"},{"id":"skill-37","type":"skill","typeLabel":"技能","name":"strategic-compact","purpose":"在合理阶段建议手动压缩上下文，避免自动压缩打断关键任务。","example":"用 strategic-compact 判断现在是否该 /compact。","tags":["上下文","压缩"],"search":"技能 strategic-compact 在合理阶段建议手动压缩上下文，避免自动压缩打断关键任务。 用 strategic-compact 判断现在是否该 /compact。 上下文 压缩"},{"id":"skill-38","type":"skill","typeLabel":"技能","name":"tdd-workflow","purpose":"提供测试驱动开发流程，先定义可失败测试，再实现、回归和整理。","example":"按 tdd-workflow 带我先写失败测试。","tags":["测试","TDD"],"search":"技能 tdd-workflow 提供测试驱动开发流程，先定义可失败测试，再实现、回归和整理。 按 tdd-workflow 带我先写失败测试。 测试 tdd"},{"id":"skill-39","type":"skill","typeLabel":"技能","name":"terminal-ops","purpose":"指导终端操作，关注命令意图、工作目录、权限、输出解读和风险控制。","example":"按 terminal-ops 执行命令并解释风险。","tags":["终端","运维"],"search":"技能 terminal-ops 指导终端操作，关注命令意图、工作目录、权限、输出解读和风险控制。 按 terminal-ops 执行命令并解释风险。 终端 运维"},{"id":"skill-40","type":"skill","typeLabel":"技能","name":"token-budget-advisor","purpose":"评估上下文令牌预算，帮助决定是否压缩、拆分任务或降低输入体量。","example":"用 token-budget-advisor 看当前上下文是否过重。","tags":["上下文","令牌"],"search":"技能 token-budget-advisor 评估上下文令牌预算，帮助决定是否压缩、拆分任务或降低输入体量。 用 token-budget-advisor 看当前上下文是否过重。 上下文 令牌"},{"id":"skill-41","type":"skill","typeLabel":"技能","name":"verification-loop","purpose":"建立修改后的验证闭环，确保改动经过构建、测试、运行或实际路径确认。","example":"按 verification-loop 执行修改后的验证闭环。","tags":["验证","质量"],"search":"技能 verification-loop 建立修改后的验证闭环，确保改动经过构建、测试、运行或实际路径确认。 按 verification-loop 执行修改后的验证闭环。 验证 质量"},{"id":"skill-42","type":"skill","typeLabel":"技能","name":"workspace-surface-audit","purpose":"先审计工作区结构、配置、依赖和入口，适合陌生项目起步。","example":"用 workspace-surface-audit 先摸清这个工作区。","tags":["探索","工作区"],"search":"技能 workspace-surface-audit 先审计工作区结构、配置、依赖和入口，适合陌生项目起步。 用 workspace-surface-audit 先摸清这个工作区。 探索 工作区"},{"id":"command-43","type":"command","typeLabel":"命令","name":"/agent-sort","purpose":"判断当前任务应该调用哪些专用代理。","example":"/agent-sort <任务描述>","tags":["命令","计划","上下文","代理"],"search":"命令 /agent-sort 判断当前任务应该调用哪些专用代理。 /agent-sort <任务描述> 命令 计划 上下文 代理"},{"id":"command-44","type":"command","typeLabel":"命令","name":"/build-fix","purpose":"定位并修复构建失败。","example":"/build-fix 修复当前构建失败","tags":["命令"],"search":"命令 /build-fix 定位并修复构建失败。 /build-fix 修复当前构建失败 命令"},{"id":"command-45","type":"command","typeLabel":"命令","name":"/checkpoint","purpose":"记录当前阶段结论、验证结果和后续待办。","example":"/checkpoint <任务描述>","tags":["命令"],"search":"命令 /checkpoint 记录当前阶段结论、验证结果和后续待办。 /checkpoint <任务描述> 命令"},{"id":"command-46","type":"command","typeLabel":"命令","name":"/code-review","purpose":"审查改动，优先报告缺陷、风险和缺失测试。","example":"/code-review 审查未提交改动","tags":["命令"],"search":"命令 /code-review 审查改动，优先报告缺陷、风险和缺失测试。 /code-review 审查未提交改动 命令"},{"id":"command-47","type":"command","typeLabel":"命令","name":"/context-budget","purpose":"评估上下文是否过重，判断是否需要压缩或拆分。","example":"/context-budget 看看是否需要压缩上下文","tags":["命令"],"search":"命令 /context-budget 评估上下文是否过重，判断是否需要压缩或拆分。 /context-budget 看看是否需要压缩上下文 命令"},{"id":"command-48","type":"command","typeLabel":"命令","name":"/docs","purpose":"生成或更新项目文档。","example":"/docs <任务描述>","tags":["命令"],"search":"命令 /docs 生成或更新项目文档。 /docs <任务描述> 命令"},{"id":"command-49","type":"command","typeLabel":"命令","name":"/e2e","purpose":"设计、实现或运行端到端测试。","example":"/e2e <任务描述>","tags":["命令"],"search":"命令 /e2e 设计、实现或运行端到端测试。 /e2e <任务描述> 命令"},{"id":"command-50","type":"command","typeLabel":"命令","name":"/feature-dev","purpose":"按完整流程推进功能开发。","example":"/feature-dev <任务描述>","tags":["命令"],"search":"命令 /feature-dev 按完整流程推进功能开发。 /feature-dev <任务描述> 命令"},{"id":"command-51","type":"command","typeLabel":"命令","name":"/harness-audit","purpose":"审计评测工具链覆盖和稳定性。","example":"/harness-audit 检查当前评测工具链","tags":["命令"],"search":"命令 /harness-audit 审计评测工具链覆盖和稳定性。 /harness-audit 检查当前评测工具链 命令"},{"id":"command-52","type":"command","typeLabel":"命令","name":"/model-route","purpose":"根据任务复杂度建议模型和推理强度。","example":"/model-route <任务描述>","tags":["命令"],"search":"命令 /model-route 根据任务复杂度建议模型和推理强度。 /model-route <任务描述> 命令"},{"id":"command-53","type":"command","typeLabel":"命令","name":"/multi-backend","purpose":"按后端模块推进接口、服务、数据库和验证。","example":"/multi-backend 开发这个后端接口","tags":["命令"],"search":"命令 /multi-backend 按后端模块推进接口、服务、数据库和验证。 /multi-backend 开发这个后端接口 命令"},{"id":"command-54","type":"command","typeLabel":"命令","name":"/multi-execute","purpose":"执行已有拆分的多个子任务。","example":"/multi-execute <任务描述>","tags":["命令"],"search":"命令 /multi-execute 执行已有拆分的多个子任务。 /multi-execute <任务描述> 命令"},{"id":"command-55","type":"command","typeLabel":"命令","name":"/multi-frontend","purpose":"按前端模块推进页面、组件、交互和验证。","example":"/multi-frontend 实现这个前端页面","tags":["命令"],"search":"命令 /multi-frontend 按前端模块推进页面、组件、交互和验证。 /multi-frontend 实现这个前端页面 命令"},{"id":"command-56","type":"command","typeLabel":"命令","name":"/multi-plan","purpose":"为大需求拆分模块、阶段、风险和验收点。","example":"/multi-plan <任务描述>","tags":["命令"],"search":"命令 /multi-plan 为大需求拆分模块、阶段、风险和验收点。 /multi-plan <任务描述> 命令"},{"id":"command-57","type":"command","typeLabel":"命令","name":"/plan","purpose":"复述需求、识别风险、拆分步骤，并等待确认。","example":"/plan 先梳理需求和开发计划，不要改代码","tags":["命令"],"search":"命令 /plan 复述需求、识别风险、拆分步骤，并等待确认。 /plan 先梳理需求和开发计划，不要改代码 命令"},{"id":"command-58","type":"command","typeLabel":"命令","name":"/prompt-optimize","purpose":"优化提示词结构、约束和输出格式。","example":"/prompt-optimize <任务描述>","tags":["命令"],"search":"命令 /prompt-optimize 优化提示词结构、约束和输出格式。 /prompt-optimize <任务描述> 命令"},{"id":"command-59","type":"command","typeLabel":"命令","name":"/quality-gate","purpose":"执行交付前质量检查。","example":"/quality-gate <任务描述>","tags":["命令"],"search":"命令 /quality-gate 执行交付前质量检查。 /quality-gate <任务描述> 命令"},{"id":"command-60","type":"command","typeLabel":"命令","name":"/refactor-clean","purpose":"在保持行为不变的前提下清理复杂度。","example":"/refactor-clean <任务描述>","tags":["命令"],"search":"命令 /refactor-clean 在保持行为不变的前提下清理复杂度。 /refactor-clean <任务描述> 命令"},{"id":"command-61","type":"command","typeLabel":"命令","name":"/resume-session","purpose":"恢复之前会话的目标和上下文。","example":"/resume-session <任务描述>","tags":["命令"],"search":"命令 /resume-session 恢复之前会话的目标和上下文。 /resume-session <任务描述> 命令"},{"id":"command-62","type":"command","typeLabel":"命令","name":"/review-pr","purpose":"审查拉取请求。","example":"/review-pr <任务描述>","tags":["命令"],"search":"命令 /review-pr 审查拉取请求。 /review-pr <任务描述> 命令"},{"id":"command-63","type":"command","typeLabel":"命令","name":"/sessions","purpose":"总结当前或历史会话状态。","example":"/sessions <任务描述>","tags":["命令"],"search":"命令 /sessions 总结当前或历史会话状态。 /sessions <任务描述> 命令"},{"id":"command-64","type":"command","typeLabel":"命令","name":"/tdd","purpose":"按测试驱动方式推进功能。","example":"/tdd <任务描述>","tags":["命令"],"search":"命令 /tdd 按测试驱动方式推进功能。 /tdd <任务描述> 命令"},{"id":"command-65","type":"command","typeLabel":"命令","name":"/test-coverage","purpose":"找出测试覆盖缺口并给出补测建议。","example":"/test-coverage <任务描述>","tags":["命令"],"search":"命令 /test-coverage 找出测试覆盖缺口并给出补测建议。 /test-coverage <任务描述> 命令"},{"id":"command-66","type":"command","typeLabel":"命令","name":"/update-codemaps","purpose":"更新代码地图或项目结构索引。","example":"/update-codemaps <任务描述>","tags":["命令"],"search":"命令 /update-codemaps 更新代码地图或项目结构索引。 /update-codemaps <任务描述> 命令"},{"id":"command-67","type":"command","typeLabel":"命令","name":"/update-docs","purpose":"根据代码变更同步文档。","example":"/update-docs <任务描述>","tags":["命令"],"search":"命令 /update-docs 根据代码变更同步文档。 /update-docs <任务描述> 命令"},{"id":"command-68","type":"command","typeLabel":"命令","name":"/verify","purpose":"执行验证并报告结果。","example":"/verify 跑完整验证并报告结果","tags":["命令"],"search":"命令 /verify 执行验证并报告结果。 /verify 跑完整验证并报告结果 命令"},{"id":"agent-69","type":"agent","typeLabel":"代理","name":"a11y-architect","purpose":"可访问性审查，关注语义、键盘、焦点和颜色对比。","example":"请用 a11y-architect 代理处理这个任务。","tags":["代理","前端","评审","设计"],"search":"代理 a11y-architect 可访问性审查，关注语义、键盘、焦点和颜色对比。 请用 a11y-architect 代理处理这个任务。 代理 前端 评审 设计"},{"id":"agent-70","type":"agent","typeLabel":"代理","name":"architect","purpose":"架构评估，关注系统边界、职责、依赖和风险。","example":"请用 architect 代理处理这个任务。","tags":["代理","架构","设计","计划"],"search":"代理 architect 架构评估，关注系统边界、职责、依赖和风险。 请用 architect 代理处理这个任务。 代理 架构 设计 计划"},{"id":"agent-71","type":"agent","typeLabel":"代理","name":"build-error-resolver","purpose":"定位构建失败、依赖问题和配置错误。","example":"请用 build-error-resolver 代理处理这个任务。","tags":["代理","构建","调试"],"search":"代理 build-error-resolver 定位构建失败、依赖问题和配置错误。 请用 build-error-resolver 代理处理这个任务。 代理 构建 调试"},{"id":"agent-72","type":"agent","typeLabel":"代理","name":"code-architect","purpose":"规划模块结构、接口边界和实现策略。","example":"请用 code-architect 代理处理这个任务。","tags":["代理","架构","设计","计划"],"search":"代理 code-architect 规划模块结构、接口边界和实现策略。 请用 code-architect 代理处理这个任务。 代理 架构 设计 计划"},{"id":"agent-73","type":"agent","typeLabel":"代理","name":"code-explorer","purpose":"探索仓库结构、关键入口、调用链和依赖。","example":"请用 code-explorer 代理处理这个任务。","tags":["代理","探索","代码理解"],"search":"代理 code-explorer 探索仓库结构、关键入口、调用链和依赖。 请用 code-explorer 代理处理这个任务。 代理 探索 代码理解"},{"id":"agent-74","type":"agent","typeLabel":"代理","name":"code-reviewer","purpose":"通用代码审查，关注缺陷、风险和测试缺口。","example":"请用 code-reviewer 代理处理这个任务。","tags":["代理","评审","质量"],"search":"代理 code-reviewer 通用代码审查，关注缺陷、风险和测试缺口。 请用 code-reviewer 代理处理这个任务。 代理 评审 质量"},{"id":"agent-75","type":"agent","typeLabel":"代理","name":"code-simplifier","purpose":"寻找重复逻辑、过度抽象和可删复杂度。","example":"请用 code-simplifier 代理处理这个任务。","tags":["代理","重构","质量"],"search":"代理 code-simplifier 寻找重复逻辑、过度抽象和可删复杂度。 请用 code-simplifier 代理处理这个任务。 代理 重构 质量"},{"id":"agent-76","type":"agent","typeLabel":"代理","name":"comment-analyzer","purpose":"检查注释是否过时、误导、冗余或缺失关键意图。","example":"请用 comment-analyzer 代理处理这个任务。","tags":["代理","评审","文档"],"search":"代理 comment-analyzer 检查注释是否过时、误导、冗余或缺失关键意图。 请用 comment-analyzer 代理处理这个任务。 代理 评审 文档"},{"id":"agent-77","type":"agent","typeLabel":"代理","name":"database-reviewer","purpose":"审查迁移、索引、约束、事务、性能和一致性。","example":"请用 database-reviewer 代理处理这个任务。","tags":["代理","数据库","评审"],"search":"代理 database-reviewer 审查迁移、索引、约束、事务、性能和一致性。 请用 database-reviewer 代理处理这个任务。 代理 数据库 评审"},{"id":"agent-78","type":"agent","typeLabel":"代理","name":"doc-updater","purpose":"根据代码或需求变更同步文档。","example":"请用 doc-updater 代理处理这个任务。","tags":["代理","文档","知识"],"search":"代理 doc-updater 根据代码或需求变更同步文档。 请用 doc-updater 代理处理这个任务。 代理 文档 知识"},{"id":"agent-79","type":"agent","typeLabel":"代理","name":"docs-lookup","purpose":"优先查官方文档或权威资料后回答。","example":"请用 docs-lookup 代理处理这个任务。","tags":["代理","文档","检索"],"search":"代理 docs-lookup 优先查官方文档或权威资料后回答。 请用 docs-lookup 代理处理这个任务。 代理 文档 检索"},{"id":"agent-80","type":"agent","typeLabel":"代理","name":"e2e-runner","purpose":"运行端到端测试并分析失败原因。","example":"请用 e2e-runner 代理处理这个任务。","tags":["代理","测试","前端"],"search":"代理 e2e-runner 运行端到端测试并分析失败原因。 请用 e2e-runner 代理处理这个任务。 代理 测试 前端"},{"id":"agent-81","type":"agent","typeLabel":"代理","name":"harness-optimizer","purpose":"优化评测工具链的样本、评分和回归效率。","example":"请用 harness-optimizer 代理处理这个任务。","tags":["代理","评测","配置"],"search":"代理 harness-optimizer 优化评测工具链的样本、评分和回归效率。 请用 harness-optimizer 代理处理这个任务。 代理 评测 配置"},{"id":"agent-82","type":"agent","typeLabel":"代理","name":"java-build-resolver","purpose":"处理 Maven、Gradle、依赖和编译测试失败。","example":"请用 java-build-resolver 代理处理这个任务。","tags":["代理","Java","构建"],"search":"代理 java-build-resolver 处理 maven、gradle、依赖和编译测试失败。 请用 java-build-resolver 代理处理这个任务。 代理 java 构建"},{"id":"agent-83","type":"agent","typeLabel":"代理","name":"java-reviewer","purpose":"审查 Java 与 Spring Boot 改动。","example":"请用 java-reviewer 代理处理这个任务。","tags":["代理","Java","评审"],"search":"代理 java-reviewer 审查 java 与 spring boot 改动。 请用 java-reviewer 代理处理这个任务。 代理 java 评审"},{"id":"agent-84","type":"agent","typeLabel":"代理","name":"performance-optimizer","purpose":"定位慢路径、资源瓶颈和可验证优化点。","example":"请用 performance-optimizer 代理处理这个任务。","tags":["代理","性能","后端"],"search":"代理 performance-optimizer 定位慢路径、资源瓶颈和可验证优化点。 请用 performance-optimizer 代理处理这个任务。 代理 性能 后端"},{"id":"agent-85","type":"agent","typeLabel":"代理","name":"planner","purpose":"复述需求、拆阶段、识别风险，并等待确认。","example":"请用 planner 代理处理这个任务。","tags":["代理","计划","架构"],"search":"代理 planner 复述需求、拆阶段、识别风险，并等待确认。 请用 planner 代理处理这个任务。 代理 计划 架构"},{"id":"agent-86","type":"agent","typeLabel":"代理","name":"pr-test-analyzer","purpose":"分析 PR 检查失败、flaky 测试和合并风险。","example":"请用 pr-test-analyzer 代理处理这个任务。","tags":["代理","测试","GitHub"],"search":"代理 pr-test-analyzer 分析 pr 检查失败、flaky 测试和合并风险。 请用 pr-test-analyzer 代理处理这个任务。 代理 测试 github"},{"id":"agent-87","type":"agent","typeLabel":"代理","name":"python-reviewer","purpose":"审查 Python 类型、异常、依赖、测试和模块结构。","example":"请用 python-reviewer 代理处理这个任务。","tags":["代理","Python","评审"],"search":"代理 python-reviewer 审查 python 类型、异常、依赖、测试和模块结构。 请用 python-reviewer 代理处理这个任务。 代理 python 评审"},{"id":"agent-88","type":"agent","typeLabel":"代理","name":"refactor-cleaner","purpose":"在行为不变前提下收敛复杂度和重复实现。","example":"请用 refactor-cleaner 代理处理这个任务。","tags":["代理","重构","质量"],"search":"代理 refactor-cleaner 在行为不变前提下收敛复杂度和重复实现。 请用 refactor-cleaner 代理处理这个任务。 代理 重构 质量"},{"id":"agent-89","type":"agent","typeLabel":"代理","name":"security-reviewer","purpose":"安全审查，关注注入、鉴权、密钥、权限和日志泄露。","example":"请用 security-reviewer 代理处理这个任务。","tags":["代理","安全","评审"],"search":"代理 security-reviewer 安全审查，关注注入、鉴权、密钥、权限和日志泄露。 请用 security-reviewer 代理处理这个任务。 代理 安全 评审"},{"id":"agent-90","type":"agent","typeLabel":"代理","name":"silent-failure-hunter","purpose":"寻找没有报错但会吞掉结果、状态或告警的路径。","example":"请用 silent-failure-hunter 代理处理这个任务。","tags":["代理","调试","质量"],"search":"代理 silent-failure-hunter 寻找没有报错但会吞掉结果、状态或告警的路径。 请用 silent-failure-hunter 代理处理这个任务。 代理 调试 质量"},{"id":"agent-91","type":"agent","typeLabel":"代理","name":"tdd-guide","purpose":"带领先写测试、再实现、再回归。","example":"请用 tdd-guide 代理处理这个任务。","tags":["代理","测试","TDD"],"search":"代理 tdd-guide 带领先写测试、再实现、再回归。 请用 tdd-guide 代理处理这个任务。 代理 测试 tdd"},{"id":"agent-92","type":"agent","typeLabel":"代理","name":"type-design-analyzer","purpose":"检查类型边界、泛型、空值、状态表达和可维护性。","example":"请用 type-design-analyzer 代理处理这个任务。","tags":["代理","评审","质量"],"search":"代理 type-design-analyzer 检查类型边界、泛型、空值、状态表达和可维护性。 请用 type-design-analyzer 代理处理这个任务。 代理 评审 质量"},{"id":"agent-93","type":"agent","typeLabel":"代理","name":"typescript-reviewer","purpose":"审查 TypeScript 类型安全、异步错误和测试缺口。","example":"请用 typescript-reviewer 代理处理这个任务。","tags":["代理","前端","评审"],"search":"代理 typescript-reviewer 审查 typescript 类型安全、异步错误和测试缺口。 请用 typescript-reviewer 代理处理这个任务。 代理 前端 评审"},{"id":"rule-94","type":"rule","typeLabel":"规则","name":"java","purpose":"Java 与 Spring Boot 相关默认规则。","example":"按 java 规则执行。","tags":["规则"],"search":"规则 java java 与 spring boot 相关默认规则。 按 java 规则执行。 规则"},{"id":"rule-95","type":"rule","typeLabel":"规则","name":"python","purpose":"Python 相关默认规则。","example":"按 python 规则执行。","tags":["规则"],"search":"规则 python python 相关默认规则。 按 python 规则执行。 规则"},{"id":"rule-96","type":"rule","typeLabel":"规则","name":"README.md","purpose":"本机规则目录说明文件。","example":"按 README.md 规则执行。","tags":["规则"],"search":"规则 readme.md 本机规则目录说明文件。 按 readme.md 规则执行。 规则"},{"id":"rule-97","type":"rule","typeLabel":"规则","name":"typescript","purpose":"TypeScript 相关默认规则。","example":"按 typescript 规则执行。","tags":["规则"],"search":"规则 typescript typescript 相关默认规则。 按 typescript 规则执行。 规则"},{"id":"rule-98","type":"rule","typeLabel":"规则","name":"web","purpose":"Web 与前端相关默认规则。","example":"按 web 规则执行。","tags":["规则"],"search":"规则 web web 与前端相关默认规则。 按 web 规则执行。 规则"},{"id":"rule-99","type":"rule","typeLabel":"规则","name":"zh","purpose":"中文输出、沟通风格和本地化偏好规则。","example":"按 zh 规则执行。","tags":["规则"],"search":"规则 zh 中文输出、沟通风格和本地化偏好规则。 按 zh 规则执行。 规则"},{"id":"skill-100","type":"skill","typeLabel":"技能","name":"simplify","purpose":"审查最近修改的代码，找出可复用、可简化和可提效的点，并直接应用清理。适合代码收尾阶段。","example":"用 simplify 简化这次改动的代码。","tags":["重构","质量","评审"],"search":"技能 simplify 审查最近修改的代码，找出可复用、可简化和可提效的点，并直接应用清理。适合代码收尾阶段。 用 simplify 简化这次改动的代码。 重构 质量 评审"},{"id":"skill-101","type":"skill","typeLabel":"技能","name":"run","purpose":"启动并驱动项目应用，在真实运行环境中验证改动效果，自动识别项目类型和启动方式。","example":"用 run 启动项目并确认这次改动在实际运行中正常。","tags":["验证","部署"],"search":"技能 run 启动并驱动项目应用，在真实运行环境中验证改动效果，自动识别项目类型和启动方式。 用 run 启动项目并确认这次改动在实际运行中正常。 验证 部署"},{"id":"skill-102","type":"skill","typeLabel":"技能","name":"init","purpose":"初始化或生成项目的 CLAUDE.md 文件，记录代码库结构、约定和背景，提升后续任务的上下文质量。","example":"用 init 为这个项目生成 CLAUDE.md。","tags":["文档","上下文"],"search":"技能 init 初始化或生成项目的 claude.md 文件，记录代码库结构、约定和背景，提升后续任务的上下文质量。 用 init 为这个项目生成 claude.md。 文档 上下文"},{"id":"skill-103","type":"skill","typeLabel":"技能","name":"loop","purpose":"以固定或自调步长循环执行命令或提示词，适合轮询状态、重复检查或持续监控场景。","example":"/loop 5m /verify 每 5 分钟运行一次验证。","tags":["自动化","上下文"],"search":"技能 loop 以固定或自调步长循环执行命令或提示词，适合轮询状态、重复检查或持续监控场景。 /loop 5m /verify 每 5 分钟运行一次验证。 自动化 上下文"},{"id":"skill-104","type":"skill","typeLabel":"技能","name":"schedule","purpose":"创建、管理和运行定时云代理任务（cron 式计划），支持一次性和周期性定时执行。","example":"用 schedule 设置每天凌晨自动运行代码审查任务。","tags":["自动化","部署"],"search":"技能 schedule 创建、管理和运行定时云代理任务（cron 式计划），支持一次性和周期性定时执行。 用 schedule 设置每天凌晨自动运行代码审查任务。 自动化 部署"},{"id":"skill-105","type":"skill","typeLabel":"技能","name":"claude-hud:setup","purpose":"配置 Claude Code 状态栏（statusline），在终端或 IDE 中实时显示 token 用量、费用和会话状态。","example":"用 claude-hud:setup 配置状态栏显示。","tags":["配置","上下文"],"search":"技能 claude-hud:setup 配置 claude code 状态栏（statusline），在终端或 ide 中实时显示 token 用量、费用和会话状态。 用 claude-hud:setup 配置状态栏显示。 配置 上下文"},{"id":"skill-106","type":"skill","typeLabel":"技能","name":"claude-hud:configure","purpose":"调整 HUD 显示选项，包括布局、语言、展示元素和预设方案，在保留高级覆盖的同时更新配置。","example":"用 claude-hud:configure 调整 HUD 语言为中文。","tags":["配置","上下文"],"search":"技能 claude-hud:configure 调整 hud 显示选项，包括布局、语言、展示元素和预设方案，在保留高级覆盖的同时更新配置。 用 claude-hud:configure 调整 hud 语言为中文。 配置 上下文"},{"id":"skill-107","type":"skill","typeLabel":"技能","name":"update-config","purpose":"通过 settings.json 配置 Claude Code 行为，包括 hooks（自动触发动作）、工具权限、环境变量，适用于「每次 X 自动做 Y」类需求。","example":"用 update-config 添加一个每次编辑文件后自动格式化的 hook。","tags":["配置","自动化"],"search":"技能 update-config 通过 settings.json 配置 claude code 行为，包括 hooks（自动触发动作）、工具权限、环境变量，适用于「每次 x 自动做 y」类需求。 用 update-config 添加一个每次编辑文件后自动格式化的 hook。 配置 自动化"},{"id":"skill-108","type":"skill","typeLabel":"技能","name":"keybindings-help","purpose":"自定义 Claude Code 键盘快捷键，支持重新绑定按键、添加和弦快捷键，修改 keybindings.json。","example":"用 keybindings-help 把提交快捷键改成 Ctrl+Enter。","tags":["配置"],"search":"技能 keybindings-help 自定义 claude code 键盘快捷键，支持重新绑定按键、添加和弦快捷键，修改 keybindings.json。 用 keybindings-help 把提交快捷键改成 ctrl+enter。 配置"},{"id":"skill-109","type":"skill","typeLabel":"技能","name":"fewer-permission-prompts","purpose":"扫描历史命令记录，自动识别常用只读操作并生成权限白名单，减少频繁的权限确认弹窗。","example":"用 fewer-permission-prompts 分析记录并添加权限白名单。","tags":["配置","自动化"],"search":"技能 fewer-permission-prompts 扫描历史命令记录，自动识别常用只读操作并生成权限白名单，减少频繁的权限确认弹窗。 用 fewer-permission-prompts 分析记录并添加权限白名单。 配置 自动化"},{"id":"command-110","type":"command","typeLabel":"命令","name":"/compact","purpose":"手动压缩/总结当前对话历史，释放上下文空间，避免在关键任务中被系统自动压缩打断。","example":"/compact 在接近上下文限制前手动压缩","tags":["命令","上下文","内置"],"search":"命令 /compact 手动压缩/总结当前对话历史，释放上下文空间，避免在关键任务中被系统自动压缩打断。 /compact 在接近上下文限制前手动压缩 命令 上下文 内置"},{"id":"command-111","type":"command","typeLabel":"命令","name":"/clear","purpose":"清除当前对话历史，重新开始一个干净的新对话，适合开始全新任务前清空上下文。","example":"/clear 清除历史开始新对话","tags":["命令","上下文","内置"],"search":"命令 /clear 清除当前对话历史，重新开始一个干净的新对话，适合开始全新任务前清空上下文。 /clear 清除历史开始新对话 命令 上下文 内置"},{"id":"command-112","type":"command","typeLabel":"命令","name":"/help","purpose":"查看 Claude Code 内置帮助，列出可用命令、键盘快捷键和基本使用说明。","example":"/help 查看所有可用命令","tags":["命令","内置"],"search":"命令 /help 查看 claude code 内置帮助，列出可用命令、键盘快捷键和基本使用说明。 /help 查看所有可用命令 命令 内置"},{"id":"command-113","type":"command","typeLabel":"命令","name":"/model","purpose":"查看或切换当前使用的 AI 模型，支持在 Opus、Sonnet、Haiku 等模型之间切换。","example":"/model 查看或切换当前模型","tags":["命令","内置","上下文"],"search":"命令 /model 查看或切换当前使用的 ai 模型，支持在 opus、sonnet、haiku 等模型之间切换。 /model 查看或切换当前模型 命令 内置 上下文"},{"id":"command-114","type":"command","typeLabel":"命令","name":"/config","purpose":"查看或修改 Claude Code 配置项，包括主题、语言偏好、通知等界面和行为设置。","example":"/config 查看或修改当前配置","tags":["命令","配置","内置"],"search":"命令 /config 查看或修改 claude code 配置项，包括主题、语言偏好、通知等界面和行为设置。 /config 查看或修改当前配置 命令 配置 内置"},{"id":"command-115","type":"command","typeLabel":"命令","name":"/cost","purpose":"查看当前会话的 token 使用量和费用统计，帮助掌握 API 用量和控制成本。","example":"/cost 查看本次会话 token 费用","tags":["命令","内置","上下文"],"search":"命令 /cost 查看当前会话的 token 使用量和费用统计，帮助掌握 api 用量和控制成本。 /cost 查看本次会话 token 费用 命令 内置 上下文"},{"id":"command-116","type":"command","typeLabel":"命令","name":"/memory","purpose":"打开并编辑记忆文件（MEMORY.md），管理跨会话持久化的用户偏好、项目上下文和反馈记录。","example":"/memory 查看和编辑记忆文件","tags":["命令","内置","上下文"],"search":"命令 /memory 打开并编辑记忆文件（memory.md），管理跨会话持久化的用户偏好、项目上下文和反馈记录。 /memory 查看和编辑记忆文件 命令 内置 上下文"},{"id":"command-117","type":"command","typeLabel":"命令","name":"/status","purpose":"查看当前 Claude 账号的登录状态、订阅级别和 API 配额信息。","example":"/status 查看账号状态","tags":["命令","内置"],"search":"命令 /status 查看当前 claude 账号的登录状态、订阅级别和 api 配额信息。 /status 查看账号状态 命令 内置"},{"id":"command-118","type":"command","typeLabel":"命令","name":"/release-notes","purpose":"查看 Claude Code 最新版本的发布说明，了解新增功能、修复和变更内容。","example":"/release-notes 查看最新版本更新","tags":["命令","内置"],"search":"命令 /release-notes 查看 claude code 最新版本的发布说明，了解新增功能、修复和变更内容。 /release-notes 查看最新版本更新 命令 内置"},{"id":"command-119","type":"command","typeLabel":"命令","name":"/add-dir","purpose":"向当前会话添加额外工作目录，让 Claude 能读取和操作更多路径下的文件。","example":"/add-dir ~/projects/shared-lib 添加共享库目录","tags":["命令","内置"],"search":"命令 /add-dir 向当前会话添加额外工作目录，让 claude 能读取和操作更多路径下的文件。 /add-dir ~/projects/shared-lib 添加共享库目录 命令 内置"},{"id":"command-120","type":"command","typeLabel":"命令","name":"/login","purpose":"登录 Claude 账号，完成身份认证以正常使用 Claude Code 功能。","example":"/login 登录 Claude 账号","tags":["命令","内置"],"search":"命令 /login 登录 claude 账号，完成身份认证以正常使用 claude code 功能。 /login 登录 claude 账号 命令 内置"},{"id":"command-121","type":"command","typeLabel":"命令","name":"/logout","purpose":"登出当前 Claude 账号，清除本地认证状态。","example":"/logout 登出账号","tags":["命令","内置"],"search":"命令 /logout 登出当前 claude 账号，清除本地认证状态。 /logout 登出账号 命令 内置"}],"stats":{"skills":53,"commands":38,"agents":25,"rules":6,"total":122}}</script>
+  <script>
+    const DATA = JSON.parse(document.getElementById("capability-data").textContent);
+    const ITEMS = DATA.items;
+    const state = { q: "", type: "skill", tag: "全部", view: "grid" };
+    const typeLabels = [
+      ["all", "全部"],
+      ["skill", "技能"],
+      ["command", "命令"],
+      ["agent", "代理"],
+      ["rule", "规则"]
+    ];
+    const scenarioTags = ["全部", "计划", "上下文", "后端", "Spring Boot", "前端", "测试", "安全", "数据库", "部署", "评审", "验证", "评测", "Python", "GitHub", "文档", "LLM", "重构", "配置", "自动化", "构建", "架构"];
+
+    const els = {
+      search: document.getElementById("searchInput"),
+      results: document.getElementById("results"),
+      meta: document.getElementById("resultMeta"),
+      typeTabs: document.getElementById("typeTabs"),
+      tagChips: document.getElementById("tagChips"),
+      toast: document.getElementById("toast"),
+      gridBtn: document.getElementById("gridBtn"),
+      listBtn: document.getElementById("listBtn"),
+      resetBtn: document.getElementById("resetBtn")
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function normalize(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function filteredItems() {
+      const q = normalize(els.search.value);
+      return ITEMS.filter((item) => {
+        const typeOk = state.type === "all" || item.type === state.type;
+        const tagOk = state.tag === "全部" || item.tags.includes(state.tag) || item.search.includes(normalize(state.tag));
+        const queryOk = !q || item.search.includes(q);
+        return typeOk && tagOk && queryOk;
+      });
+    }
+
+    function renderTabs() {
+      const q = normalize(els.search.value);
+      const baseFiltered = ITEMS.filter((item) => {
+        const tagOk = state.tag === "全部" || item.tags.includes(state.tag) || item.search.includes(normalize(state.tag));
+        const queryOk = !q || item.search.includes(q);
+        return tagOk && queryOk;
+      });
+      els.typeTabs.innerHTML = typeLabels.map(([key, label]) => {
+        const count = key === "all" ? baseFiltered.length : baseFiltered.filter((item) => item.type === key).length;
+        return '<button class="type-tab ' + (state.type === key ? "active" : "") + '" data-type="' + key + '">' + label + ' <span>' + count + '</span></button>';
+      }).join("");
+      els.tagChips.innerHTML = scenarioTags.map((tag) => {
+        return '<button class="chip ' + (state.tag === tag ? "active" : "") + '" data-tag="' + escapeHtml(tag) + '">' + escapeHtml(tag) + '</button>';
+      }).join("");
+    }
+
+    function card(item) {
+      const tags = item.tags.slice(0, 4).map((tag) => '<span class="tag">' + escapeHtml(tag) + '</span>').join("");
+      return '<article class="card">' +
+        '<div class="card-head">' +
+          '<h2 class="name">' + escapeHtml(item.name) + '</h2>' +
+          '<span class="badge ' + item.type + '">' + escapeHtml(item.typeLabel) + '</span>' +
+        '</div>' +
+        '<div class="card-body">' +
+          '<p class="purpose">' + escapeHtml(item.purpose) + '</p>' +
+          '<div class="tag-row">' + tags + '</div>' +
+        '</div>' +
+        '<div class="card-foot">' +
+          '<p class="example">' + escapeHtml(item.example) + '</p>' +
+          '<button class="copy-btn" data-copy="' + escapeHtml(item.example) + '" title="复制调用示例" aria-label="复制调用示例">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 8V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>' +
+          '</button>' +
+        '</div>' +
+      '</article>';
+    }
+
+    function renderResults() {
+      const list = filteredItems();
+      els.results.classList.toggle("list", state.view === "list");
+      els.meta.textContent = "找到 " + list.length + " 项";
+      if (!list.length) {
+        els.results.innerHTML = '<div class="empty">没有匹配结果。换一个关键词，或清空筛选。</div>';
+        return;
+      }
+      els.results.innerHTML = list.map(card).join("");
+    }
+
+    function render() {
+      renderTabs();
+      renderResults();
+      els.gridBtn.classList.toggle("active", state.view === "grid");
+      els.listBtn.classList.toggle("active", state.view === "list");
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+      }
+      els.toast.classList.add("show");
+      window.clearTimeout(window.__toastTimer);
+      window.__toastTimer = window.setTimeout(() => els.toast.classList.remove("show"), 1300);
+    }
+
+    els.search.addEventListener("input", (event) => {
+      state.q = event.target.value;
+      render();
+    });
+    els.search.addEventListener("change", (event) => {
+      state.q = event.target.value;
+      render();
+    });
+    els.typeTabs.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-type]");
+      if (!btn) return;
+      state.type = btn.dataset.type;
+      render();
+    });
+    els.tagChips.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-tag]");
+      if (!btn) return;
+      state.tag = btn.dataset.tag;
+      render();
+    });
+    els.results.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-copy]");
+      if (!btn) return;
+      copyText(btn.dataset.copy);
+    });
+    els.gridBtn.addEventListener("click", () => { state.view = "grid"; render(); });
+    els.listBtn.addEventListener("click", () => { state.view = "list"; render(); });
+    els.resetBtn.addEventListener("click", () => {
+      state.q = "";
+      state.type = "skill";
+      state.tag = "全部";
+      els.search.value = "";
+      render();
+      els.search.focus();
+    });
+    render();
+  </script>
+</body>
+</html>

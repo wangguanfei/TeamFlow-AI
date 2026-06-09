@@ -1,0 +1,1669 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Code 项目开发实战教程</title>
+  <script defer src="http://81.69.248.152:8091/script.js" data-website-id="TUTORIAL_WEBSITE_ID"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-strong: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #d9e2ec;
+      --line-strong: #c6d3df;
+      --teal: #0f766e;
+      --teal-soft: #e6f4f1;
+      --blue: #2563eb;
+      --blue-soft: #e9f0ff;
+      --amber: #b7791f;
+      --amber-soft: #fff5dd;
+      --red: #b42318;
+      --red-soft: #fff0ed;
+      --purple: #6d28d9;
+      --purple-soft: #f3f0ff;
+      --green: #047857;
+      --green-soft: #ecfdf5;
+      --shadow: 0 18px 48px rgba(20,37,63,.10);
+      --radius: 8px;
+      --sidebar-w: 280px;
+      --content-max: 760px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+    a { color: var(--teal); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── 顶栏 ── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 28px;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+      color: #111827;
+      white-space: nowrap;
+    }
+    .topbar-brand svg { color: var(--teal); flex-shrink: 0; }
+    .topbar-divider { width: 1px; height: 22px; background: var(--line); }
+    .topbar-subtitle { color: var(--muted); font-size: 13px; }
+    .topbar-spacer { flex: 1; }
+    .topbar-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #344054;
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color .15s, color .15s, background .15s;
+      text-decoration: none;
+    }
+    .topbar-link:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-soft);
+      text-decoration: none;
+    }
+
+    /* ── 布局 ── */
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) minmax(0,1fr);
+      min-height: calc(100vh - 58px);
+    }
+
+    /* ── 侧边栏 ── */
+    .sidebar {
+      position: sticky;
+      top: 58px;
+      height: calc(100vh - 58px);
+      overflow-y: auto;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 20px 0;
+      scrollbar-width: thin;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+    .nav-group-title {
+      padding: 6px 20px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #9ba6b4;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      font-size: 13.5px;
+      color: #344054;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background .12s, color .12s, border-color .12s;
+      text-decoration: none;
+    }
+    .nav-item:hover { background: var(--panel-strong); color: var(--teal); text-decoration: none; }
+    .nav-item.active {
+      border-left-color: var(--teal);
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-weight: 600;
+    }
+    .nav-item .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--line-strong); flex-shrink: 0;
+    }
+    .nav-item.active .dot { background: var(--teal); }
+
+    /* ── 内容区 ── */
+    .content {
+      padding: 40px 48px;
+      max-width: calc(var(--content-max) + 96px);
+    }
+
+    /* ── 章节 ── */
+    .chapter {
+      display: none;
+    }
+    .chapter.visible { display: block; }
+
+    /* ── 排版 ── */
+    h1 {
+      margin: 0 0 6px;
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #0d1b2a;
+    }
+    h2 {
+      margin: 44px 0 14px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    h3 {
+      margin: 28px 0 10px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1e3a5f;
+    }
+    p { margin: 0 0 14px; }
+    ul, ol { margin: 0 0 14px; padding-left: 22px; }
+    li { margin-bottom: 5px; }
+    .chapter-intro {
+      color: var(--muted);
+      font-size: 15px;
+      margin-bottom: 32px;
+      line-height: 1.8;
+    }
+    .chapter-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .badge-beginner { background: var(--green-soft); color: var(--green); }
+    .badge-intermediate { background: var(--blue-soft); color: var(--blue); }
+    .badge-advanced { background: var(--purple-soft); color: var(--purple); }
+
+    /* ── 代码块 ── */
+    pre {
+      margin: 12px 0 20px;
+      background: #0f1f33;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 13.5px;
+      line-height: 1.6;
+      font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+    }
+    code {
+      font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+      font-size: 13px;
+    }
+    p code, li code {
+      background: #edf2f7;
+      color: #c7254e;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .cmd { color: #7dd3fc; }
+    .cmt { color: #6b8fa5; font-style: italic; }
+    .str { color: #86efac; }
+    .kw  { color: #c084fc; }
+
+    /* ── 信息框 ── */
+    .callout {
+      border-left: 3px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 20px 0;
+      display: flex;
+      gap: 12px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { flex: 1; }
+    .callout-body strong { display: block; margin-bottom: 3px; }
+    .callout.tip { border-color: var(--teal); background: var(--teal-soft); }
+    .callout.warn { border-color: var(--amber); background: var(--amber-soft); }
+    .callout.info { border-color: var(--blue); background: var(--blue-soft); }
+    .callout.danger { border-color: var(--red); background: var(--red-soft); }
+
+    /* ── 步骤卡 ── */
+    .steps { display: flex; flex-direction: column; gap: 0; margin: 20px 0; }
+    .step {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+      align-items: start;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--teal);
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      display: grid; place-items: center;
+      flex-shrink: 0;
+    }
+    .step-body h4 { margin: 2px 0 8px; font-size: 15px; font-weight: 700; color: #111827; }
+    .step-body p { margin: 0 0 8px; color: #374151; }
+    .step-body pre { margin: 8px 0 0; }
+
+    /* ── 流程图 ── */
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin: 24px 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .flow-node {
+      flex: 0 0 auto;
+      min-width: 110px;
+      background: var(--panel);
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e3a5f;
+      position: relative;
+    }
+    .flow-node .flow-icon { font-size: 20px; display: block; margin-bottom: 5px; }
+    .flow-node.active { border-color: var(--teal); background: var(--teal-soft); color: var(--teal); }
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    /* ── 对比表 ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 14px;
+    }
+    th {
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 700;
+      color: #374151;
+    }
+    td {
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      color: #374151;
+      vertical-align: top;
+    }
+    tr:hover td { background: var(--panel-strong); }
+
+    /* ── 技能卡网格 ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 16px 0 24px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px;
+      background: var(--panel);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .card:hover { border-color: var(--teal); box-shadow: 0 4px 16px rgba(15,118,110,.08); }
+    .card-icon { font-size: 22px; margin-bottom: 8px; display: block; }
+    .card-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #111827; }
+    .card-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* ── 进度条标注 ── */
+    .progress-section {
+      background: linear-gradient(135deg, #0f766e 0%, #1d4ed8 100%);
+      border-radius: 12px;
+      padding: 28px 32px;
+      color: #fff;
+      margin: 32px 0;
+    }
+    .progress-section h3 { color: #fff; margin-top: 0; }
+    .progress-section p { color: rgba(255,255,255,.85); margin-bottom: 0; }
+
+    /* ── 导航按钮 ── */
+    .chapter-nav {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 56px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      gap: 12px;
+    }
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #344054;
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+    }
+    .nav-btn:hover { border-color: var(--teal); color: var(--teal); }
+    .nav-btn.primary {
+      background: var(--teal);
+      color: #fff;
+      border-color: var(--teal);
+    }
+    .nav-btn.primary:hover { background: #0d6b63; border-color: #0d6b63; color: #fff; }
+    .nav-btn.disabled { opacity: .4; pointer-events: none; }
+
+    /* ── 滚动高亮动画 ── */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .chapter.visible { animation: fadeIn .25s ease; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+      .content { padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="currentColor" opacity=".12"/>
+      <path d="M8 20 L14 8 L20 20 M10.5 15.5 h7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Claude Code
+  </div>
+  <div class="topbar-divider"></div>
+  <span class="topbar-subtitle">项目开发实战教程</span>
+  <div class="topbar-spacer"></div>
+  <a href="Claude-Code-Skill-Finder.html" class="topbar-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    能力检索台
+  </a>
+</header>
+
+<div class="layout">
+
+  <!-- 侧边栏导航 -->
+  <nav class="sidebar">
+    <div class="nav-group-title">入门</div>
+    <a class="nav-item active" data-chapter="c0" href="#c0">
+      <span class="dot"></span>什么是 Claude Code
+    </a>
+    <a class="nav-item" data-chapter="c1" href="#c1">
+      <span class="dot"></span>安装与配置
+    </a>
+
+    <div class="nav-group-title" style="margin-top:12px">开发全流程</div>
+    <a class="nav-item" data-chapter="c2" href="#c2">
+      <span class="dot"></span>① 项目初始化
+    </a>
+    <a class="nav-item" data-chapter="c3" href="#c3">
+      <span class="dot"></span>② 规划与设计
+    </a>
+    <a class="nav-item" data-chapter="c4" href="#c4">
+      <span class="dot"></span>③ 编码实现
+    </a>
+    <a class="nav-item" data-chapter="c5" href="#c5">
+      <span class="dot"></span>④ 测试验证
+    </a>
+    <a class="nav-item" data-chapter="c6" href="#c6">
+      <span class="dot"></span>⑤ 代码审查
+    </a>
+    <a class="nav-item" data-chapter="c7" href="#c7">
+      <span class="dot"></span>⑥ 提交与部署
+    </a>
+
+    <div class="nav-group-title" style="margin-top:12px">高级用法</div>
+    <a class="nav-item" data-chapter="c8" href="#c8">
+      <span class="dot"></span>自定义代理
+    </a>
+    <a class="nav-item" data-chapter="c9" href="#c9">
+      <span class="dot"></span>Hooks 自动化
+    </a>
+    <a class="nav-item" data-chapter="c10" href="#c10">
+      <span class="dot"></span>多代理并行
+    </a>
+    <a class="nav-item" data-chapter="c11" href="#c11">
+      <span class="dot"></span>MCP 扩展
+    </a>
+    <a class="nav-item" data-chapter="c12" href="#c12">
+      <span class="dot"></span>上下文管理
+    </a>
+
+    <div class="nav-group-title" style="margin-top:12px">最佳实践</div>
+    <a class="nav-item" data-chapter="c13" href="#c13">
+      <span class="dot"></span>CLAUDE.md 写法
+    </a>
+    <a class="nav-item" data-chapter="c14" href="#c14">
+      <span class="dot"></span>提示词技巧
+    </a>
+    <a class="nav-item" data-chapter="c15" href="#c15">
+      <span class="dot"></span>常见坑与避坑
+    </a>
+  </nav>
+
+  <!-- 内容区 -->
+  <main class="content">
+
+    <!-- ══════════════ Chapter 0 ══════════════ -->
+    <section class="chapter visible" id="c0">
+      <div class="chapter-badge badge-beginner">● 入门</div>
+      <h1>什么是 Claude Code</h1>
+      <p class="chapter-intro">
+        Claude Code 是 Anthropic 推出的 AI 编程工具，以 CLI（命令行）为核心，深度集成到你的终端、IDE 和工作流中。它不只是代码补全——它是一个能理解整个项目、执行多步任务、调用真实工具的 AI 工程师。
+      </p>
+
+      <h2>核心能力概览</h2>
+      <div class="card-grid">
+        <div class="card">
+          <span class="card-icon">🛠</span>
+          <div class="card-title">技能（Skills）</div>
+          <div class="card-desc">封装好的专项能力，如代码生成、重构、调试、文档撰写等，通过 <code>/skill-name</code> 调用。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">⚡</span>
+          <div class="card-title">命令（Commands）</div>
+          <div class="card-desc">内置斜杠命令，如 <code>/init</code> <code>/compact</code> <code>/cost</code>，控制会话和工作流。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🤖</span>
+          <div class="card-title">代理（Agents）</div>
+          <div class="card-desc">专职 AI 子代理，如 planner、tdd-guide、code-reviewer，可并行执行复杂任务。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📋</span>
+          <div class="card-title">规则（Rules）</div>
+          <div class="card-desc">通过 CLAUDE.md 定义项目级别行为规范，Claude 在整个会话中自动遵守。</div>
+        </div>
+      </div>
+
+      <h2>与普通 AI 助手的区别</h2>
+      <table>
+        <thead>
+          <tr><th>维度</th><th>普通 AI 助手</th><th>Claude Code</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>代码执行</td>
+            <td>生成代码片段，需要你手动复制运行</td>
+            <td>直接读写文件、运行命令、查看输出</td>
+          </tr>
+          <tr>
+            <td>项目理解</td>
+            <td>只能看到你粘贴的片段</td>
+            <td>读取整个代码库，理解架构</td>
+          </tr>
+          <tr>
+            <td>工具调用</td>
+            <td>无法调用真实工具</td>
+            <td>调用 git、npm、docker、测试框架等</td>
+          </tr>
+          <tr>
+            <td>持久上下文</td>
+            <td>每次对话从零开始</td>
+            <td>CLAUDE.md + 记忆系统跨会话保持</td>
+          </tr>
+          <tr>
+            <td>任务粒度</td>
+            <td>单次问答</td>
+            <td>多步骤、多文件、多代理协同</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          <strong>心智模型</strong>
+          把 Claude Code 想象成一个坐在你旁边的高级工程师：你描述需求，它直接动手——读文件、写代码、跑测试、提 PR。你是决策者，它是执行者。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn disabled">← 上一节</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c1')">安装与配置 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 1 ══════════════ -->
+    <section class="chapter" id="c1">
+      <div class="chapter-badge badge-beginner">● 入门</div>
+      <h1>安装与配置</h1>
+      <p class="chapter-intro">从零开始把 Claude Code 跑起来，只需三步。</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>安装 Claude Code CLI</h4>
+            <p>需要 Node.js 18+。通过 npm 全局安装：</p>
+            <pre><span class="cmd">npm install -g @anthropic-ai/claude-code</span>
+<span class="cmt"># 验证安装</span>
+<span class="cmd">claude --version</span></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>登录并授权</h4>
+            <p>首次运行时会弹出浏览器进行 OAuth 授权，或直接配置 API Key：</p>
+            <pre><span class="cmd">claude</span>
+<span class="cmt"># 或者设置环境变量（适合 CI/自动化场景）</span>
+<span class="kw">export</span> ANTHROPIC_API_KEY=<span class="str">sk-ant-xxxxx</span></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>在项目中初始化</h4>
+            <p>进入你的项目目录，让 Claude 生成专属配置文件：</p>
+            <pre><span class="cmd">cd /your/project</span>
+<span class="cmd">claude</span>
+<span class="cmt"># 在对话中输入：</span>
+/init
+<span class="cmt"># Claude 会扫描项目，自动生成 CLAUDE.md</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <h2>IDE 集成</h2>
+      <p>Claude Code 提供官方 VS Code / JetBrains 插件，安装后可在编辑器内直接唤起，无需切换终端：</p>
+      <table>
+        <thead><tr><th>IDE</th><th>安装方式</th><th>唤起快捷键</th></tr></thead>
+        <tbody>
+          <tr><td>VS Code</td><td>扩展市场搜索 "Claude Code"</td><td><code>Cmd/Ctrl + Shift + P</code> → Claude</td></tr>
+          <tr><td>JetBrains 全系</td><td>Plugin Marketplace 搜索 "Claude Code"</td><td><code>Cmd/Ctrl + Shift + A</code> → Claude</td></tr>
+          <tr><td>终端（Mac）</td><td>已安装 CLI 即可</td><td>直接运行 <code>claude</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2>推荐全局设置</h2>
+      <p>编辑 <code>~/.claude/settings.json</code> 进行个性化配置：</p>
+      <pre>{
+  <span class="str">"theme"</span>: <span class="str">"dark"</span>,
+  <span class="str">"autoUpdates"</span>: <span class="kw">true</span>,
+  <span class="str">"preferredNotifChannel"</span>: <span class="str">"terminal"</span>,
+  <span class="cmt">// 允许 Claude 直接执行的工具（无需每次确认）</span>
+  <span class="str">"allowedTools"</span>: [<span class="str">"Bash(git *)"</span>, <span class="str">"Bash(npm test)"</span>]
+}</pre>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>安全提示</strong>
+          <code>allowedTools</code> 中只添加你信任的命令。危险命令（如 <code>rm -rf</code>）应保持需要手动确认，避免误操作。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c0')">← 什么是 Claude Code</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c2')">① 项目初始化 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 2 ══════════════ -->
+    <section class="chapter" id="c2">
+      <div class="chapter-badge badge-beginner">● 开发流程</div>
+      <h1>① 项目初始化</h1>
+      <p class="chapter-intro">一个好的开始等于成功的一半。正确初始化项目，Claude 就能在整个开发周期内保持准确的上下文。</p>
+
+      <div class="progress-section">
+        <h3>📍 你在流程中的位置</h3>
+        <p>初始化 → 规划 → 编码 → 测试 → 审查 → 部署</p>
+      </div>
+
+      <div class="flow">
+        <div class="flow-node active"><span class="flow-icon">🔧</span>初始化</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">📐</span>规划</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">💻</span>编码</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🧪</span>测试</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🔍</span>审查</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🚀</span>部署</div>
+      </div>
+
+      <h2>运行 /init 生成 CLAUDE.md</h2>
+      <p><code>/init</code> 是进入新项目的第一条命令。Claude 会扫描目录结构、分析技术栈，自动生成一份项目配置文件：</p>
+      <pre><span class="cmt"># 在项目根目录启动 Claude</span>
+<span class="cmd">claude</span>
+
+<span class="cmt"># 在对话中执行</span>
+/init</pre>
+
+      <p>生成的 <code>CLAUDE.md</code> 包含：</p>
+      <ul>
+        <li>项目技术栈说明（语言、框架、包管理器）</li>
+        <li>常用命令（构建、测试、启动）</li>
+        <li>目录结构说明</li>
+        <li>代码规范和注意事项</li>
+      </ul>
+
+      <h2>手动补充关键信息</h2>
+      <p>自动生成的内容是基础，你应该手动追加团队规范、架构决策和特殊约定：</p>
+      <pre><span class="cmt"># CLAUDE.md 追加内容示例</span>
+
+<span class="str">## 架构约定</span>
+- 所有 API 请求统一走 src/api/ 目录
+- 状态管理使用 Zustand，禁止直接修改 store
+- 组件按功能域分目录，不按类型分
+
+<span class="str">## 不可修改的文件</span>
+- deploy/ 目录下的配置，改动需 DevOps 审批
+- src/lib/crypto.ts，安全关键代码，需专项评审
+
+<span class="str">## 开发环境</span>
+- 数据库: PostgreSQL 15，连接串在 .env.local
+- 后端端口: 8080，前端端口: 5173</pre>
+
+      <div class="callout tip">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          <strong>CLAUDE.md 的价值</strong>
+          每次新建会话，Claude 都会首先读取 CLAUDE.md。这是你的"项目记忆"——它让 Claude 在第 100 次对话时仍然了解项目背景，不需要每次重新解释。
+        </div>
+      </div>
+
+      <h2>子目录 CLAUDE.md</h2>
+      <p>对于大型 monorepo，可以在子模块中放置独立的 CLAUDE.md：</p>
+      <pre>project/
+├── CLAUDE.md          <span class="cmt"># 全局规范</span>
+├── frontend/
+│   └── CLAUDE.md      <span class="cmt"># 前端专属规范（Vue/React 约定）</span>
+├── backend/
+│   └── CLAUDE.md      <span class="cmt"># 后端专属规范（Java/Go 约定）</span>
+└── deploy/
+    └── CLAUDE.md      <span class="cmt"># 部署配置说明</span></pre>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c1')">← 安装与配置</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c3')">② 规划与设计 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 3 ══════════════ -->
+    <section class="chapter" id="c3">
+      <div class="chapter-badge badge-beginner">● 开发流程</div>
+      <h1>② 规划与设计</h1>
+      <p class="chapter-intro">不要一上来就让 Claude 写代码。先规划，明确边界和依赖，实现才会准确。</p>
+
+      <div class="flow">
+        <div class="flow-node"><span class="flow-icon">🔧</span>初始化</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node active"><span class="flow-icon">📐</span>规划</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">💻</span>编码</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🧪</span>测试</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🔍</span>审查</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🚀</span>部署</div>
+      </div>
+
+      <h2>使用 planner 代理</h2>
+      <p>对于复杂功能，先调用 <strong>planner 代理</strong>输出结构化实现方案，再开始写代码：</p>
+      <pre><span class="cmt"># 在对话中描述需求，Claude 会自动激活 planner</span>
+我需要为电商系统添加优惠券模块，支持满减、折扣、限量三种类型，
+需要与订单系统集成，并提供管理后台 API。请先规划实现方案。</pre>
+
+      <p>planner 代理会输出：</p>
+      <ul>
+        <li>数据库表结构设计</li>
+        <li>API 接口列表</li>
+        <li>文件/模块划分</li>
+        <li>实现顺序（考虑依赖关系）</li>
+        <li>风险点和注意事项</li>
+      </ul>
+
+      <h2>开启计划模式（Plan Mode）</h2>
+      <p>按 <code>Option+P</code>（Mac）/ <code>Alt+P</code>（Windows）进入计划模式。在此模式下，Claude 只分析和规划，不执行任何写操作，你审批后才开始执行：</p>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>计划模式 vs 正常模式</strong>
+          计划模式适合"我知道要做什么但不确定怎么做"的场景，能帮你在 AI 动手前看清全局，避免中途大幅改向浪费 token。
+        </div>
+      </div>
+
+      <h2>开启扩展思考</h2>
+      <p>对于架构选型、算法设计等复杂决策，按 <code>Option+T</code> 开启扩展思考（Extended Thinking）。Claude 会在内部进行更深入的推理，给出更周全的方案：</p>
+      <pre><span class="cmt"># 典型的扩展思考场景</span>
+我们要支持百万级用户的实时消息推送，请对比 WebSocket、SSE、
+长轮询三种方案的优劣，并给出推荐选型及原因。</pre>
+
+      <h2>拆解复杂功能</h2>
+      <p>如果功能很大，明确告诉 Claude 分阶段实现：</p>
+      <pre>请按以下顺序分三个阶段实现用户权限系统：
+阶段一：数据库表结构和基础 CRUD API（不含权限逻辑）
+阶段二：RBAC 权限模型和中间件
+阶段三：前端权限路由守卫和按钮级别控制
+
+我们先做阶段一，完成后我会说"继续阶段二"。</pre>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c2')">← 项目初始化</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c4')">③ 编码实现 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 4 ══════════════ -->
+    <section class="chapter" id="c4">
+      <div class="chapter-badge badge-beginner">● 开发流程</div>
+      <h1>③ 编码实现</h1>
+      <p class="chapter-intro">这是 Claude Code 最强的阶段——它可以同时读写多个文件，执行命令，实时看到结果后继续调整。</p>
+
+      <div class="flow">
+        <div class="flow-node"><span class="flow-icon">🔧</span>初始化</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">📐</span>规划</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node active"><span class="flow-icon">💻</span>编码</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🧪</span>测试</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🔍</span>审查</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🚀</span>部署</div>
+      </div>
+
+      <h2>有效描述需求</h2>
+      <p>好的提示词不是写得越长越好，而是信息密度高、边界清晰：</p>
+      <table>
+        <thead><tr><th>❌ 模糊描述</th><th>✅ 清晰描述</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>帮我写一个登录功能</td>
+            <td>在 <code>src/auth/</code> 下实现 JWT 登录：POST /api/auth/login 接受 email+password，查数据库验证后返回 access_token（24h）和 refresh_token（7d），错误统一用 {code, message} 格式</td>
+          </tr>
+          <tr>
+            <td>这个组件有 bug，帮我修</td>
+            <td><code>src/components/Table.tsx</code> 第 87 行，分页切换时数据没刷新，原因是 useEffect 的依赖数组缺少 page 参数</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>常用工作模式</h2>
+
+      <h3>模式一：新功能开发</h3>
+      <pre><span class="cmt"># 告诉 Claude 目标、约束、参考</span>
+在 backend/src/main/java/com/example/service/ 下创建 CouponService，
+参考同目录下 OrderService 的代码风格，实现以下方法：
+- createCoupon(CreateCouponDTO dto) - 创建优惠券，含参数校验
+- applyCoupon(Long orderId, String code) - 核销优惠券，需加分布式锁
+- listCoupons(PageParam page) - 分页查询，走缓存（Redis key: coupon:list:{page}）</pre>
+
+      <h3>模式二：调试 Bug</h3>
+      <pre><span class="cmt"># 提供错误现象 + 复现路径</span>
+用户登录后访问 /api/profile 报 403，但 /api/orders 正常。
+错误日志：backend.log 第 2847 行
+请先读日志再定位问题。</pre>
+
+      <h3>模式三：重构现有代码</h3>
+      <pre><span class="cmt"># 明确说明重构目标和边界</span>
+重构 src/utils/dateUtils.js，要求：
+1. 改为 TypeScript
+2. 用 date-fns 替换 moment（已安装）
+3. 保持函数签名不变，不影响调用方
+4. 补充 JSDoc 注释</pre>
+
+      <h2>利用多文件编辑能力</h2>
+      <p>Claude 可以在一次对话中同时修改多个文件，说清楚就好：</p>
+      <pre>新增商品收藏功能，需要改动以下文件：
+- 数据库：在 schema.sql 加 user_favorites 表
+- 后端：ProductController 加 POST/DELETE /api/favorites 接口
+- 前端：ProductCard.vue 加收藏按钮，FavoritesPage.vue 显示列表
+- 路由：router/index.ts 加 /favorites 路由
+
+请依次完成，完成一个文件告诉我一次。</pre>
+
+      <h2>实时查看运行结果</h2>
+      <pre><span class="cmt"># Claude 可以直接运行命令看结果</span>
+帮我运行一下测试，看看刚才的改动有没有破坏现有用例：
+<span class="cmd">npm test -- --testPathPattern=product</span></pre>
+
+      <div class="callout tip">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          <strong>! 前缀快速执行命令</strong>
+          在对话框输入 <code>! npm run build</code>，感叹号前缀让命令直接在当前 shell 执行，输出实时反馈给 Claude。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c3')">← 规划与设计</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c5')">④ 测试验证 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 5 ══════════════ -->
+    <section class="chapter" id="c5">
+      <div class="chapter-badge badge-intermediate">● 开发流程</div>
+      <h1>④ 测试验证</h1>
+      <p class="chapter-intro">Claude Code 遵循 TDD 原则：先写测试，再写实现。测试不仅是质量保障，也是功能规格的精确表达。</p>
+
+      <div class="flow">
+        <div class="flow-node"><span class="flow-icon">🔧</span>初始化</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">📐</span>规划</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">💻</span>编码</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node active"><span class="flow-icon">🧪</span>测试</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🔍</span>审查</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🚀</span>部署</div>
+      </div>
+
+      <h2>TDD 工作流（推荐）</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>RED：先写失败的测试</h4>
+            <p>告诉 Claude 要实现什么功能，让它先写测试用例：</p>
+            <pre>为 CouponService.applyCoupon() 先写单元测试，覆盖：
+- 正常核销成功
+- 优惠券不存在
+- 优惠券已过期
+- 优惠券已用完（库存为0）
+- 并发核销（同一张券被两个请求同时使用）</pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>GREEN：实现让测试通过</h4>
+            <p>测试写完后，再让 Claude 实现业务逻辑：</p>
+            <pre>测试已经写好了，现在实现 applyCoupon() 方法，让所有测试用例通过。</pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>REFACTOR：优化代码质量</h4>
+            <p>测试全绿后，在不破坏测试的前提下重构：</p>
+            <pre>测试全部通过了。现在重构 applyCoupon() 的实现：
+提取 validateCoupon() 私有方法，减少嵌套层级。</pre>
+          </div>
+        </div>
+      </div>
+
+      <h2>调用测试代理</h2>
+      <pre><span class="cmt"># 触发 tdd-guide 代理进行全流程测试辅导</span>
+我要新增用户积分系统，请用 tdd-guide 帮我从测试开始设计。
+
+<span class="cmt"># 运行 E2E 测试（触发 e2e-runner 代理）</span>
+请运行用户登录到下单的完整 E2E 测试流程，检查最新改动有没有影响。</pre>
+
+      <h2>覆盖率检查</h2>
+      <pre><span class="cmt"># 查看当前覆盖率</span>
+<span class="cmd">npm test -- --coverage</span>
+
+<span class="cmt"># 告诉 Claude 补全低覆盖率模块</span>
+覆盖率报告显示 src/utils/validator.ts 只有 45% 覆盖率，
+请补充测试用例，目标是 85% 以上。</pre>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>避免为了覆盖率而写测试</strong>
+          覆盖率是结果，不是目的。让 Claude 针对边界条件、异常路径写有意义的测试，而不是只追求数字达标。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c4')">← 编码实现</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c6')">⑤ 代码审查 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 6 ══════════════ -->
+    <section class="chapter" id="c6">
+      <div class="chapter-badge badge-intermediate">● 开发流程</div>
+      <h1>⑤ 代码审查</h1>
+      <p class="chapter-intro">每次编码完成后，立即触发代码审查。Claude 的代理系统可以从质量、安全、性能多个维度独立评审。</p>
+
+      <div class="flow">
+        <div class="flow-node"><span class="flow-icon">🔧</span>初始化</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">📐</span>规划</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">💻</span>编码</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🧪</span>测试</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node active"><span class="flow-icon">🔍</span>审查</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🚀</span>部署</div>
+      </div>
+
+      <h2>标准审查流程</h2>
+      <pre><span class="cmt"># 触发代码审查代理</span>
+我刚完成了优惠券模块的实现，请进行代码审查。
+
+<span class="cmt"># 审查特定文件</span>
+请审查 src/service/CouponService.ts，重点关注：
+1. 并发安全性（有没有竞态条件）
+2. 错误处理是否完整
+3. 是否有 SQL 注入风险</pre>
+
+      <h2>专项审查代理</h2>
+      <table>
+        <thead><tr><th>代理</th><th>关注点</th><th>何时使用</th></tr></thead>
+        <tbody>
+          <tr><td><code>code-reviewer</code></td><td>整体质量、可读性、设计模式</td><td>每次功能完成后</td></tr>
+          <tr><td><code>security-reviewer</code></td><td>OWASP Top10、认证漏洞、数据泄露</td><td>涉及认证/支付/用户数据时</td></tr>
+          <tr><td><code>java-reviewer</code></td><td>Spring Boot 最佳实践、JPA 性能</td><td>Java 后端修改</td></tr>
+          <tr><td><code>typescript-reviewer</code></td><td>类型安全、async 正确性</td><td>TS/JS 代码修改</td></tr>
+          <tr><td><code>database-reviewer</code></td><td>SQL 性能、索引、事务</td><td>涉及数据库操作时</td></tr>
+        </tbody>
+      </table>
+
+      <h2>审查等级处理原则</h2>
+      <div class="card-grid">
+        <div class="card" style="border-color: var(--red);">
+          <span class="card-icon">🔴</span>
+          <div class="card-title">CRITICAL</div>
+          <div class="card-desc">安全漏洞或数据丢失风险。<strong>必须修复</strong>后才能提交。</div>
+        </div>
+        <div class="card" style="border-color: var(--amber);">
+          <span class="card-icon">🟡</span>
+          <div class="card-title">HIGH</div>
+          <div class="card-desc">严重 Bug 或质量问题。<strong>强烈建议</strong>合并前修复。</div>
+        </div>
+        <div class="card" style="border-color: var(--blue);">
+          <span class="card-icon">🔵</span>
+          <div class="card-title">MEDIUM</div>
+          <div class="card-desc">可维护性问题。<strong>酌情处理</strong>，可列入后续技术债。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">⚪</span>
+          <div class="card-title">LOW</div>
+          <div class="card-desc">风格建议。<strong>可选处理</strong>，不阻塞合并。</div>
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c5')">← 测试验证</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c7')">⑥ 提交与部署 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 7 ══════════════ -->
+    <section class="chapter" id="c7">
+      <div class="chapter-badge badge-intermediate">● 开发流程</div>
+      <h1>⑥ 提交与部署</h1>
+      <p class="chapter-intro">从 git 操作到 PR 创建，Claude 可以完整处理提交流程，并遵守你在 CLAUDE.md 中定义的提交规范。</p>
+
+      <div class="flow">
+        <div class="flow-node"><span class="flow-icon">🔧</span>初始化</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">📐</span>规划</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">💻</span>编码</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🧪</span>测试</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node"><span class="flow-icon">🔍</span>审查</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-node active"><span class="flow-icon">🚀</span>部署</div>
+      </div>
+
+      <h2>Git 操作</h2>
+      <pre><span class="cmt"># 查看变更并提交</span>
+帮我查看所有改动，写一条规范的 commit message 并提交。
+
+<span class="cmt"># 创建 PR</span>
+帮我基于当前分支创建一个 PR 到 main，标题和描述要包含功能说明和测试计划。
+
+<span class="cmt"># Claude 会执行</span>
+<span class="cmd">git status</span>
+<span class="cmd">git diff --stat</span>
+<span class="cmd">git add src/service/CouponService.ts src/controller/CouponController.ts</span>
+<span class="cmd">git commit -m "feat(coupon): 新增优惠券核销功能，支持满减/折扣/限量三种类型"</span>
+<span class="cmd">gh pr create --title "..." --body "..."</span></pre>
+
+      <h2>Conventional Commits 规范</h2>
+      <p>在 CLAUDE.md 中声明后，Claude 会自动遵守：</p>
+      <table>
+        <thead><tr><th>类型</th><th>含义</th><th>示例</th></tr></thead>
+        <tbody>
+          <tr><td><code>feat</code></td><td>新功能</td><td>feat(auth): 新增 OAuth2 登录</td></tr>
+          <tr><td><code>fix</code></td><td>Bug 修复</td><td>fix(coupon): 修复并发核销竞态问题</td></tr>
+          <tr><td><code>refactor</code></td><td>重构（不改行为）</td><td>refactor(order): 提取 OrderValidator 类</td></tr>
+          <tr><td><code>test</code></td><td>测试相关</td><td>test(coupon): 补充边界条件测试用例</td></tr>
+          <tr><td><code>docs</code></td><td>文档更新</td><td>docs: 更新 API 接口文档</td></tr>
+          <tr><td><code>chore</code></td><td>构建/工具</td><td>chore: 升级 Spring Boot 到 3.2</td></tr>
+        </tbody>
+      </table>
+
+      <h2>查看成本与效率</h2>
+      <pre><span class="cmt"># 查看本次会话消耗的 token 和费用</span>
+/cost
+
+<span class="cmt"># 查看会话统计</span>
+/status</pre>
+
+      <div class="callout tip">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          <strong>恭喜！完成了一个完整的开发循环</strong>
+          初始化 → 规划 → 编码 → 测试 → 审查 → 提交，这是 Claude Code 辅助开发的标准工作流。接下来学习高级技巧，进一步提升效率。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c6')">← 代码审查</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c8')">自定义代理 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 8 ══════════════ -->
+    <section class="chapter" id="c8">
+      <div class="chapter-badge badge-advanced">● 高级用法</div>
+      <h1>自定义代理</h1>
+      <p class="chapter-intro">当内置代理不满足需求时，你可以创建专属代理——它们有自己的系统提示词、工具权限和领域知识。</p>
+
+      <h2>代理文件结构</h2>
+      <p>代理以 Markdown 文件形式存储在 <code>~/.claude/agents/</code> 目录：</p>
+      <pre>~/.claude/agents/
+├── planner.md          <span class="cmt"># 内置代理（可覆盖）</span>
+├── code-reviewer.md
+└── my-domain-expert.md <span class="cmt"># 你的自定义代理</span></pre>
+
+      <h2>创建自定义代理</h2>
+      <p>代理文件由 YAML frontmatter 和 Markdown 系统提示词组成：</p>
+      <pre><span class="cmt">## ~/.claude/agents/api-designer.md</span>
+
+---
+name: api-designer
+description: RESTful API 设计专家，负责接口规范、版本策略和文档生成
+model: claude-sonnet-4-6
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+---
+
+你是一个资深的 API 设计专家，遵循 RESTful 最佳实践。
+
+在设计 API 时你必须：
+1. 严格遵守 HTTP 语义（GET 幂等，POST 创建，PUT 全量更新，PATCH 部分更新）
+2. 使用统一的响应信封 { code, data, message, timestamp }
+3. 版本号放在 URL 路径 /api/v1/
+4. 错误码使用业务语义码（如 USER_NOT_FOUND），而非单纯 HTTP 状态码
+5. 每个接口生成 OpenAPI 3.0 规范
+
+当用户提供业务需求时，先输出接口列表，再生成代码。</pre>
+
+      <h2>调用自定义代理</h2>
+      <pre><span class="cmt"># 两种调用方式</span>
+
+<span class="cmt"># 1. 在对话中明确声明</span>
+使用 api-designer 代理，为用户模块设计 CRUD 接口。
+
+<span class="cmt"># 2. 通过 Agent 工具自动选择</span>
+<span class="cmt"># 当需求符合代理 description 时，Claude 会自动分配</span></pre>
+
+      <h2>项目级代理</h2>
+      <p>也可以在项目目录下创建 <code>.claude/agents/</code>，只对当前项目生效，优先级高于全局代理：</p>
+      <pre>your-project/
+└── .claude/
+    └── agents/
+        └── domain-expert.md  <span class="cmt"># 项目专属代理</span></pre>
+
+      <div class="callout tip">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          <strong>什么时候值得创建自定义代理</strong>
+          当你在同一个项目里反复给 Claude 解释同一套业务规则时，就应该把这些规则固化为代理的系统提示词，而不是每次对话都重复粘贴。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c7')">← 提交与部署</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c9')">Hooks 自动化 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 9 ══════════════ -->
+    <section class="chapter" id="c9">
+      <div class="chapter-badge badge-advanced">● 高级用法</div>
+      <h1>Hooks 自动化</h1>
+      <p class="chapter-intro">Hooks 是在 Claude 执行特定动作前后自动触发的 shell 命令，用于打造"格式化 → lint → 类型检查"的全自动质量守门员。</p>
+
+      <h2>Hook 类型</h2>
+      <table>
+        <thead><tr><th>类型</th><th>触发时机</th><th>典型用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>PreToolUse</code></td><td>工具调用前</td><td>验证、拦截危险操作</td></tr>
+          <tr><td><code>PostToolUse</code></td><td>工具调用后</td><td>自动格式化、lint、类型检查</td></tr>
+          <tr><td><code>Stop</code></td><td>会话结束时</td><td>最终构建验证、报告生成</td></tr>
+        </tbody>
+      </table>
+
+      <h2>配置 Hooks</h2>
+      <p>在 <code>~/.claude/settings.json</code>（全局）或 <code>.claude/settings.json</code>（项目级）中配置：</p>
+      <pre>{
+  <span class="str">"hooks"</span>: {
+    <span class="str">"PostToolUse"</span>: [
+      {
+        <span class="str">"matcher"</span>: <span class="str">"Write|Edit"</span>,
+        <span class="str">"command"</span>: <span class="str">"prettier --write \"$FILE_PATH\""</span>,
+        <span class="str">"description"</span>: <span class="str">"自动格式化编辑的文件"</span>
+      },
+      {
+        <span class="str">"matcher"</span>: <span class="str">"Write|Edit"</span>,
+        <span class="str">"command"</span>: <span class="str">"eslint --fix \"$FILE_PATH\""</span>,
+        <span class="str">"description"</span>: <span class="str">"自动修复 lint 问题"</span>
+      }
+    ],
+    <span class="str">"Stop"</span>: [
+      {
+        <span class="str">"command"</span>: <span class="str">"npm run build"</span>,
+        <span class="str">"description"</span>: <span class="str">"会话结束前验证构建"</span>
+      }
+    ]
+  }
+}</pre>
+
+      <h2>实用 Hook 配方</h2>
+
+      <h3>Java 项目：自动 checkstyle</h3>
+      <pre>{
+  <span class="str">"matcher"</span>: <span class="str">"Write|Edit"</span>,
+  <span class="str">"command"</span>: <span class="str">"mvn -q checkstyle:check -Dcheckstyle.failOnViolation=false"</span>
+}</pre>
+
+      <h3>Python 项目：black + ruff</h3>
+      <pre>{
+  <span class="str">"matcher"</span>: <span class="str">"Write|Edit"</span>,
+  <span class="str">"command"</span>: <span class="str">"black \"$FILE_PATH\" && ruff check --fix \"$FILE_PATH\""</span>
+}</pre>
+
+      <h3>防止大文件写入</h3>
+      <pre>{
+  <span class="str">"matcher"</span>: <span class="str">"Write"</span>,
+  <span class="str">"command"</span>: <span class="str">"node -e \"const c=require('fs').readFileSync(process.env.FILE_PATH,'utf8');if(c.split('\\n').length>800){process.exit(2)}\""</span>
+}</pre>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c8')">← 自定义代理</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c10')">多代理并行 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 10 ══════════════ -->
+    <section class="chapter" id="c10">
+      <div class="chapter-badge badge-advanced">● 高级用法</div>
+      <h1>多代理并行</h1>
+      <p class="chapter-intro">Claude Code 最强大的能力之一：同时启动多个代理并行工作，把串行的小时级任务压缩到分钟级。</p>
+
+      <h2>并行 vs 串行</h2>
+      <table>
+        <thead><tr><th>场景</th><th>串行（普通方式）</th><th>并行（多代理）</th></tr></thead>
+        <tbody>
+          <tr><td>代码审查</td><td>质量审查 → 安全审查 → 性能审查（顺序等待）</td><td>三个代理同时运行</td></tr>
+          <tr><td>大重构</td><td>改前端 → 改后端 → 改测试（串行）</td><td>三个模块独立代理并行</td></tr>
+          <tr><td>文档更新</td><td>逐个文件更新</td><td>多文件同时更新</td></tr>
+        </tbody>
+      </table>
+
+      <h2>启动并行代理</h2>
+      <pre><span class="cmt"># 明确请求并行执行</span>
+同时启动三个代理并行工作：
+1. code-reviewer 代理：审查 src/service/ 目录的代码质量
+2. security-reviewer 代理：检查所有 API 接口的安全问题
+3. typescript-reviewer 代理：检查类型定义完整性
+
+三个代理同步进行，完成后汇总结果。</pre>
+
+      <h2>工作树隔离（Worktree）</h2>
+      <p>并行任务需要操作同一仓库时，使用 git worktree 避免文件冲突：</p>
+      <pre><span class="cmt"># Claude 会自动创建隔离的工作树</span>
+我需要同时修复三个独立的 bug，请并行处理：
+- Bug A：用户头像上传失败（isolation: worktree）
+- Bug B：分页查询结果不稳定（isolation: worktree）
+- Bug C：邮件通知未发送（isolation: worktree）</pre>
+
+      <h2>多视角分析模式</h2>
+      <p>对重要架构决策，用多个角色代理各自独立分析，再综合：</p>
+      <pre>对于"是否引入 Kafka 替换 Redis 消息队列"这个决策，
+请同时启动以下代理从不同角度分析：
+1. 架构师视角：系统复杂度和扩展性
+2. 运维视角：运维成本和故障风险
+3. 性能视角：吞吐量和延迟数据对比
+最后综合三方意见给出建议。</pre>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <div class="callout-body">
+          <strong>并行代理的费用</strong>
+          并行代理同时消耗 token，成本是串行的 N 倍，但节省的时间远大于成本增加。对时间敏感的任务值得使用，日常简单任务串行即可。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c9')">← Hooks 自动化</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c11')">MCP 扩展 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 11 ══════════════ -->
+    <section class="chapter" id="c11">
+      <div class="chapter-badge badge-advanced">● 高级用法</div>
+      <h1>MCP 扩展</h1>
+      <p class="chapter-intro">MCP（Model Context Protocol）是 Claude 的标准化工具扩展协议，让 Claude 能直接连接数据库、API、浏览器、设计工具等外部系统。</p>
+
+      <h2>常用 MCP 服务器</h2>
+      <div class="card-grid">
+        <div class="card">
+          <span class="card-icon">🗄️</span>
+          <div class="card-title">数据库直连</div>
+          <div class="card-desc">PostgreSQL/MySQL MCP，让 Claude 直接查询表结构、运行 SQL、分析数据。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🌐</span>
+          <div class="card-title">浏览器自动化</div>
+          <div class="card-desc">Playwright MCP，让 Claude 操作真实浏览器做 E2E 测试、UI 验证。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📁</span>
+          <div class="card-title">Google Drive</div>
+          <div class="card-desc">读写 Google Docs/Sheets，把需求文档、数据直接引入 Claude 上下文。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">📚</span>
+          <div class="card-title">Context7 文档</div>
+          <div class="card-desc">实时拉取框架官方文档，解决 Claude 训练数据截止日期问题。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🔍</span>
+          <div class="card-title">网络搜索</div>
+          <div class="card-desc">让 Claude 实时搜索最新的技术资料、库更新、错误解决方案。</div>
+        </div>
+        <div class="card">
+          <span class="card-icon">🐛</span>
+          <div class="card-title">Sentry / 监控</div>
+          <div class="card-desc">直接读取生产错误报告，Claude 可以基于真实错误数据分析问题。</div>
+        </div>
+      </div>
+
+      <h2>配置 MCP 服务器</h2>
+      <pre><span class="cmt"># 命令行快速添加</span>
+<span class="cmd">claude mcp add context7 -- npx -y @upstash/context7-mcp</span>
+<span class="cmd">claude mcp add playwright -- npx -y @playwright/mcp</span>
+
+<span class="cmt"># 查看已配置的 MCP</span>
+<span class="cmd">claude mcp list</span></pre>
+
+      <h2>在对话中使用 MCP</h2>
+      <pre><span class="cmt"># 使用 Context7 查询最新文档</span>
+查询 React 19 中 useTransition 的最新用法（使用 Context7 文档服务）
+
+<span class="cmt"># 使用数据库 MCP 直接分析</span>
+查询过去 30 天用户注册数据，分析注册漏斗，找出转化率最低的环节
+
+<span class="cmt"># 使用浏览器 MCP 验证 UI</span>
+打开 http://localhost:3000/login，截图并检查登录表单是否正确渲染</pre>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c10')">← 多代理并行</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c12')">上下文管理 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 12 ══════════════ -->
+    <section class="chapter" id="c12">
+      <div class="chapter-badge badge-advanced">● 高级用法</div>
+      <h1>上下文管理</h1>
+      <p class="chapter-intro">Claude 的上下文窗口是有限的资源。高效管理上下文，是保持 AI 能力稳定输出的关键技能。</p>
+
+      <h2>上下文的消耗来源</h2>
+      <table>
+        <thead><tr><th>来源</th><th>消耗量</th><th>控制方式</th></tr></thead>
+        <tbody>
+          <tr><td>系统提示词（CLAUDE.md + rules）</td><td>每轮固定消耗</td><td>精简 CLAUDE.md</td></tr>
+          <tr><td>大文件读取</td><td>一次性高消耗</td><td>只读相关片段</td></tr>
+          <tr><td>命令输出</td><td>视输出量而定</td><td>过滤冗余日志</td></tr>
+          <tr><td>对话历史积累</td><td>随轮数线性增长</td><td>/compact 压缩</td></tr>
+        </tbody>
+      </table>
+
+      <h2>/compact 压缩上下文</h2>
+      <pre><span class="cmt"># 当对话变长、Claude 开始出现"记忆模糊"时</span>
+/compact
+
+<span class="cmt"># 带自定义指令压缩</span>
+/compact 保留：当前功能的实现状态、遗留问题列表、下一步计划</pre>
+
+      <h2>分会话管理长任务</h2>
+      <p>超大任务建议拆分为多个独立会话：</p>
+      <pre><span class="cmt"># 会话一：需求分析和设计</span>
+claude -p "分析需求文档，输出数据库设计和 API 接口列表，保存到 design.md"
+
+<span class="cmt"># 会话二：后端实现（读 design.md）</span>
+claude -p "读取 design.md，实现后端接口，完成后更新 progress.md"
+
+<span class="cmt"># 会话三：前端实现</span>
+claude -p "读取 design.md 和 progress.md，实现前端页面"</pre>
+
+      <h2>查看实时用量</h2>
+      <pre><span class="cmt"># 查看当前会话 token 消耗</span>
+/cost
+
+<span class="cmt"># 查看上下文使用百分比</span>
+/status</pre>
+
+      <div class="callout tip">
+        <div class="callout-icon">💡</div>
+        <div class="callout-body">
+          <strong>黄金法则：在上下文 80% 前完成关键决策</strong>
+          上下文越满，Claude 越容易出现"遗忘"或"混淆"。复杂架构决策、大规模重构应该在会话早期进行，不要在上下文快满时处理关键问题。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c11')">← MCP 扩展</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c13')">CLAUDE.md 写法 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 13 ══════════════ -->
+    <section class="chapter" id="c13">
+      <div class="chapter-badge badge-intermediate">● 最佳实践</div>
+      <h1>CLAUDE.md 写法</h1>
+      <p class="chapter-intro">CLAUDE.md 是 Claude 的"工作手册"，写得越精准，Claude 的行为就越可预测、越贴合你的期望。</p>
+
+      <h2>必须包含的内容</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">①</div>
+          <div class="step-body">
+            <h4>项目概述</h4>
+            <p>是什么产品、核心功能、目标用户。帮助 Claude 理解决策背景。</p>
+            <pre><span class="str">## 项目概述</span>
+TeamFlow AI 是一个企业协同 SaaS 平台，覆盖项目管理、任务协作、
+知识库、AI 助手等模块。主要用户是 B 端企业，5-500 人团队规模。</pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">②</div>
+          <div class="step-body">
+            <h4>技术栈与命令</h4>
+            <p>让 Claude 知道用什么工具、怎么运行。</p>
+            <pre><span class="str">## 技术栈</span>
+后端: Spring Boot 3.2 + JPA + Redis + MySQL 8
+前端: Vue 3 + Vite + Pinia + TypeScript
+
+<span class="str">## 常用命令</span>
+# 后端构建
+mvn -q -DskipTests package
+# 前端启动
+cd frontend && npm run dev</pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">③</div>
+          <div class="step-body">
+            <h4>代码规范</h4>
+            <p>你团队的具体约定，比通用规范更重要。</p>
+            <pre><span class="str">## 代码规范</span>
+- API 响应统一格式: { code, data, message }
+- 所有数据库操作走 Repository 层，禁止 Service 直接用 EntityManager
+- 前端组件命名 PascalCase，文件名 kebab-case
+- 禁止在 Controller 层写业务逻辑</pre>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">④</div>
+          <div class="step-body">
+            <h4>禁止事项</h4>
+            <p>明确告诉 Claude 什么不能做，避免意外改动。</p>
+            <pre><span class="str">## 禁止操作</span>
+- 不修改 deploy/ 目录下的 nginx.conf（运维管理）
+- 不在代码中硬编码任何密钥或密码
+- 不删除数据库字段（只能新增，废弃字段用 @Deprecated 标注）
+- 不直接修改 main 分支，所有改动通过 PR</pre>
+          </div>
+        </div>
+      </div>
+
+      <h2>写法原则</h2>
+      <table>
+        <thead><tr><th>原则</th><th>差的写法</th><th>好的写法</th></tr></thead>
+        <tbody>
+          <tr><td>具体胜于抽象</td><td>写高质量代码</td><td>函数不超过 50 行，文件不超过 800 行</td></tr>
+          <tr><td>说明"为什么"</td><td>不用 moment.js</td><td>不用 moment.js（已弃用，改用 date-fns）</td></tr>
+          <tr><td>约束边界</td><td>注意安全</td><td>所有 SQL 使用参数化查询，禁止字符串拼接</td></tr>
+          <tr><td>定期更新</td><td>一次写完不改</td><td>每个 Sprint 结束复查，移除过时约定</td></tr>
+        </tbody>
+      </table>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c12')">← 上下文管理</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c14')">提示词技巧 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 14 ══════════════ -->
+    <section class="chapter" id="c14">
+      <div class="chapter-badge badge-intermediate">● 最佳实践</div>
+      <h1>提示词技巧</h1>
+      <p class="chapter-intro">掌握这些技巧，你与 Claude 的协作效率会提升 3-5 倍。</p>
+
+      <h2>技巧一：给出参考样本</h2>
+      <pre><span class="cmt"># 不说"按规范写"，而是给样本</span>
+参考 UserService.java 的风格，为 ProductService 实现
+updateProduct() 方法。特别注意它的事务处理和错误处理方式。</pre>
+
+      <h2>技巧二：角色扮演约束</h2>
+      <pre><span class="cmt"># 把 Claude 限定在特定角色</span>
+你现在是这个项目的资深后端工程师，对我提出的所有方案
+先分析潜在风险，再给出实现建议。不要直接说"好的，我来实现"。</pre>
+
+      <h2>技巧三：分步骤确认</h2>
+      <pre><span class="cmt"># 大任务分步完成，每步确认</span>
+我们要重构用户认证模块，分三步：
+第一步：先列出所有需要改动的文件，不要动代码。
+等我确认文件列表正确后，再进行第二步。</pre>
+
+      <h2>技巧四：明确输出格式</h2>
+      <pre><span class="cmt"># 说清楚你要什么格式的输出</span>
+分析这段代码的性能问题，用以下格式输出：
+**问题：** [问题描述]
+**影响：** [严重程度和影响范围]
+**解决方案：** [代码级别的解决方案]
+**预期收益：** [优化后的效果]</pre>
+
+      <h2>技巧五：提供失败案例</h2>
+      <pre><span class="cmt"># 告诉 Claude 什么方向走不通</span>
+我们已经尝试过用 Redis 分布式锁解决这个并发问题，
+但在高并发下锁超时导致数据不一致。
+请给出不依赖 Redis 锁的替代方案。</pre>
+
+      <h2>技巧六：渐进式修改</h2>
+      <pre><span class="cmt"># 大改动分小批次</span>
+先只修改 UserController.java 中的 createUser 方法，
+其他方法不要动。改完后我看看效果再决定是否继续。</pre>
+
+      <h2>常见低效模式 vs 高效模式</h2>
+      <table>
+        <thead><tr><th>低效模式</th><th>高效模式</th></tr></thead>
+        <tbody>
+          <tr><td>帮我优化这段代码（无背景）</td><td>这段代码在高并发下有 N+1 查询问题，帮我加缓存解决</td></tr>
+          <tr><td>报错了，帮我看看（无信息）</td><td>运行 npm test 报 TypeError: Cannot read properties of undefined，发生在 line 47 的 user.profile.avatar，请读日志文件后分析</td></tr>
+          <tr><td>帮我写个完整的后台系统</td><td>先实现用户管理模块的 CRUD API，其他模块后续再做</td></tr>
+          <tr><td>你觉得用什么框架好</td><td>我们团队 Java 背景为主，需要快速开发 REST API，框架选 Spring Boot 还是 Quarkus，给出理由</td></tr>
+        </tbody>
+      </table>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c13')">← CLAUDE.md 写法</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c15')">常见坑与避坑 →</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ Chapter 15 ══════════════ -->
+    <section class="chapter" id="c15">
+      <div class="chapter-badge badge-intermediate">● 最佳实践</div>
+      <h1>常见坑与避坑</h1>
+      <p class="chapter-intro">这些是新手最容易踩的坑，提前了解可以帮你少走很多弯路。</p>
+
+      <h2>坑一：太大的一次性任务</h2>
+      <div class="callout danger">
+        <div class="callout-icon">❌</div>
+        <div class="callout-body">
+          <strong>错误做法</strong>
+          "帮我把整个项目从 Vue 2 迁移到 Vue 3"——这会导致 Claude 修改数十个文件，中途上下文耗尽，最终一团糟。
+        </div>
+      </div>
+      <div class="callout tip">
+        <div class="callout-icon">✅</div>
+        <div class="callout-body">
+          <strong>正确做法</strong>
+          按模块拆分：先迁移 src/components/Button.vue，验证通过后再继续下一个组件。每次只处理一个可验证的单元。
+        </div>
+      </div>
+
+      <h2>坑二：不验证 AI 输出就合并</h2>
+      <p>Claude 有时会：</p>
+      <ul>
+        <li>生成看起来正确但逻辑有缺陷的代码</li>
+        <li>引入不需要的依赖</li>
+        <li>修改你没让它动的文件</li>
+        <li>解决了表面问题但留下根本原因</li>
+      </ul>
+      <p><strong>避坑：</strong>每次改动后运行测试，用 <code>git diff</code> 仔细检查实际变更范围。</p>
+
+      <h2>坑三：忽视 CLAUDE.md 维护</h2>
+      <p>项目架构变化、技术选型更新、规范调整——如果不同步更新 CLAUDE.md，Claude 会基于过时信息给出错误建议。</p>
+      <p><strong>避坑：</strong>把更新 CLAUDE.md 列入 Sprint 完成清单。每次重大决策后立即更新。</p>
+
+      <h2>坑四：在上下文快满时做大决策</h2>
+      <p>上下文超过 80% 时，Claude 的"注意力"已经分散。这时让它做架构决策或大规模修改，错误率会显著上升。</p>
+      <p><strong>避坑：</strong>定期用 <code>/compact</code> 压缩，或开新会话处理新任务。</p>
+
+      <h2>坑五：用 AI 代替思考</h2>
+      <p>Claude 是执行者，不是决策者。它会根据你的指令行动，但不理解你业务的真正优先级和长期影响。</p>
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-body">
+          <strong>Claude Code 的边界</strong>
+          架构决策、技术选型、产品优先级——这些是你的责任。Claude 负责执行，你负责方向。不要因为 AI 能做很多事，就把思考权也转移出去。
+        </div>
+      </div>
+
+      <h2>一张快速参考卡</h2>
+      <table>
+        <thead><tr><th>场景</th><th>推荐做法</th></tr></thead>
+        <tbody>
+          <tr><td>新项目</td><td><code>/init</code> 生成 CLAUDE.md，手动补充团队约定</td></tr>
+          <tr><td>新功能</td><td>先 planner 代理规划 → 再 tdd-guide 先写测试 → 最后实现</td></tr>
+          <tr><td>神秘 bug</td><td>提供错误日志路径，让 Claude 读日志再分析</td></tr>
+          <tr><td>上下文变长</td><td>用 <code>/compact</code> 压缩，保留关键状态</td></tr>
+          <tr><td>提交前</td><td>触发 code-reviewer + security-reviewer 代理</td></tr>
+          <tr><td>团队新成员</td><td>把 CLAUDE.md 作为项目 onboarding 文档的一部分</td></tr>
+        </tbody>
+      </table>
+
+      <div class="progress-section">
+        <h3>🎉 恭喜，你已完成全部教程！</h3>
+        <p>现在你掌握了从入门到精通的完整 Claude Code 使用方法。打开能力检索台，在实际项目中开始实践吧。遇到不熟悉的技能，随时回来查。</p>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c14')">← 提示词技巧</button>
+        <a href="Claude-Code-Skill-Finder.html" class="nav-btn primary">前往能力检索台 →</a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const navItems = document.querySelectorAll('.nav-item[data-chapter]');
+  const chapters = document.querySelectorAll('.chapter');
+
+  function gotoChapter(id) {
+    chapters.forEach(c => c.classList.remove('visible'));
+    navItems.forEach(n => n.classList.remove('active'));
+
+    const target = document.getElementById(id);
+    if (target) {
+      target.classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    const navTarget = document.querySelector(`.nav-item[data-chapter="${id}"]`);
+    if (navTarget) {
+      navTarget.classList.add('active');
+      navTarget.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  navItems.forEach(item => {
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      gotoChapter(item.dataset.chapter);
+    });
+  });
+
+  // 支持 URL hash 直接跳转
+  const hash = location.hash.replace('#', '');
+  if (hash && document.getElementById(hash)) {
+    gotoChapter(hash);
+  }
+</script>
+</body>
+</html>
