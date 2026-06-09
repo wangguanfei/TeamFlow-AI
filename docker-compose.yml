@@ -178,8 +178,8 @@ services:
       DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/umami
       APP_SECRET: ${UMAMI_APP_SECRET:?UMAMI_APP_SECRET is required}
       DISABLE_TELEMETRY: "1"
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     restart: unless-stopped
 
   gateway:
