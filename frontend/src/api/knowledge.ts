@@ -100,6 +100,10 @@ export function updateKnowledgeSpaceApi(id: number, data: KnowledgeSpaceForm) {
   return http.put<unknown, KnowledgeSpaceItem>(`/knowledge-spaces/${id}`, data)
 }
 
+export function deleteKnowledgeSpaceApi(id: number) {
+  return http.delete<unknown, null>(`/knowledge-spaces/${id}`)
+}
+
 export function knowledgeDocPageApi(params: { page?: number; size?: number; spaceId?: number; keyword?: string }) {
   return http.get<unknown, PageResult<KnowledgeDocItem>>('/knowledge-docs/page', { params })
 }

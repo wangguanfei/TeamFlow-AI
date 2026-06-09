@@ -45,6 +45,9 @@
                 </span>
                 <span class="knowledge-tree-node__name" :title="data.title">{{ data.title }}</span>
                 <span v-if="data.nodeType === 'space'" class="knowledge-tree-node__count">{{ data.docCount || 0 }}</span>
+                <span v-if="data.nodeType === 'space'" class="knowledge-tree-node__actions" @click.stop>
+                  <el-button link type="danger" :icon="Delete" @click="removeSpace(data)" />
+                </span>
                 <template v-else>
                   <span class="knowledge-tree-node__status" :class="`is-${data.docStatus?.toLowerCase() || 'draft'}`" :title="statusLabel(data.docStatus)" />
                   <span class="knowledge-tree-node__version">v{{ data.versionNo || 0 }}</span>
@@ -257,6 +260,7 @@ import {
   createKnowledgeSpaceApi,
   deleteKnowledgeDocApi,
   deleteKnowledgeFavoriteApi,
+  deleteKnowledgeSpaceApi,
   importKnowledgeDocFileApi,
   knowledgeDocDetailApi,
   knowledgeDocPageApi,
@@ -635,6 +639,19 @@ async function saveDocument() {
   ElMessage.success('文档已保存')
   applyDoc(doc)
   await loadDocs()
+}
+
+async function removeSpace(node: KnowledgeTreeNode) {
+  await ElMessageBox.confirm(`确定删除空间「${node.title}」吗？空间内所有文档将一并删除，且不可恢复。`, '删除空间', { type: 'warning' })
+  await deleteKnowledgeSpaceApi(node.id as number)
+  ElMessage.success('知识空间已删除')
+  if (activeSpaceId.value === node.id) {
+    activeSpaceId.value = undefined
+    currentDoc.value = null
+    activeDocId.value = null
+    resetEditor()
+  }
+  await loadAll()
 }
 
 async function removeDocument() {
@@ -1019,6 +1036,25 @@ function formatDate(value?: string) {
   color: #94a3b8;
   font-size: 11px;
   font-weight: 700;
+}
+
+.knowledge-tree-node__actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.knowledge-tree-node__actions .el-button {
+  height: 22px;
+  padding: 0 4px;
+  margin: 0;
+}
+
+.knowledge-file-tree :deep(.el-tree-node__content:hover) .knowledge-tree-node__actions,
+.knowledge-file-tree :deep(.el-tree-node.is-current > .el-tree-node__content) .knowledge-tree-node__actions {
+  opacity: 1;
 }
 
 .knowledge-editor {
