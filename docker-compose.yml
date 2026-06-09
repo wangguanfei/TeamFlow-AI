@@ -188,8 +188,6 @@ services:
     depends_on:
       frontend:
         condition: service_healthy
-      umami:
-        condition: service_started
     ports:
       - "80:80"
       - "8090:8090"
