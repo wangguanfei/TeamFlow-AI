@@ -291,7 +291,7 @@ public class DemoDataInitializer implements CommandLineRunner {
         ensureRolePermission(adminRoleId, teamDeletePermId);
         ensureRolePermission(adminRoleId, teamMemberPermId);
 
-        Long systemMenuId = queryRequiredLong("SELECT id FROM sys_menu WHERE menu_path = '/system' AND deleted = 0 LIMIT 1");
+        Long systemMenuId = queryRequiredLong("SELECT id FROM sys_menu WHERE path = '/system' AND deleted = 0 LIMIT 1");
         ensureMenu(systemMenuId, "团队管理", "/system/team", "TeamManagementView", "Avatar", "team:view", "MENU", 5);
 
         ensureTeamSeedData();
