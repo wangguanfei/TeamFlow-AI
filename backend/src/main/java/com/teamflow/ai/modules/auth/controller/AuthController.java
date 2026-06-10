@@ -9,6 +9,8 @@ import com.teamflow.ai.modules.auth.dto.LoginRequest;
 import com.teamflow.ai.modules.auth.dto.LogoutRequest;
 import com.teamflow.ai.modules.auth.dto.RefreshTokenRequest;
 import com.teamflow.ai.modules.auth.service.AuthService;
+import com.teamflow.ai.modules.auth.service.LoginRateLimitService;
+import com.teamflow.ai.common.web.ClientIpResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final LoginRateLimitService loginRateLimitService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, LoginRateLimitService loginRateLimitService) {
         this.authService = authService;
+        this.loginRateLimitService = loginRateLimitService;
     }
 
     @Operation(summary = "账号密码登录")
@@ -38,7 +42,8 @@ public class AuthController {
 
     @Operation(summary = "自主注册已关闭")
     @PostMapping("/register")
-    public ApiResult<AuthTokenResponse> register() {
+    public ApiResult<AuthTokenResponse> register(HttpServletRequest servletRequest) {
+        loginRateLimitService.checkAndRecordRegisterAttempt(ClientIpResolver.resolve(servletRequest));
         throw new BusinessException(403, "企业后台不支持自主注册，请联系系统管理员创建账号");
     }
 

@@ -30,10 +30,16 @@ public class LoginRateLimitService {
 
     /** 单账号失败阈值。 */
     static final int USER_MAX_FAILURES = 5;
-    /** 单 IP 失败阈值（一个 IP 可能有多名正常用户，阈值放宽）。 */
+    /** 单 IP 登录失败阈值（一个 IP 可能有多名正常用户，阈值放宽）。 */
     private static final int IP_MAX_FAILURES = 20;
-    /** 锁定 / 计数窗口。 */
+    /** 登录锁定 / 计数窗口。 */
     static final Duration LOCK_WINDOW = Duration.ofMinutes(15);
+
+    private static final String REGISTER_IP_KEY_PREFIX = "register:attempt:ip:";
+    /** 同一 IP 在 REGISTER_WINDOW 内最多发起的注册请求次数。 */
+    private static final int REGISTER_IP_MAX_ATTEMPTS = 10;
+    /** 注册限流窗口，超出后锁定相同时长。 */
+    private static final Duration REGISTER_WINDOW = Duration.ofHours(1);
 
     private final StringRedisTemplate redisTemplate;
 
@@ -74,6 +80,29 @@ public class LoginRateLimitService {
         return "账号或密码错误";
     }
 
+    /**
+     * 注册请求前调用：超出阈值时抛出 429 业务异常。
+     * 无论注册成功还是失败都计入次数，防止攻击者通过成功注册规避限流。
+     */
+    public void checkAndRecordRegisterAttempt(String ip) {
+        String key = REGISTER_IP_KEY_PREFIX + ip;
+        try {
+            Long count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1L) {
+                redisTemplate.expire(key, REGISTER_WINDOW);
+            }
+            if (count != null && count > REGISTER_IP_MAX_ATTEMPTS) {
+                long remainSeconds = getRemainSeconds(key);
+                throw new BusinessException(429,
+                        "注册请求过于频繁，请" + formatRemaining(remainSeconds) + "后再试");
+            }
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            log.warn("注册限流 Redis 操作失败，放行 ip={}", ip, ex);
+        }
+    }
+
     /** 登录成功后清除该账号的失败计数。 */
     public void clearFailures(String username) {
         try {
@@ -104,11 +133,8 @@ public class LoginRateLimitService {
     }
 
     private String formatRemaining(long seconds) {
-        if (seconds <= 0) {
-            return LOCK_WINDOW.toMinutes() + " 分钟";
-        }
-        if (seconds < 60) {
-            return seconds + " 秒";
+        if (seconds <= 0 || seconds < 60) {
+            return seconds > 0 ? seconds + " 秒" : "稍后";
         }
         long minutes = (seconds + 59) / 60;
         return minutes + " 分钟";
