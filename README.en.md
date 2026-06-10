@@ -404,8 +404,7 @@ Contributions are welcome. Useful directions include:
 - multi-tenant organization models,
 - end-to-end test coverage,
 - responsive mobile experience,
-- OAuth2 / SSO single sign-on support,
-- Redis login rate limiting and JWT denylist.
+- OAuth2 / SSO single sign-on support.
 
 ## License
 

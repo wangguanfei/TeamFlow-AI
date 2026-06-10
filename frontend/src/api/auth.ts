@@ -27,6 +27,6 @@ export function meApi() {
   return http.get<unknown, CurrentUserPayload>('/auth/me')
 }
 
-export function logoutApi() {
-  return http.post<unknown, null>('/auth/logout')
+export function logoutApi(refreshToken?: string) {
+  return http.post<unknown, null>('/auth/logout', { refreshToken })
 }

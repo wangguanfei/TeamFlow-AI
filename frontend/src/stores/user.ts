@@ -32,7 +32,7 @@ export const useUserStore = defineStore('user', () => {
 
   async function logout() {
     try {
-      await logoutApi()
+      await logoutApi(refreshToken.value || undefined)
     } finally {
       clearSession()
     }

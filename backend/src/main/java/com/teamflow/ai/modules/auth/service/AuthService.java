@@ -167,19 +167,23 @@ public class AuthService {
     }
 
     /**
-     * 退出登录：将当前 access token 加入黑名单，使其在自然过期前立即失效。
+     * 退出登录：将 access token 和 refresh token 同时加入黑名单，使其在自然过期前立即失效。
      * 尽力而为——token 缺失或解析失败时静默忽略（登出本就是幂等操作）。
      */
-    public void logout(String accessToken) {
-        if (accessToken == null || accessToken.isBlank()) {
+    public void logout(String accessToken, String refreshToken) {
+        blacklistToken(accessToken);
+        blacklistToken(refreshToken);
+    }
+
+    private void blacklistToken(String token) {
+        if (token == null || token.isBlank()) {
             return;
         }
         try {
-            JwtClaims claims = jwtService.parse(accessToken);
-            tokenBlacklistService.blacklist(accessToken, claims.expiresAt());
-            log.info("登出成功，access token 已加入黑名单 userId={}", claims.userId());
+            JwtClaims claims = jwtService.parse(token);
+            tokenBlacklistService.blacklist(token, claims.expiresAt());
+            log.info("登出成功，token 已加入黑名单 userId={} type={}", claims.userId(), claims.tokenType());
         } catch (RuntimeException ignored) {
-            // token 无效或已过期，无需加入黑名单
             log.debug("登出时 token 无效或已过期，忽略");
         }
     }

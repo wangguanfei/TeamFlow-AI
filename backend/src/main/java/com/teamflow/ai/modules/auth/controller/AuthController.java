@@ -6,6 +6,7 @@ import com.teamflow.ai.common.security.CurrentUser;
 import com.teamflow.ai.modules.auth.dto.AuthTokenResponse;
 import com.teamflow.ai.modules.auth.dto.CurrentUserResponse;
 import com.teamflow.ai.modules.auth.dto.LoginRequest;
+import com.teamflow.ai.modules.auth.dto.LogoutRequest;
 import com.teamflow.ai.modules.auth.dto.RefreshTokenRequest;
 import com.teamflow.ai.modules.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,8 +50,11 @@ public class AuthController {
 
     @Operation(summary = "退出登录")
     @PostMapping("/logout")
-    public ApiResult<Void> logout(HttpServletRequest servletRequest) {
-        authService.logout(resolveBearerToken(servletRequest));
+    public ApiResult<Void> logout(
+            HttpServletRequest servletRequest,
+            @RequestBody(required = false) LogoutRequest body) {
+        String refreshToken = body != null ? body.refreshToken() : null;
+        authService.logout(resolveBearerToken(servletRequest), refreshToken);
         return ApiResult.success();
     }
 
