@@ -1,6 +1,7 @@
 package com.teamflow.ai.modules.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.ai.entity.AiSession;
 import com.teamflow.ai.modules.ai.mapper.AiSessionMapper;
@@ -61,6 +62,7 @@ public class ProfileService {
     private final AiSessionMapper aiSessionMapper;
     private final PermissionQueryService permissionQueryService;
     private final PasswordEncoder passwordEncoder;
+    private final DashboardCacheService dashboardCache;
 
     public ProfileService(
             SysUserMapper userMapper,
@@ -72,7 +74,8 @@ public class ProfileService {
             FileService fileService,
             AiSessionMapper aiSessionMapper,
             PermissionQueryService permissionQueryService,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            DashboardCacheService dashboardCache
     ) {
         this.userMapper = userMapper;
         this.taskMapper = taskMapper;
@@ -84,6 +87,7 @@ public class ProfileService {
         this.aiSessionMapper = aiSessionMapper;
         this.permissionQueryService = permissionQueryService;
         this.passwordEncoder = passwordEncoder;
+        this.dashboardCache = dashboardCache;
     }
 
     public ProfileResponse getProfile(Long userId) {
@@ -100,6 +104,7 @@ public class ProfileService {
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
         log.info("更新个人资料 userId={} nickname={}", user.getId(), user.getNickname());
+        dashboardCache.evictUserStats();
         return toResponse(user);
     }
 

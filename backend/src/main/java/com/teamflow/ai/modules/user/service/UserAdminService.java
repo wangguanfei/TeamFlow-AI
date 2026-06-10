@@ -15,6 +15,7 @@ import com.teamflow.ai.modules.user.dto.UserPageItem;
 import com.teamflow.ai.modules.user.dto.UserUpdateRequest;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.cache.PermissionCacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,19 +38,22 @@ public class UserAdminService {
     private final SysRoleMapper roleMapper;
     private final PasswordEncoder passwordEncoder;
     private final PermissionCacheService permissionCacheService;
+    private final DashboardCacheService dashboardCache;
 
     public UserAdminService(
             SysUserMapper userMapper,
             SysUserRoleMapper userRoleMapper,
             SysRoleMapper roleMapper,
             PasswordEncoder passwordEncoder,
-            PermissionCacheService permissionCacheService
+            PermissionCacheService permissionCacheService,
+            DashboardCacheService dashboardCache
     ) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.roleMapper = roleMapper;
         this.passwordEncoder = passwordEncoder;
         this.permissionCacheService = permissionCacheService;
+        this.dashboardCache = dashboardCache;
     }
 
     public PageResult<UserPageItem> pageUsers(long page, long size, String keyword) {
@@ -123,6 +127,7 @@ public class UserAdminService {
         userMapper.insert(user);
         log.info("管理员创建用户 userId={} username={} status={} roleIds={}",
                 user.getId(), user.getUsername(), user.getStatus(), request.roleIds());
+        dashboardCache.evictUserStats();
 
         assignUserRoles(user.getId(), request.roleIds());
         Map<Long, List<String>> roleCodes = loadRoleCodes(List.of(user.getId()));
@@ -148,6 +153,7 @@ public class UserAdminService {
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
         log.info("管理员更新用户 userId={} username={} status={}", user.getId(), user.getUsername(), user.getStatus());
+        dashboardCache.evictUserStats();
         return toPageItem(user);
     }
 

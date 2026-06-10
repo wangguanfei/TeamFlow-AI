@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
 import com.teamflow.ai.common.api.PageRequestUtils;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.project.dto.ProjectDetail;
 import com.teamflow.ai.modules.project.dto.ProjectListItem;
@@ -53,19 +54,22 @@ public class ProjectService {
     private final ProjectTagMapper projectTagMapper;
     private final TeamMapper teamMapper;
     private final SysUserMapper userMapper;
+    private final DashboardCacheService dashboardCache;
 
     public ProjectService(
             ProjectMapper projectMapper,
             ProjectMemberMapper projectMemberMapper,
             ProjectTagMapper projectTagMapper,
             TeamMapper teamMapper,
-            SysUserMapper userMapper
+            SysUserMapper userMapper,
+            DashboardCacheService dashboardCache
     ) {
         this.projectMapper = projectMapper;
         this.projectMemberMapper = projectMemberMapper;
         this.projectTagMapper = projectTagMapper;
         this.teamMapper = teamMapper;
         this.userMapper = userMapper;
+        this.dashboardCache = dashboardCache;
     }
 
     public PageResult<ProjectListItem> pageProjects(long page, long size, String keyword, Long teamId) {
@@ -114,6 +118,7 @@ public class ProjectService {
         }
         log.info("创建项目 projectId={} code={} name={} ownerId={} 创建人={}",
                 project.getId(), project.getProjectCode(), project.getProjectName(), ownerId, currentUserId);
+        dashboardCache.evictProjectStats();
         return getProject(project.getId());
     }
 
@@ -136,6 +141,7 @@ public class ProjectService {
         saveMember(project.getId(), ownerId, "PM");
         log.info("更新项目 projectId={} code={} name={} ownerId={}",
                 project.getId(), project.getProjectCode(), project.getProjectName(), ownerId);
+        dashboardCache.evictProjectStats();
         return getProject(project.getId());
     }
 
@@ -146,6 +152,7 @@ public class ProjectService {
         projectMemberMapper.delete(new LambdaQueryWrapper<ProjectMember>().eq(ProjectMember::getProjectId, id));
         projectTagMapper.delete(new LambdaQueryWrapper<ProjectTag>().eq(ProjectTag::getProjectId, id));
         log.info("删除项目（含成员与标签）projectId={}", id);
+        dashboardCache.evictProjectStats();
     }
 
     public ProjectStats stats() {

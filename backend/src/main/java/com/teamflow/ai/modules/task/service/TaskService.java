@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
 import com.teamflow.ai.common.api.PageRequestUtils;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.notification.dto.NotificationRequest;
 import com.teamflow.ai.modules.notification.service.NotificationService;
@@ -79,6 +80,7 @@ public class TaskService {
     private final SysUserMapper userMapper;
     private final FileInfoMapper fileInfoMapper;
     private final NotificationService notificationService;
+    private final DashboardCacheService dashboardCache;
 
     public TaskService(
             TaskMapper taskMapper,
@@ -90,7 +92,8 @@ public class TaskService {
             ProjectMapper projectMapper,
             SysUserMapper userMapper,
             FileInfoMapper fileInfoMapper,
-            NotificationService notificationService
+            NotificationService notificationService,
+            DashboardCacheService dashboardCache
     ) {
         this.taskMapper = taskMapper;
         this.commentMapper = commentMapper;
@@ -102,6 +105,7 @@ public class TaskService {
         this.userMapper = userMapper;
         this.fileInfoMapper = fileInfoMapper;
         this.notificationService = notificationService;
+        this.dashboardCache = dashboardCache;
     }
 
     public PageResult<TaskListItem> pageTasks(long page, long size, Long projectId, String status, String keyword, Long teamId) {
@@ -174,6 +178,7 @@ public class TaskService {
         notifyTaskExecutorsAdded(task, executorIds, currentUserId);
         log.info("创建任务 taskId={} projectId={} assigneeId={} 创建人={}",
                 task.getId(), request.projectId(), assigneeId, currentUserId);
+        dashboardCache.evictTaskStats();
         return getTask(task.getId());
     }
 
@@ -213,6 +218,7 @@ public class TaskService {
             notifyTaskExecutorsAdded(task, addedExecutorIds, currentUserId);
         }
         log.info("更新任务 taskId={} assignee {} -> {} 操作人={}", id, oldAssigneeId, assigneeId, currentUserId);
+        dashboardCache.evictTaskStats();
         return getTask(task.getId());
     }
 
@@ -225,6 +231,7 @@ public class TaskService {
         task.setUpdatedAt(LocalDateTime.now());
         taskMapper.updateById(task);
         log.info("任务状态流转 taskId={} {} -> {}", id, oldStatus, request.status());
+        dashboardCache.evictTaskStats();
         return buildTaskItems(List.of(task)).get(0);
     }
 
@@ -238,6 +245,7 @@ public class TaskService {
         attachmentMapper.delete(new LambdaQueryWrapper<TaskAttachment>().eq(TaskAttachment::getTaskId, id));
         executorMapper.delete(new LambdaQueryWrapper<TaskExecutor>().eq(TaskExecutor::getTaskId, id));
         log.info("删除任务（含评论/工时/标签/附件/执行人）taskId={}", id);
+        dashboardCache.evictTaskStats();
     }
 
     @Transactional

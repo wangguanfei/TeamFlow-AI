@@ -1,6 +1,7 @@
 package com.teamflow.ai.modules.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.common.security.DemoAccountConstants;
 import com.teamflow.ai.common.security.JwtClaims;
@@ -53,6 +54,7 @@ public class AuthService {
     private final LoginRateLimitService loginRateLimitService;
     private final TokenBlacklistService tokenBlacklistService;
     private final IpLocationResolver ipLocationResolver;
+    private final DashboardCacheService dashboardCache;
 
     public AuthService(
             SysUserMapper userMapper,
@@ -63,7 +65,8 @@ public class AuthService {
             JwtService jwtService,
             LoginRateLimitService loginRateLimitService,
             TokenBlacklistService tokenBlacklistService,
-            IpLocationResolver ipLocationResolver
+            IpLocationResolver ipLocationResolver,
+            DashboardCacheService dashboardCache
     ) {
         this.userMapper = userMapper;
         this.loginLogMapper = loginLogMapper;
@@ -74,6 +77,7 @@ public class AuthService {
         this.loginRateLimitService = loginRateLimitService;
         this.tokenBlacklistService = tokenBlacklistService;
         this.ipLocationResolver = ipLocationResolver;
+        this.dashboardCache = dashboardCache;
     }
 
     @Transactional
@@ -148,6 +152,7 @@ public class AuthService {
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(user);
         log.info("注册成功 username={} userId={}", user.getUsername(), user.getId());
+        dashboardCache.evictUserStats();
         return buildTokenResponse(user);
     }
 

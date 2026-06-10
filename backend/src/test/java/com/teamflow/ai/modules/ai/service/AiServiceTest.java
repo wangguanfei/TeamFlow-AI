@@ -147,7 +147,9 @@ class AiServiceTest {
                     properties,
                     new ObjectMapper(),
                     knowledgeIndexService,
-                    demoAiQuotaService
+                    demoAiQuotaService,
+                    new com.teamflow.ai.common.cache.DashboardCacheService(
+                            new com.teamflow.ai.common.cache.JsonCacheService(null))
             );
         }
 

@@ -48,7 +48,9 @@ class AuthServiceTest {
                 jwtService(),
                 rateLimitService,
                 new TokenBlacklistService(null),
-                new com.teamflow.ai.common.web.IpLocationResolver()
+                new com.teamflow.ai.common.web.IpLocationResolver(),
+                new com.teamflow.ai.common.cache.DashboardCacheService(
+                        new com.teamflow.ai.common.cache.JsonCacheService(null))
         );
 
         MockHttpServletRequest servletRequest = new MockHttpServletRequest();

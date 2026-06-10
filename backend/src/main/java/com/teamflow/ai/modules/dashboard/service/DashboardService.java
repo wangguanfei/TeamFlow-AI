@@ -19,16 +19,15 @@ import java.util.stream.IntStream;
 @Service
 public class DashboardService {
 
-    /** 总览/趋势/活跃度等统计变化平缓，较长 TTL 兜底。 */
+    /** 写入点已做主动失效（见 DashboardCacheService.evictXxxStats），TTL 仅兜底。 */
     private static final Duration STATS_TTL = Duration.ofMinutes(5);
-    /** 待办列表变化较频繁，使用更短 TTL，降低陈旧感知。 */
     private static final Duration TODOS_TTL = Duration.ofMinutes(1);
 
-    private static final String KEY_OVERVIEW = "dashboard:overview";
-    private static final String KEY_PROJECT_TREND = "dashboard:project-trend";
-    private static final String KEY_MEMBER_ACTIVE = "dashboard:member-active";
-    private static final String KEY_AI_USAGE = "dashboard:ai-usage";
-    private static final String KEY_TODOS = "dashboard:todos";
+    private static final String KEY_OVERVIEW = DashboardCacheService.KEY_OVERVIEW;
+    private static final String KEY_PROJECT_TREND = DashboardCacheService.KEY_TASK_TREND;
+    private static final String KEY_MEMBER_ACTIVE = DashboardCacheService.KEY_MEMBER_ACTIVE;
+    private static final String KEY_AI_USAGE = DashboardCacheService.KEY_AI_USAGE;
+    private static final String KEY_TODOS = DashboardCacheService.KEY_TODOS;
 
     private static final TypeReference<DashboardOverview> OVERVIEW_TYPE = new TypeReference<>() {};
     private static final TypeReference<List<ChartPoint>> CHART_LIST_TYPE = new TypeReference<>() {};

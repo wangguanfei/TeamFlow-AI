@@ -3,6 +3,7 @@ package com.teamflow.ai.modules.knowledge.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.modules.ai.service.AiKnowledgeIndexService;
@@ -55,6 +56,7 @@ public class KnowledgeService {
     private final TeamMapper teamMapper;
     private final SysUserMapper userMapper;
     private final AiKnowledgeIndexService knowledgeIndexService;
+    private final DashboardCacheService dashboardCache;
 
     public KnowledgeService(
             KnowledgeSpaceMapper spaceMapper,
@@ -64,7 +66,8 @@ public class KnowledgeService {
             KnowledgeFavoriteMapper favoriteMapper,
             TeamMapper teamMapper,
             SysUserMapper userMapper,
-            AiKnowledgeIndexService knowledgeIndexService
+            AiKnowledgeIndexService knowledgeIndexService,
+            DashboardCacheService dashboardCache
     ) {
         this.spaceMapper = spaceMapper;
         this.docMapper = docMapper;
@@ -74,6 +77,7 @@ public class KnowledgeService {
         this.teamMapper = teamMapper;
         this.userMapper = userMapper;
         this.knowledgeIndexService = knowledgeIndexService;
+        this.dashboardCache = dashboardCache;
     }
 
     public PageResult<KnowledgeSpaceItem> pageSpaces(long page, long size, String keyword) {
@@ -131,6 +135,7 @@ public class KnowledgeService {
             knowledgeIndexService.deleteDocumentIndex(docId);
         }
         log.info("删除知识空间（级联文档/标签/收藏/向量索引）spaceId={} 文档数={}", id, docIds.size());
+        dashboardCache.evictKnowledgeStats();
     }
 
     public PageResult<KnowledgeDocItem> pageDocs(long page, long size, Long spaceId, String keyword, Long currentUserId) {
@@ -170,6 +175,7 @@ public class KnowledgeService {
         replaceTags(doc.getId(), request.tags());
         log.info("创建知识文档 docId={} spaceId={} title={} 作者={}",
                 doc.getId(), doc.getSpaceId(), doc.getTitle(), currentUserId);
+        dashboardCache.evictKnowledgeStats();
         return getDoc(doc.getId(), currentUserId);
     }
 
@@ -197,6 +203,7 @@ public class KnowledgeService {
         favoriteMapper.delete(new LambdaQueryWrapper<KnowledgeFavorite>().eq(KnowledgeFavorite::getDocId, id));
         knowledgeIndexService.deleteDocumentIndex(id);
         log.info("删除知识文档（含标签/收藏/向量索引）docId={}", id);
+        dashboardCache.evictKnowledgeStats();
     }
 
     @Transactional

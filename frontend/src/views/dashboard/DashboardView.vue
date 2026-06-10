@@ -21,7 +21,7 @@
       <el-card shadow="never" class="panel panel--trend">
         <template #header>
           <div class="panel-title">
-            <span>项目趋势</span>
+            <span>任务趋势</span>
             <el-tag type="success">实时统计</el-tag>
           </div>
         </template>
@@ -203,6 +203,7 @@ function renderLineChart(points: ChartPoint[]) {
     },
     series: [
       {
+        name: '新建任务',
         type: 'line',
         smooth: true,
         symbolSize: 7,

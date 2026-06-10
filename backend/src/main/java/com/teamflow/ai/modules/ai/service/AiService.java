@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.api.PageRequestUtils;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.common.security.DemoAccountConstants;
@@ -70,6 +71,7 @@ public class AiService {
     private final ObjectMapper objectMapper;
     private final AiKnowledgeIndexService knowledgeIndexService;
     private final DemoAiQuotaService demoAiQuotaService;
+    private final DashboardCacheService dashboardCache;
 
     public AiService(
             AiSessionMapper sessionMapper,
@@ -81,7 +83,8 @@ public class AiService {
             AiProperties properties,
             ObjectMapper objectMapper,
             AiKnowledgeIndexService knowledgeIndexService,
-            DemoAiQuotaService demoAiQuotaService
+            DemoAiQuotaService demoAiQuotaService,
+            DashboardCacheService dashboardCache
     ) {
         this.sessionMapper = sessionMapper;
         this.messageMapper = messageMapper;
@@ -93,6 +96,7 @@ public class AiService {
         this.objectMapper = objectMapper;
         this.knowledgeIndexService = knowledgeIndexService;
         this.demoAiQuotaService = demoAiQuotaService;
+        this.dashboardCache = dashboardCache;
     }
 
     public AiProviderStatus providerStatus() {
@@ -118,6 +122,7 @@ public class AiService {
         session.setDeleted(0);
         sessionMapper.insert(session);
         log.info("创建 AI 会话 sessionId={} userId={} type={}", session.getId(), userId, session.getSessionType());
+        dashboardCache.evictAiStats();
         return toSessionItems(List.of(session)).get(0);
     }
 
@@ -147,6 +152,7 @@ public class AiService {
         fillSession(session, request, userId);
         session.setUpdatedAt(LocalDateTime.now());
         sessionMapper.updateById(session);
+        dashboardCache.evictAiStats();
         return getSession(id);
     }
 
@@ -156,6 +162,7 @@ public class AiService {
         sessionMapper.deleteById(id);
         messageMapper.delete(new LambdaQueryWrapper<AiMessage>().eq(AiMessage::getSessionId, id));
         log.info("删除 AI 会话（含消息）sessionId={}", id);
+        dashboardCache.evictAiStats();
     }
 
     @Transactional
@@ -180,6 +187,7 @@ public class AiService {
         message.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(message);
         touchSession(request.sessionId());
+        dashboardCache.evictAiStats();
         return toMessageItems(List.of(message)).get(0);
     }
 
@@ -216,6 +224,7 @@ public class AiService {
     public void deleteMessage(Long id) {
         messageMapper.deleteById(id);
         log.info("删除 AI 消息 messageId={}", id);
+        dashboardCache.evictAiStats();
     }
 
     @Transactional
@@ -461,6 +470,7 @@ public class AiService {
         session.setUpdatedAt(LocalDateTime.now());
         session.setDeleted(0);
         sessionMapper.insert(session);
+        dashboardCache.evictAiStats();
         return session;
     }
 
@@ -473,6 +483,7 @@ public class AiService {
         message.setReferencesJson(writeReferences(references));
         message.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(message);
+        dashboardCache.evictAiStats();
         return message;
     }
 

@@ -1,6 +1,7 @@
 package com.teamflow.ai.modules.system.bootstrap;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.cache.PermissionCacheService;
 import com.teamflow.ai.common.security.DemoAccountConstants;
 import com.teamflow.ai.modules.file.service.FileService;
@@ -34,19 +35,22 @@ public class DemoDataInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final FileService fileService;
     private final PermissionCacheService permissionCacheService;
+    private final DashboardCacheService dashboardCache;
 
     public DemoDataInitializer(
             JdbcTemplate jdbcTemplate,
             SysUserMapper userMapper,
             PasswordEncoder passwordEncoder,
             FileService fileService,
-            PermissionCacheService permissionCacheService
+            PermissionCacheService permissionCacheService,
+            DashboardCacheService dashboardCache
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.fileService = fileService;
         this.permissionCacheService = permissionCacheService;
+        this.dashboardCache = dashboardCache;
     }
 
     @Override
@@ -266,6 +270,8 @@ public class DemoDataInitializer implements CommandLineRunner {
         ensureDashboardDemoData(adminId);
         ensureNotificationDemoData(adminId, devId, demoViewerId);
         markBootstrapCompleted("fresh-install");
+        // 播种绕过业务 Service 直接写库，需手动清掉工作台统计缓存
+        dashboardCache.evictAll();
         log.info("首次部署演示初始化数据已完成");
     }
 
@@ -296,6 +302,8 @@ public class DemoDataInitializer implements CommandLineRunner {
                 """, patchKey);
         // 补丁绕过 RbacService 直接写库，必须清掉权限缓存，否则 TTL 内已登录用户拿不到新权限（403）
         permissionCacheService.evictAll();
+        // 补丁可能补插用户/团队等数据，工作台统计缓存一并清掉
+        dashboardCache.evictAll();
         log.info("v2 补丁执行完成");
     }
 
