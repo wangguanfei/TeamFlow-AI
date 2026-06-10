@@ -64,6 +64,7 @@ public class DemoDataInitializer implements CommandLineRunner {
         if (hasExistingApplicationData()) {
             markBootstrapCompleted("existing-data");
             log.info("检测到已有业务数据，补写初始化标记并跳过 DemoDataInitializer");
+            runV2Patch();
             return;
         }
 
