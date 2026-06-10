@@ -389,7 +389,6 @@ TeamFlow AI combines enterprise collaboration and AI capabilities in one coheren
 
 ## Use Cases
 
-- Full-stack engineering portfolio and interview showcase.
 - Enterprise collaboration platform prototype.
 - AI knowledge base and RAG application starter.
 - RBAC system learning and secondary development.

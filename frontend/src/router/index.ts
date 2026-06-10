@@ -18,6 +18,7 @@ const componentMap: Record<string, RouteRecordRaw['component']> = {
   AiChatView: () => import('@/views/ai/AiChatView.vue'),
   NotificationCenterView: () => import('@/views/notification/NotificationCenterView.vue'),
   ProfileView: () => import('@/views/profile/ProfileView.vue'),
+  TeamManagementView: () => import('@/views/system/TeamManagementView.vue'),
   UserManagementView: () => import('@/views/system/UserManagementView.vue'),
   RoleManagementView: () => import('@/views/system/RoleManagementView.vue'),
   PermissionManagementView: () => import('@/views/system/PermissionManagementView.vue'),

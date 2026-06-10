@@ -104,8 +104,8 @@ public class TaskService {
         this.notificationService = notificationService;
     }
 
-    public PageResult<TaskListItem> pageTasks(long page, long size, Long projectId, String status, String keyword) {
-        LambdaQueryWrapper<Task> wrapper = baseTaskWrapper(projectId, status, keyword)
+    public PageResult<TaskListItem> pageTasks(long page, long size, Long projectId, String status, String keyword, Long teamId) {
+        LambdaQueryWrapper<Task> wrapper = baseTaskWrapper(resolveProjectIds(projectId, teamId), status, keyword)
                 .orderByDesc(Task::getCreatedAt)
                 .orderByDesc(Task::getId);
         Page<Task> result = taskMapper.selectPage(PageRequestUtils.of(page, size), wrapper);
@@ -117,8 +117,9 @@ public class TaskService {
         );
     }
 
-    public List<KanbanColumn> kanban(Long projectId, String keyword) {
-        List<TaskListItem> tasks = buildTaskItems(taskMapper.selectList(baseTaskWrapper(projectId, null, keyword)
+    public List<KanbanColumn> kanban(Long projectId, String keyword, Long teamId) {
+        List<TaskListItem> tasks = buildTaskItems(taskMapper.selectList(
+                baseTaskWrapper(resolveProjectIds(projectId, teamId), null, keyword)
                 .in(Task::getStatus, KANBAN_STATUSES)
                 .orderByDesc(Task::getCreatedAt)
                 .orderByDesc(Task::getId)));
@@ -128,8 +129,8 @@ public class TaskService {
                 .toList();
     }
 
-    public List<GanttTaskItem> gantt(Long projectId, String keyword) {
-        return buildTaskItems(taskMapper.selectList(baseTaskWrapper(projectId, null, keyword)
+    public List<GanttTaskItem> gantt(Long projectId, String keyword, Long teamId) {
+        return buildTaskItems(taskMapper.selectList(baseTaskWrapper(resolveProjectIds(projectId, teamId), null, keyword)
                         .orderByDesc(Task::getCreatedAt)
                         .orderByDesc(Task::getId)))
                 .stream()
@@ -364,10 +365,9 @@ public class TaskService {
         log.info("删除任务标签 tagId={}", id);
     }
 
-    private LambdaQueryWrapper<Task> baseTaskWrapper(Long projectId, String status, String keyword) {
-        return new LambdaQueryWrapper<Task>()
+    private LambdaQueryWrapper<Task> baseTaskWrapper(List<Long> projectIds, String status, String keyword) {
+        LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<Task>()
                 .eq(Task::getDeleted, 0)
-                .eq(projectId != null, Task::getProjectId, projectId)
                 .eq(status != null && !status.isBlank(), Task::getStatus, status)
                 .and(keyword != null && !keyword.isBlank(), query -> query
                         .like(Task::getTaskNo, keyword)
@@ -375,6 +375,26 @@ public class TaskService {
                         .like(Task::getTitle, keyword)
                         .or()
                         .like(Task::getDescription, keyword));
+        if (projectIds != null && projectIds.size() == 1) {
+            wrapper.eq(Task::getProjectId, projectIds.get(0));
+        } else if (projectIds != null && !projectIds.isEmpty()) {
+            wrapper.in(Task::getProjectId, projectIds);
+        }
+        return wrapper;
+    }
+
+    private List<Long> resolveProjectIds(Long projectId, Long teamId) {
+        if (projectId != null) return List.of(projectId);
+        if (teamId != null) {
+            List<Long> ids = projectMapper.selectList(
+                    new LambdaQueryWrapper<Project>()
+                            .eq(Project::getTeamId, teamId)
+                            .eq(Project::getDeleted, 0)
+                            .select(Project::getId))
+                    .stream().map(Project::getId).toList();
+            return ids.isEmpty() ? List.of(-1L) : ids;
+        }
+        return null;
     }
 
     private void fillTask(Task task, TaskRequest request, Long currentUserId, Project project) {

@@ -127,15 +127,15 @@ export interface TaskForm {
   }>
 }
 
-export function taskPageApi(params: { page?: number; size?: number; projectId?: number; status?: string; keyword?: string }) {
+export function taskPageApi(params: { page?: number; size?: number; projectId?: number; status?: string; keyword?: string; teamId?: number }) {
   return http.get<unknown, PageResult<TaskListItem>>('/tasks/page', { params })
 }
 
-export function taskKanbanApi(params: { projectId?: number; keyword?: string }) {
+export function taskKanbanApi(params: { projectId?: number; keyword?: string; teamId?: number }) {
   return http.get<unknown, KanbanColumn[]>('/tasks/kanban', { params })
 }
 
-export function taskGanttApi(params: { projectId?: number; keyword?: string }) {
+export function taskGanttApi(params: { projectId?: number; keyword?: string; teamId?: number }) {
   return http.get<unknown, GanttTaskItem[]>('/tasks/gantt', { params })
 }
 

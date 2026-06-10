@@ -7,8 +7,11 @@
     <el-card shadow="never" class="system-card task-filter-card">
       <div class="table-toolbar">
         <div class="task-filter-group">
+          <el-select v-model="teamId" clearable placeholder="全部团队" style="width:140px" @change="onTeamChange">
+            <el-option v-for="t in allTeams" :key="t.id" :label="t.teamName" :value="t.id" />
+          </el-select>
           <el-select v-model="projectId" class="task-project-select" clearable placeholder="全部项目" @change="loadBoard">
-            <el-option v-for="project in projects" :key="project.id" :label="project.projectName" :value="project.id" />
+            <el-option v-for="project in filteredProjects" :key="project.id" :label="project.projectName" :value="project.id" />
           </el-select>
           <el-input v-model="keyword" class="table-search" placeholder="搜索任务标题、编号或描述" clearable :prefix-icon="Search" @keyup.enter="loadBoard" @clear="loadBoard" />
         </div>
@@ -135,14 +138,14 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import Sortable from 'sortablejs'
 import { ElMessage } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
 import PermissionButton from '@/components/PermissionButton.vue'
 import TaskDetailDrawer from '@/views/task/TaskDetailDrawer.vue'
-import { projectPageApi, type ProjectListItem } from '@/api/project'
+import { projectPageApi, teamPageApi, type ProjectListItem, type TeamItem } from '@/api/project'
 import { userOptionsApi, type UserItem } from '@/api/system'
 import {
   createTaskApi,
@@ -171,7 +174,12 @@ interface BoardColumn {
 
 const keyword = ref('')
 const projectId = ref<number | undefined>()
+const teamId = ref<number | undefined>()
 const projects = ref<ProjectListItem[]>([])
+const allTeams = ref<TeamItem[]>([])
+const filteredProjects = computed(() =>
+  teamId.value ? projects.value.filter(p => p.teamId === teamId.value) : projects.value
+)
 const users = ref<UserItem[]>([])
 const columns = ref<BoardColumn[]>(createInitialColumns())
 const formVisible = ref(false)
@@ -204,12 +212,19 @@ onBeforeUnmount(() => {
 })
 
 async function loadOptions() {
-  const [projectResult, userResult] = await Promise.all([
+  const [projectResult, userResult, teamResult] = await Promise.all([
     projectPageApi({ page: 1, size: 200 }),
-    userOptionsApi()
+    userOptionsApi(),
+    teamPageApi({ page: 1, size: 200, status: 1 })
   ])
   projects.value = projectResult.records
   users.value = userResult
+  allTeams.value = teamResult.records
+}
+
+function onTeamChange() {
+  projectId.value = undefined
+  loadBoard()
 }
 
 async function loadBoard() {
@@ -236,7 +251,8 @@ async function loadColumn(status: string, page: number, replace: boolean) {
       size: KANBAN_PAGE_SIZE,
       projectId: projectId.value,
       status,
-      keyword: keyword.value
+      keyword: keyword.value,
+      teamId: teamId.value
     })
     const existingIds = new Set(column.tasks.map((task) => task.id))
     const records = replace ? result.records : result.records.filter((task) => !existingIds.has(task.id))

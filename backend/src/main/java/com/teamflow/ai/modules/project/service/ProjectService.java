@@ -68,9 +68,10 @@ public class ProjectService {
         this.userMapper = userMapper;
     }
 
-    public PageResult<ProjectListItem> pageProjects(long page, long size, String keyword) {
+    public PageResult<ProjectListItem> pageProjects(long page, long size, String keyword, Long teamId) {
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<Project>()
                 .eq(Project::getDeleted, 0)
+                .eq(teamId != null, Project::getTeamId, teamId)
                 .and(keyword != null && !keyword.isBlank(), query -> query
                         .like(Project::getProjectName, keyword)
                         .or()

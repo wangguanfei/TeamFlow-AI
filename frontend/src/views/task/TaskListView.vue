@@ -7,8 +7,11 @@
     <el-card shadow="never" class="system-card">
       <div class="table-toolbar">
         <div class="task-filter-group">
+          <el-select v-model="filters.teamId" clearable placeholder="全部团队" style="width:140px" @change="onTeamFilterChange">
+            <el-option v-for="t in allTeams" :key="t.id" :label="t.teamName" :value="t.id" />
+          </el-select>
           <el-select v-model="filters.projectId" class="task-project-select" clearable placeholder="全部项目" @change="loadData">
-            <el-option v-for="project in projects" :key="project.id" :label="project.projectName" :value="project.id" />
+            <el-option v-for="project in filteredProjects" :key="project.id" :label="project.projectName" :value="project.id" />
           </el-select>
           <el-select v-model="filters.status" class="task-status-select" clearable placeholder="全部状态" @change="loadData">
             <el-option label="待处理" value="TODO" />
@@ -148,14 +151,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
 import PermissionButton from '@/components/PermissionButton.vue'
 import TaskDetailDrawer from '@/views/task/TaskDetailDrawer.vue'
-import { projectPageApi, type ProjectListItem } from '@/api/project'
+import { projectPageApi, teamPageApi, type ProjectListItem, type TeamItem } from '@/api/project'
 import { userOptionsApi, type PageResult, type UserItem } from '@/api/system'
 import {
   createTaskApi,
@@ -176,6 +179,10 @@ const size = ref(10)
 const loading = ref(false)
 const pageData = ref<PageResult<TaskListItem>>({ page: 1, size: 10, total: 0, records: [] })
 const projects = ref<ProjectListItem[]>([])
+const allTeams = ref<TeamItem[]>([])
+const filteredProjects = computed(() =>
+  filters.teamId ? projects.value.filter(p => p.teamId === filters.teamId) : projects.value
+)
 const users = ref<UserItem[]>([])
 const formVisible = ref(false)
 const detailVisible = ref(false)
@@ -184,6 +191,7 @@ const detailTaskId = ref<number | null>(null)
 
 const filters = reactive({
   projectId: undefined as number | undefined,
+  teamId: undefined as number | undefined,
   status: '',
   keyword: ''
 })
@@ -225,12 +233,20 @@ watch(
 )
 
 async function loadOptions() {
-  const [projectResult, userResult] = await Promise.all([
+  const [projectResult, userResult, teamResult] = await Promise.all([
     projectPageApi({ page: 1, size: 200 }),
-    userOptionsApi()
+    userOptionsApi(),
+    teamPageApi({ page: 1, size: 200, status: 1 })
   ])
   projects.value = projectResult.records
   users.value = userResult
+  allTeams.value = teamResult.records
+}
+
+function onTeamFilterChange() {
+  filters.projectId = undefined
+  page.value = 1
+  loadData()
 }
 
 async function loadData() {
@@ -241,7 +257,8 @@ async function loadData() {
       size: size.value,
       projectId: filters.projectId,
       status: filters.status,
-      keyword: filters.keyword
+      keyword: filters.keyword,
+      teamId: filters.teamId
     })
   } finally {
     loading.value = false

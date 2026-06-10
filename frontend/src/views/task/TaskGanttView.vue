@@ -3,8 +3,11 @@
     <el-card shadow="never" class="system-card task-filter-card">
       <div class="table-toolbar">
         <div class="task-filter-group">
+          <el-select v-model="teamId" clearable placeholder="全部团队" style="width:140px" @change="onTeamChange">
+            <el-option v-for="t in allTeams" :key="t.id" :label="t.teamName" :value="t.id" />
+          </el-select>
           <el-select v-model="projectId" class="task-project-select" clearable placeholder="全部项目" @change="loadData">
-            <el-option v-for="project in projects" :key="project.id" :label="project.projectName" :value="project.id" />
+            <el-option v-for="project in filteredProjects" :key="project.id" :label="project.projectName" :value="project.id" />
           </el-select>
           <el-input v-model="keyword" class="table-search" placeholder="搜索任务" clearable :prefix-icon="Search" @keyup.enter="loadData" />
         </div>
@@ -48,13 +51,18 @@
 import { computed, onMounted, ref } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
-import { projectPageApi, type ProjectListItem } from '@/api/project'
+import { projectPageApi, teamPageApi, type ProjectListItem, type TeamItem } from '@/api/project'
 import { taskGanttApi, type GanttTaskItem } from '@/api/task'
 import { formatDateRange } from '@/utils/format'
 
 const keyword = ref('')
 const projectId = ref<number | undefined>()
+const teamId = ref<number | undefined>()
 const projects = ref<ProjectListItem[]>([])
+const allTeams = ref<TeamItem[]>([])
+const filteredProjects = computed(() =>
+  teamId.value ? projects.value.filter(p => p.teamId === teamId.value) : projects.value
+)
 const allTasks = ref<GanttTaskItem[]>([])
 const loading = ref(false)
 const page = ref(1)
@@ -65,15 +73,25 @@ const pagedTasks = computed(() => {
 })
 
 onMounted(async () => {
-  projects.value = (await projectPageApi({ page: 1, size: 200 })).records
+  const [projectResult, teamResult] = await Promise.all([
+    projectPageApi({ page: 1, size: 200 }),
+    teamPageApi({ page: 1, size: 200, status: 1 })
+  ])
+  projects.value = projectResult.records
+  allTeams.value = teamResult.records
   await loadData()
 })
+
+function onTeamChange() {
+  projectId.value = undefined
+  loadData()
+}
 
 async function loadData() {
   loading.value = true
   try {
     page.value = 1
-    allTasks.value = await taskGanttApi({ projectId: projectId.value, keyword: keyword.value })
+    allTasks.value = await taskGanttApi({ projectId: projectId.value, keyword: keyword.value, teamId: teamId.value })
   } finally {
     loading.value = false
   }

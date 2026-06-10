@@ -50,9 +50,10 @@ public class ProjectController {
     public ApiResult<PageResult<ProjectListItem>> page(
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long size,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long teamId
     ) {
-        return ApiResult.success(projectService.pageProjects(page, size, keyword));
+        return ApiResult.success(projectService.pageProjects(page, size, keyword, teamId));
     }
 
     @Operation(summary = "项目统计")

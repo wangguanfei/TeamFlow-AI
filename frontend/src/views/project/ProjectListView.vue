@@ -45,8 +45,11 @@
 
     <el-card shadow="never" class="system-card">
       <div class="table-toolbar">
-        <el-input v-model="keyword" class="table-search" placeholder="搜索项目名称、编码或描述" clearable :prefix-icon="Search" @keyup.enter="loadData" />
-        <el-button :icon="Search" @click="loadData">查询</el-button>
+        <el-input v-model="keyword" class="table-search" placeholder="搜索项目名称、编码或描述" clearable :prefix-icon="Search" @keyup.enter="() => { page = 1; loadData() }" />
+        <el-select v-model="teamIdFilter" placeholder="全部团队" clearable style="width:160px" @change="() => { page = 1; loadData() }">
+          <el-option v-for="t in activeTeams" :key="t.id" :label="t.teamName" :value="t.id" />
+        </el-select>
+        <el-button :icon="Search" @click="() => { page = 1; loadData() }">查询</el-button>
       </div>
 
       <el-table v-loading="loading" :data="pageData.records" row-key="id" :row-class-name="tableRowClassName">
@@ -117,8 +120,14 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="团队">
-              <el-select v-model="form.teamId" placeholder="选择团队" filterable>
+              <el-select v-model="form.teamId" placeholder="选择团队" filterable style="width:100%">
                 <el-option v-for="team in teams" :key="team.id" :label="team.teamName" :value="team.id" />
+                <template v-if="teams.length === 0" #empty>
+                  <div style="padding:12px;text-align:center;color:#909399;font-size:13px">
+                    暂无可用团队，
+                    <el-link type="primary" @click="goToTeamManage">前往创建团队</el-link>
+                  </div>
+                </template>
               </el-select>
             </el-form-item>
           </el-col>
@@ -298,6 +307,8 @@ const pageData = ref<PageResult<ProjectListItem>>({ page: 1, size: 10, total: 0,
 const stats = ref<ProjectStats>({ total: 0, active: 0, done: 0, averageProgress: 0 })
 
 const teams = ref<TeamItem[]>([])
+const activeTeams = ref<TeamItem[]>([])
+const teamIdFilter = ref<number | undefined>(undefined)
 const users = ref<UserItem[]>([])
 const formVisible = ref(false)
 const detailVisible = ref(false)
@@ -337,6 +348,7 @@ const tagForm = reactive({
 
 onMounted(async () => {
   applySearchQuery()
+  teamPageApi({ page: 1, size: 200, status: 1 }).then(r => { activeTeams.value = r.records })
   await loadData()
   await openCreateFromQuery()
   await openProjectFromQuery()
@@ -365,7 +377,7 @@ async function loadData() {
   loading.value = true
   try {
     const [projects, projectStats] = await Promise.all([
-      projectPageApi({ page: page.value, size: size.value, keyword: keyword.value }),
+      projectPageApi({ page: page.value, size: size.value, keyword: keyword.value, teamId: teamIdFilter.value }),
       projectStatsApi()
     ])
     pageData.value = projects
@@ -377,11 +389,16 @@ async function loadData() {
 
 async function loadSelectOptions() {
   const [teamResult, userResult] = await Promise.all([
-    teamPageApi({ page: 1, size: 200 }),
+    teamPageApi({ page: 1, size: 200, status: 1 }),
     userPageApi({ page: 1, size: 200 })
   ])
   teams.value = teamResult.records
+  activeTeams.value = teamResult.records
   users.value = userResult.records
+}
+
+function goToTeamManage() {
+  router.push('/system/team')
 }
 
 async function openCreate() {

@@ -1,6 +1,7 @@
 package com.teamflow.ai.modules.system.bootstrap;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.teamflow.ai.common.cache.PermissionCacheService;
 import com.teamflow.ai.common.security.DemoAccountConstants;
 import com.teamflow.ai.modules.file.service.FileService;
 import com.teamflow.ai.modules.user.entity.SysUser;
@@ -32,17 +33,20 @@ public class DemoDataInitializer implements CommandLineRunner {
     private final SysUserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final FileService fileService;
+    private final PermissionCacheService permissionCacheService;
 
     public DemoDataInitializer(
             JdbcTemplate jdbcTemplate,
             SysUserMapper userMapper,
             PasswordEncoder passwordEncoder,
-            FileService fileService
+            FileService fileService,
+            PermissionCacheService permissionCacheService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
         this.fileService = fileService;
+        this.permissionCacheService = permissionCacheService;
     }
 
     @Override
@@ -50,6 +54,7 @@ public class DemoDataInitializer implements CommandLineRunner {
     public void run(String... args) {
         if (bootstrapMarkerExists()) {
             log.info("演示初始化数据已完成，跳过 DemoDataInitializer");
+            runV2Patch();
             return;
         }
         if (hasExistingApplicationData()) {
@@ -64,6 +69,9 @@ public class DemoDataInitializer implements CommandLineRunner {
         Long dashboardPermissionId = ensurePermission("dashboard:view", "工作台查看", "MENU", "/api/dashboard/**");
         Long teamViewPermissionId = ensurePermission("team:view", "团队查看", "API", "/api/teams/**");
         Long teamCreatePermissionId = ensurePermission("team:create", "团队创建", "API", "/api/teams");
+        Long teamUpdatePermissionId = ensurePermission("team:update", "团队更新", "API", "/api/teams/**");
+        Long teamDeletePermissionId = ensurePermission("team:delete", "团队删除", "API", "/api/teams/**");
+        Long teamMemberPermissionId = ensurePermission("team:member", "团队成员管理", "API", "/api/teams/*/members/**");
         Long projectViewPermissionId = ensurePermission("project:view", "项目查看", "API", "/api/projects/**");
         Long projectCreatePermissionId = ensurePermission("project:create", "项目创建", "API", "/api/projects");
         Long projectUpdatePermissionId = ensurePermission("project:update", "项目更新", "API", "/api/projects/**");
@@ -130,6 +138,9 @@ public class DemoDataInitializer implements CommandLineRunner {
                 dashboardPermissionId,
                 teamViewPermissionId,
                 teamCreatePermissionId,
+                teamUpdatePermissionId,
+                teamDeletePermissionId,
+                teamMemberPermissionId,
                 projectViewPermissionId,
                 projectCreatePermissionId,
                 projectUpdatePermissionId,
@@ -244,16 +255,67 @@ public class DemoDataInitializer implements CommandLineRunner {
         ensureMenu(0L, "AI助手", "/ai/chat", "AiChatView", "ChatDotRound", "ai:view", "MENU", 60);
         ensureMenu(0L, "通知中心", "/notification", "NotificationCenterView", "Bell", "notification:view", "MENU", 70);
         Long systemMenuId = ensureMenu(0L, "系统管理", "/system", "", "Setting", "system:manage", "DIR", 90);
+        ensureMenu(systemMenuId, "团队管理", "/system/team", "TeamManagementView", "Avatar", "team:view", "MENU", 5);
         ensureMenu(systemMenuId, "用户管理", "/system/user", "UserManagementView", "User", "system:user:view", "MENU", 10);
         ensureMenu(systemMenuId, "角色管理", "/system/role", "RoleManagementView", "UserFilled", "system:role:view", "MENU", 20);
         ensureMenu(systemMenuId, "权限管理", "/system/permission", "PermissionManagementView", "Key", "system:permission:view", "MENU", 30);
         ensureMenu(systemMenuId, "菜单管理", "/system/menu", "MenuManagementView", "Menu", "system:menu:view", "MENU", 40);
         ensureMenu(systemMenuId, "登录日志", "/system/login-log", "LoginLogView", "Document", "system:loginlog:view", "MENU", 50);
         ensureMenu(systemMenuId, "操作日志", "/system/operation-log", "OperationLogView", "Tickets", "system:operlog:view", "MENU", 60);
+        ensureTeamSeedData();
         ensureDashboardDemoData(adminId);
         ensureNotificationDemoData(adminId, devId, demoViewerId);
         markBootstrapCompleted("fresh-install");
         log.info("首次部署演示初始化数据已完成");
+    }
+
+    private void runV2Patch() {
+        String patchKey = "demo-data-v2-team-mgmt";
+        if (exists("SELECT 1 FROM sys_bootstrap_marker WHERE marker_key = ? LIMIT 1", patchKey)) {
+            return;
+        }
+        log.info("执行 v2 补丁：补录团队管理权限、菜单、种子数据");
+
+        Long adminRoleId = queryRequiredLong("SELECT id FROM sys_role WHERE role_code = 'SUPER_ADMIN' AND deleted = 0 LIMIT 1");
+        Long teamUpdatePermId = ensurePermission("team:update", "团队更新", "API", "/api/teams/**");
+        Long teamDeletePermId = ensurePermission("team:delete", "团队删除", "API", "/api/teams/**");
+        Long teamMemberPermId = ensurePermission("team:member", "团队成员管理", "API", "/api/teams/*/members/**");
+        ensureRolePermission(adminRoleId, teamUpdatePermId);
+        ensureRolePermission(adminRoleId, teamDeletePermId);
+        ensureRolePermission(adminRoleId, teamMemberPermId);
+
+        Long systemMenuId = queryRequiredLong("SELECT id FROM sys_menu WHERE menu_path = '/system' AND deleted = 0 LIMIT 1");
+        ensureMenu(systemMenuId, "团队管理", "/system/team", "TeamManagementView", "Avatar", "team:view", "MENU", 5);
+
+        ensureTeamSeedData();
+
+        jdbcTemplate.update("""
+                INSERT INTO sys_bootstrap_marker(marker_key, marker_value, created_at, updated_at)
+                VALUES (?, 'v2', NOW(), NOW())
+                ON DUPLICATE KEY UPDATE marker_value = 'v2', updated_at = NOW()
+                """, patchKey);
+        // 补丁绕过 RbacService 直接写库，必须清掉权限缓存，否则 TTL 内已登录用户拿不到新权限（403）
+        permissionCacheService.evictAll();
+        log.info("v2 补丁执行完成");
+    }
+
+    private void ensureTeamSeedData() {
+        if (exists("SELECT 1 FROM team WHERE deleted = 0 LIMIT 1")) {
+            return;
+        }
+        Long adminId = queryRequiredLong(
+                "SELECT id FROM sys_user WHERE username = '" + DEFAULT_ADMIN_USERNAME + "' AND deleted = 0 LIMIT 1");
+        jdbcTemplate.update("""
+                INSERT INTO team(team_name, team_code, owner_id, description, status, created_at, updated_at, deleted)
+                SELECT ?, ?, ?, ?, 1, NOW(), NOW(), 0
+                WHERE NOT EXISTS (SELECT 1 FROM team WHERE team_code = ? AND deleted = 0)
+                """, "产品研发组", "TEAM-001", adminId, "负责产品研发与技术实现", "TEAM-001");
+        jdbcTemplate.update("""
+                INSERT INTO team(team_name, team_code, owner_id, description, status, created_at, updated_at, deleted)
+                SELECT ?, ?, ?, ?, 1, NOW(), NOW(), 0
+                WHERE NOT EXISTS (SELECT 1 FROM team WHERE team_code = ? AND deleted = 0)
+                """, "运营增长组", "TEAM-002", adminId, "负责市场运营与用户增长", "TEAM-002");
+        log.info("插入演示团队种子数据 TEAM-001、TEAM-002");
     }
 
     private boolean bootstrapMarkerExists() {

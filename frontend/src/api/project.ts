@@ -93,15 +93,67 @@ export interface ProjectTagForm {
   tagColor: string
 }
 
-export function teamPageApi(params: { page?: number; size?: number; keyword?: string }) {
+export interface TeamMemberItem {
+  id: number
+  teamId: number
+  userId: number
+  username: string
+  nickname?: string
+  memberRole: string
+  joinTime?: string
+  status: number
+}
+
+export interface TeamMemberForm {
+  userId: number
+  memberRole?: string
+}
+
+export function teamPageApi(params: { page?: number; size?: number; keyword?: string; status?: number }) {
   return http.get<unknown, PageResult<TeamItem>>('/teams/page', { params })
+}
+
+export function createTeamApi(data: {
+  teamName: string; teamCode: string; ownerId?: number; description?: string; status?: number
+}) {
+  return http.post<unknown, TeamItem>('/teams', data)
+}
+
+export function updateTeamApi(id: number, data: {
+  teamName: string; teamCode: string; ownerId?: number; description?: string; status?: number
+}) {
+  return http.put<unknown, TeamItem>(`/teams/${id}`, data)
+}
+
+export function updateTeamStatusApi(id: number, status: number) {
+  return http.patch<unknown, null>(`/teams/${id}/status`, { status })
+}
+
+export function deleteTeamApi(id: number) {
+  return http.delete<unknown, null>(`/teams/${id}`)
+}
+
+export function teamMembersApi(teamId: number) {
+  return http.get<unknown, TeamMemberItem[]>(`/teams/${teamId}/members`)
+}
+
+export function addTeamMemberApi(teamId: number, data: TeamMemberForm) {
+  return http.post<unknown, TeamMemberItem>(`/teams/${teamId}/members`, data)
+}
+
+export function removeTeamMemberApi(teamId: number, memberId: number) {
+  return http.delete<unknown, null>(`/teams/${teamId}/members/${memberId}`)
+}
+
+export function updateTeamMemberRoleApi(teamId: number, memberId: number, memberRole: string) {
+  return http.patch<unknown, TeamMemberItem>(`/teams/${teamId}/members/${memberId}/role`, { memberRole })
 }
 
 export function projectStatsApi() {
   return http.get<unknown, ProjectStats>('/projects/stats')
 }
 
-export function projectPageApi(params: { page?: number; size?: number; keyword?: string }) {
+export function projectPageApi(params: { page?: number; size?: number; keyword?: string; teamId?: number }) {
   return http.get<unknown, PageResult<ProjectListItem>>('/projects/page', { params })
 }
 

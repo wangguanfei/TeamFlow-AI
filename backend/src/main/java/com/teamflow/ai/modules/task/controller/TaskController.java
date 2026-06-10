@@ -56,9 +56,10 @@ public class TaskController {
             @RequestParam(defaultValue = "20") long size,
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long teamId
     ) {
-        return ApiResult.success(taskService.pageTasks(page, size, projectId, status, keyword));
+        return ApiResult.success(taskService.pageTasks(page, size, projectId, status, keyword, teamId));
     }
 
     @Operation(summary = "查询任务看板数据")
@@ -66,9 +67,10 @@ public class TaskController {
     @PreAuthorize("hasAuthority('task:view')")
     public ApiResult<List<KanbanColumn>> kanban(
             @RequestParam(required = false) Long projectId,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long teamId
     ) {
-        return ApiResult.success(taskService.kanban(projectId, keyword));
+        return ApiResult.success(taskService.kanban(projectId, keyword, teamId));
     }
 
     @Operation(summary = "查询任务甘特图数据")
@@ -76,9 +78,10 @@ public class TaskController {
     @PreAuthorize("hasAuthority('task:view')")
     public ApiResult<List<GanttTaskItem>> gantt(
             @RequestParam(required = false) Long projectId,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long teamId
     ) {
-        return ApiResult.success(taskService.gantt(projectId, keyword));
+        return ApiResult.success(taskService.gantt(projectId, keyword, teamId));
     }
 
     @Operation(summary = "详情查询任务")
