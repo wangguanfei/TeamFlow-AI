@@ -22,10 +22,6 @@
           </div>
         </div>
         <div class="trigger-right">
-          <el-tag v-if="isRunning" type="warning" effect="dark" class="running-tag">
-            <el-icon class="is-loading"><Loading /></el-icon>
-            部署中
-          </el-tag>
           <PermissionButton
             permission="system:deploy:exec"
             type="primary"
@@ -162,7 +158,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading, Promotion, Close, Document, Timer, User, VideoPlay } from '@element-plus/icons-vue'
+import { Promotion, Close, Document, Timer, User, VideoPlay } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
 import PermissionButton from '@/components/PermissionButton.vue'
 import {
@@ -435,12 +431,6 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-}
-
-.running-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
 
 /* ── 日志卡片 ── */
