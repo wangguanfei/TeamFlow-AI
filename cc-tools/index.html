@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Coding 工具导航</title>
+  <script defer src="http://81.69.248.152:8091/script.js" data-website-id="0d856dd6-4287-44b2-a4d4-4f2420920041"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #d9e2ec;
+      --line-strong: #c6d3df;
+      --green: #047857;
+      --green-soft: #ecfdf5;
+      --blue: #2563eb;
+      --blue-soft: #e9f0ff;
+      --amber: #b7791f;
+      --amber-soft: #fff5dd;
+      --purple: #6d28d9;
+      --purple-soft: #f3f0ff;
+      --shadow: 0 18px 48px rgba(20, 37, 63, .10);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      letter-spacing: 0;
+    }
+    a { color: inherit; text-decoration: none; }
+    .page {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      flex: 0 0 auto;
+      color: var(--green);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.15;
+      color: #111827;
+    }
+    .brand p {
+      margin: 5px 0 0;
+      color: var(--muted);
+    }
+    .tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .tool-link,
+    .card-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      color: #344054;
+      font-weight: 600;
+      transition: border-color .15s, background .15s, color .15s, transform .15s;
+    }
+    .tool-link {
+      min-height: 40px;
+      padding: 0 13px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .tool-link:hover,
+    .card-link:hover {
+      border-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green);
+      transform: translateY(-1px);
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+    .hero-main,
+    .quick-panel,
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .hero-main {
+      padding: 28px;
+      display: grid;
+      align-content: space-between;
+      min-height: 300px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .hero h2 {
+      margin: 18px 0 12px;
+      max-width: 680px;
+      font-size: 34px;
+      line-height: 1.18;
+      color: #111827;
+    }
+    .hero p {
+      margin: 0;
+      max-width: 680px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+    .primary-action,
+    .secondary-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      font-weight: 700;
+    }
+    .primary-action {
+      background: var(--green);
+      color: #fff;
+    }
+    .secondary-action {
+      background: var(--panel);
+      color: #344054;
+      border-color: var(--line);
+    }
+    .secondary-action:hover {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-soft);
+    }
+    .quick-panel {
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+    .quick-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .quick-title h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #111827;
+    }
+    .badge {
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: var(--amber-soft);
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .quick-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .quick-list a {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel-soft);
+    }
+    .quick-list a:hover {
+      border-color: var(--green);
+      background: var(--green-soft);
+    }
+    .icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--green);
+    }
+    .quick-list strong {
+      display: block;
+      color: #111827;
+      font-size: 14px;
+    }
+    .quick-list span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .arrow { color: var(--muted); }
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 28px 0 14px;
+    }
+    .section-head h3 {
+      margin: 0;
+      font-size: 20px;
+      color: #111827;
+    }
+    .section-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .card {
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+      min-width: 0;
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .card h4 {
+      margin: 0;
+      font-size: 18px;
+      color: #111827;
+    }
+    .card p {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+    .pill-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      color: #475467;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .card-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .card-link {
+      min-height: 42px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+    @media (max-width: 900px) {
+      .page { width: min(100% - 28px, 720px); padding-top: 18px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .tools { justify-content: flex-start; width: 100%; }
+      .tool-link { flex: 1 1 150px; }
+      .hero { grid-template-columns: 1fr; }
+      .hero-main { min-height: auto; padding: 22px; }
+      .hero h2 { font-size: 27px; }
+      .grid { grid-template-columns: 1fr; }
+      .card-actions { grid-template-columns: 1fr; }
+      .quick-list a { grid-template-columns: 34px minmax(0, 1fr); }
+      .arrow { display: none; }
+    }
+    @media (max-width: 520px) {
+      .brand h1 { font-size: 21px; }
+      .brand p { font-size: 13px; }
+      .brand-mark { width: 44px; height: 44px; }
+      .hero h2 { font-size: 24px; }
+      .primary-action,
+      .secondary-action,
+      .tool-link { width: 100%; }
+      .quick-title { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="7" y="8" width="50" height="48" rx="8" fill="currentColor" opacity=".12"></rect>
+          <path d="M18 21h28M18 32h20M18 43h28" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"></path>
+          <circle cx="47" cy="32" r="5" fill="#2563eb"></circle>
+        </svg>
+        <div>
+          <h1>AI Coding 工具导航</h1>
+          <p>Claude Code 与 Codex 的能力检索、使用教程和项目开发入口</p>
+        </div>
+      </div>
+      <nav class="tools" aria-label="快捷入口">
+        <a class="tool-link" href="Codex-Skill-Finder.html">Codex 检索</a>
+        <a class="tool-link" href="Codex-Tutorial.html">Codex 教程</a>
+        <a class="tool-link" href="Claude-Code-Skill-Finder.html">Claude 检索</a>
+        <a class="tool-link" href="Claude-Code-Tutorial.html">Claude 教程</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="hero-main">
+        <div>
+          <span class="eyebrow">项目开发工作台</span>
+          <h2>从同一个地址进入 Codex 和 Claude Code 的检索与教程页面</h2>
+          <p>稳定入口集中展示四个页面。需要查能力时进入检索台，需要按项目流程落地时进入教程页，Codex 与 Claude Code 页面之间也可以互相跳转。</p>
+        </div>
+        <div class="hero-actions">
+          <a class="primary-action" href="Codex-Skill-Finder.html">打开 Codex 能力检索</a>
+          <a class="secondary-action" href="Claude-Code-Skill-Finder.html">打开 Claude Code 能力检索</a>
+        </div>
+      </div>
+
+      <aside class="quick-panel" aria-label="推荐入口">
+        <div class="quick-title">
+          <h3>按当前任务进入</h3>
+          <span class="badge">4 个页面</span>
+        </div>
+        <ul class="quick-list">
+          <li>
+            <a href="Codex-Skill-Finder.html">
+              <span class="icon">C</span>
+              <span><strong>Codex 能力检索</strong><span>插件、MCP、Hooks、Skills 与项目流程</span></span>
+              <span class="arrow">→</span>
+            </a>
+          </li>
+          <li>
+            <a href="Codex-Tutorial.html">
+              <span class="icon">T</span>
+              <span><strong>Codex 使用教程</strong><span>本地开发、验证、部署和技巧</span></span>
+              <span class="arrow">→</span>
+            </a>
+          </li>
+          <li>
+            <a href="Claude-Code-Skill-Finder.html">
+              <span class="icon">C</span>
+              <span><strong>Claude Code 能力检索</strong><span>技能、命令、代理和规则检索</span></span>
+              <span class="arrow">→</span>
+            </a>
+          </li>
+          <li>
+            <a href="Claude-Code-Tutorial.html">
+              <span class="icon">T</span>
+              <span><strong>Claude Code 实战教程</strong><span>项目开发流程和常用配置</span></span>
+              <span class="arrow">→</span>
+            </a>
+          </li>
+        </ul>
+      </aside>
+    </section>
+
+    <div class="section-head">
+      <div>
+        <h3>工具分组</h3>
+        <p>根入口保持稳定，具体内容由各工具页维护。</p>
+      </div>
+    </div>
+
+    <section class="grid" aria-label="工具分组">
+      <article class="card">
+        <div class="card-top">
+          <div>
+            <h4>Codex</h4>
+            <p>面向项目开发全流程，覆盖插件、MCP、Hooks、Skills、浏览器验证、部署检查和使用技巧。</p>
+          </div>
+          <span class="pill">OpenAI</span>
+        </div>
+        <div class="pill-row">
+          <span class="pill">插件</span>
+          <span class="pill">MCP</span>
+          <span class="pill">Hooks</span>
+          <span class="pill">验证</span>
+        </div>
+        <div class="card-actions">
+          <a class="card-link" href="Codex-Skill-Finder.html">能力检索</a>
+          <a class="card-link" href="Codex-Tutorial.html">使用教程</a>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <div>
+            <h4>Claude Code</h4>
+            <p>保留原有 Claude Code 能力检索和实战教程，顶部入口已与 Codex 页面互通。</p>
+          </div>
+          <span class="pill">Anthropic</span>
+        </div>
+        <div class="pill-row">
+          <span class="pill">技能</span>
+          <span class="pill">命令</span>
+          <span class="pill">代理</span>
+          <span class="pill">规则</span>
+        </div>
+        <div class="card-actions">
+          <a class="card-link" href="Claude-Code-Skill-Finder.html">能力检索</a>
+          <a class="card-link" href="Claude-Code-Tutorial.html">使用教程</a>
+        </div>
+      </article>
+    </section>
+  </div>
+</body>
+</html>
