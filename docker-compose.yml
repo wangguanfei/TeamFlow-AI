@@ -169,7 +169,12 @@ services:
       start_period: 10s
 
   umami:
-    image: ghcr.io/umami-software/umami:mysql-latest
+    # Next.js 的 BASE_PATH 是编译期注入，官方镜像写死根路径，子路径部署必须自构建
+    build:
+      context: https://github.com/umami-software/umami.git#v2.20.2
+      args:
+        DATABASE_TYPE: mysql
+        BASE_PATH: /umami
     container_name: teamflow-umami
     depends_on:
       mysql:
