@@ -190,10 +190,11 @@ services:
         condition: service_healthy
     ports:
       - "80:80"
-      - "8090:8090"
+      - "443:443"
       - "8091:8091"
     volumes:
       - ./deploy/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/certs/ai2026.vip:/etc/nginx/certs/ai2026.vip:ro
       - ./cc-tools:/usr/share/nginx/html/cc:ro
     restart: unless-stopped
     healthcheck:

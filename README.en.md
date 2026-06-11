@@ -14,7 +14,7 @@ English | [中文](./README.md)
 
 ## Live Demo
 
-- Demo URL: <http://81.69.248.152/login>
+- Demo URL: <https://ai2026.vip>
 - Demo account: `demo` / `demo123456` (read-only demo account)
 
 ## Overview
