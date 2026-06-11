@@ -14,7 +14,7 @@
 
 ## 在线演示
 
-- 演示地址：<https://ai2026.vip>
+- 演示地址：<a href="https://ai2026.vip" target="_blank" rel="noopener noreferrer">https://ai2026.vip</a>
 - 演示账号：`demo` / `demo123456`（只读演示账号）
 
 ## 项目定位

@@ -14,7 +14,7 @@ English | [中文](./README.md)
 
 ## Live Demo
 
-- Demo URL: <https://ai2026.vip>
+- Demo URL: <a href="https://ai2026.vip" target="_blank" rel="noopener noreferrer">https://ai2026.vip</a>
 - Demo account: `demo` / `demo123456` (read-only demo account)
 
 ## Overview
