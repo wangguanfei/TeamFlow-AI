@@ -39,9 +39,20 @@ public class IpLocationResolver {
     }
 
     private boolean isInternalIp(String ip) {
-        return ip.startsWith("127.") || ip.startsWith("10.")
+        if (ip.startsWith("127.") || ip.startsWith("10.")
                 || ip.startsWith("192.168.") || ip.equals("::1")
-                || ip.equals("0:0:0:0:0:0:0:1");
+                || ip.equals("0:0:0:0:0:0:0:1")) {
+            return true;
+        }
+        // 172.16.0.0/12（含 Docker 桥接网段 172.17-31.x.x）
+        if (ip.startsWith("172.")) {
+            try {
+                int second = Integer.parseInt(ip.split("\\.")[1]);
+                if (second >= 16 && second <= 31) return true;
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return false;
     }
 
     private String formatRegion(String region) {
@@ -51,6 +62,9 @@ public class IpLocationResolver {
         if (parts.length < 3) return region;
         String province = "0".equals(parts[1]) ? "" : parts[1];
         String city = "0".equals(parts[2]) ? "" : parts[2];
+        // ip2region 对保留/特殊段返回 "Reserved"，视为无法解析
+        if ("Reserved".equalsIgnoreCase(province)) province = "";
+        if ("Reserved".equalsIgnoreCase(city)) city = "";
         // 直辖市省份和城市重复时（如"天津"和"天津市"）只保留城市
         if (!city.isEmpty() && (city.equals(province) || city.startsWith(province))) {
             province = "";
