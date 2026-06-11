@@ -234,19 +234,27 @@
     .icon {
       width: 34px;
       height: 34px;
+      flex: 0 0 34px;
       display: grid;
       place-items: center;
       border-radius: var(--radius);
       background: #fff;
       border: 1px solid var(--line);
       color: var(--green);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .quick-copy {
+      display: block;
+      min-width: 0;
     }
     .quick-list strong {
       display: block;
       color: #111827;
       font-size: 14px;
     }
-    .quick-list span {
+    .quick-desc {
       display: block;
       color: var(--muted);
       font-size: 12px;
@@ -393,28 +401,28 @@
           <li>
             <a href="Codex-Skill-Finder.html">
               <span class="icon">C</span>
-              <span><strong>Codex 能力检索</strong><span>插件、MCP、Hooks、Skills 与项目流程</span></span>
+              <span class="quick-copy"><strong>Codex 能力检索</strong><span class="quick-desc">插件、MCP、Hooks、Skills 与项目流程</span></span>
               <span class="arrow">→</span>
             </a>
           </li>
           <li>
             <a href="Codex-Tutorial.html">
               <span class="icon">T</span>
-              <span><strong>Codex 使用教程</strong><span>本地开发、验证、部署和技巧</span></span>
+              <span class="quick-copy"><strong>Codex 使用教程</strong><span class="quick-desc">本地开发、验证、部署和技巧</span></span>
               <span class="arrow">→</span>
             </a>
           </li>
           <li>
             <a href="Claude-Code-Skill-Finder.html">
               <span class="icon">C</span>
-              <span><strong>Claude Code 能力检索</strong><span>技能、命令、代理和规则检索</span></span>
+              <span class="quick-copy"><strong>Claude Code 能力检索</strong><span class="quick-desc">技能、命令、代理和规则检索</span></span>
               <span class="arrow">→</span>
             </a>
           </li>
           <li>
             <a href="Claude-Code-Tutorial.html">
               <span class="icon">T</span>
-              <span><strong>Claude Code 实战教程</strong><span>项目开发流程和常用配置</span></span>
+              <span class="quick-copy"><strong>Claude Code 实战教程</strong><span class="quick-desc">项目开发流程和常用配置</span></span>
               <span class="arrow">→</span>
             </a>
           </li>
