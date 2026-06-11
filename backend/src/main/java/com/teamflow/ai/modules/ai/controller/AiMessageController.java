@@ -2,6 +2,10 @@ package com.teamflow.ai.modules.ai.controller;
 
 import com.teamflow.ai.common.api.ApiResult;
 import com.teamflow.ai.common.api.PageResult;
+import com.teamflow.ai.common.log.Log;
+import com.teamflow.ai.common.security.UserPrincipal;
+import com.teamflow.ai.modules.ai.dto.AiMessageFeedbackItem;
+import com.teamflow.ai.modules.ai.dto.AiMessageFeedbackRequest;
 import com.teamflow.ai.modules.ai.dto.AiMessageItem;
 import com.teamflow.ai.modules.ai.dto.AiMessageRequest;
 import com.teamflow.ai.modules.ai.dto.IdListRequest;
@@ -10,6 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -78,5 +83,15 @@ public class AiMessageController {
     public ApiResult<Void> batchDelete(@RequestBody IdListRequest request) {
         aiService.batchDeleteMessages(request.ids());
         return ApiResult.success();
+    }
+
+    @Log(module = "AI助手", type = "消息反馈")
+    @Operation(summary = "提交AI消息反馈")
+    @PostMapping("/{id}/feedback")
+    @PreAuthorize("hasAuthority('ai:chat')")
+    public ApiResult<AiMessageFeedbackItem> feedback(@PathVariable Long id,
+                                                     @Valid @RequestBody AiMessageFeedbackRequest request,
+                                                     @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResult.success(aiService.feedbackMessage(id, request, principal.getUserId()));
     }
 }

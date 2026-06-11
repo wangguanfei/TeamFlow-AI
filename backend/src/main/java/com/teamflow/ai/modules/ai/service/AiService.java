@@ -13,6 +13,8 @@ import com.teamflow.ai.modules.ai.dto.AiChatRequest;
 import com.teamflow.ai.modules.ai.dto.AiChatResponse;
 import com.teamflow.ai.modules.ai.dto.AiEmbeddingItem;
 import com.teamflow.ai.modules.ai.dto.AiEmbeddingRequest;
+import com.teamflow.ai.modules.ai.dto.AiMessageFeedbackItem;
+import com.teamflow.ai.modules.ai.dto.AiMessageFeedbackRequest;
 import com.teamflow.ai.modules.ai.dto.AiMessageItem;
 import com.teamflow.ai.modules.ai.dto.AiMessageRequest;
 import com.teamflow.ai.modules.ai.dto.AiProviderStatus;
@@ -21,8 +23,10 @@ import com.teamflow.ai.modules.ai.dto.AiSessionItem;
 import com.teamflow.ai.modules.ai.dto.AiSessionRequest;
 import com.teamflow.ai.modules.ai.entity.AiEmbedding;
 import com.teamflow.ai.modules.ai.entity.AiMessage;
+import com.teamflow.ai.modules.ai.entity.AiMessageFeedback;
 import com.teamflow.ai.modules.ai.entity.AiSession;
 import com.teamflow.ai.modules.ai.mapper.AiEmbeddingMapper;
+import com.teamflow.ai.modules.ai.mapper.AiMessageFeedbackMapper;
 import com.teamflow.ai.modules.ai.mapper.AiMessageMapper;
 import com.teamflow.ai.modules.ai.mapper.AiSessionMapper;
 import com.teamflow.ai.modules.ai.provider.AiProvider;
@@ -47,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -63,6 +68,7 @@ public class AiService {
 
     private final AiSessionMapper sessionMapper;
     private final AiMessageMapper messageMapper;
+    private final AiMessageFeedbackMapper messageFeedbackMapper;
     private final AiEmbeddingMapper embeddingMapper;
     private final KnowledgeSpaceMapper spaceMapper;
     private final SysUserMapper userMapper;
@@ -76,6 +82,7 @@ public class AiService {
     public AiService(
             AiSessionMapper sessionMapper,
             AiMessageMapper messageMapper,
+            AiMessageFeedbackMapper messageFeedbackMapper,
             AiEmbeddingMapper embeddingMapper,
             KnowledgeSpaceMapper spaceMapper,
             SysUserMapper userMapper,
@@ -88,6 +95,7 @@ public class AiService {
     ) {
         this.sessionMapper = sessionMapper;
         this.messageMapper = messageMapper;
+        this.messageFeedbackMapper = messageFeedbackMapper;
         this.embeddingMapper = embeddingMapper;
         this.spaceMapper = spaceMapper;
         this.userMapper = userMapper;
@@ -238,6 +246,37 @@ public class AiService {
     }
 
     @Transactional
+    public AiMessageFeedbackItem feedbackMessage(Long messageId, AiMessageFeedbackRequest request, Long userId) {
+        AiMessage message = getMessageEntity(messageId);
+        AiSession session = getSessionEntity(message.getSessionId());
+        if (userId != null && !Objects.equals(session.getUserId(), userId)) {
+            throw new BusinessException(403, "AI消息无访问权限");
+        }
+        AiMessageFeedback feedback = messageFeedbackMapper.selectOne(new LambdaQueryWrapper<AiMessageFeedback>()
+                .eq(AiMessageFeedback::getMessageId, messageId)
+                .eq(AiMessageFeedback::getUserId, userId)
+                .last("LIMIT 1"));
+        LocalDateTime now = LocalDateTime.now();
+        if (feedback == null) {
+            feedback = new AiMessageFeedback();
+            feedback.setMessageId(messageId);
+            feedback.setUserId(userId);
+            feedback.setCreatedAt(now);
+        }
+        feedback.setRating(request.rating());
+        feedback.setReason(trimToNull(request.reason(), 64));
+        feedback.setExpectedDocId(request.expectedDocId());
+        feedback.setComment(trimToNull(request.comment(), 1000));
+        feedback.setUpdatedAt(now);
+        if (feedback.getId() == null) {
+            messageFeedbackMapper.insert(feedback);
+        } else {
+            messageFeedbackMapper.updateById(feedback);
+        }
+        return toFeedbackItem(feedback);
+    }
+
+    @Transactional
     public AiChatResponse chat(AiChatRequest request, Long userId) {
         String mode = normalizeMode(request.mode());
         AiSession existingSession = request.sessionId() == null
@@ -256,9 +295,15 @@ public class AiService {
         }
 
         AiMessage userMessage = saveChatMessage(session.getId(), "USER", request.message(), List.of());
-        List<AiReferenceItem> references = resolveRag(request, mode)
-                ? searchReferences(request.message(), request.spaceId())
+        long ragStartMillis = System.currentTimeMillis();
+        boolean ragRequested = resolveRag(request, mode);
+        List<AiReferenceItem> references = ragRequested
+                ? searchReferences(request.message(), request.spaceId(), userId)
                 : List.of();
+        if (ragRequested) {
+            log.info("RAG 检索完成 userId={} sessionId={} spaceId={} 引用条数={} 耗时={}ms",
+                    userId, session.getId(), request.spaceId(), references.size(), System.currentTimeMillis() - ragStartMillis);
+        }
         List<AiProvider.AiPromptMessage> prompts = buildPrompts(session, mode, references);
         log.info("AI 对话开始 userId={} sessionId={} mode={} 引用条数={} model={}",
                 userId, session.getId(), mode, references.size(), request.model());
@@ -301,9 +346,15 @@ public class AiService {
             session.setSpaceId(request.spaceId());
         }
         AiMessage userMessage = saveChatMessage(session.getId(), "USER", request.message(), List.of());
-        List<AiReferenceItem> references = resolveRag(request, mode)
-                ? searchReferences(request.message(), request.spaceId())
+        long ragStartMillis = System.currentTimeMillis();
+        boolean ragRequested = resolveRag(request, mode);
+        List<AiReferenceItem> references = ragRequested
+                ? searchReferences(request.message(), request.spaceId(), userId)
                 : List.of();
+        if (ragRequested) {
+            log.info("RAG 流式检索完成 userId={} sessionId={} spaceId={} 引用条数={} 耗时={}ms",
+                    userId, session.getId(), request.spaceId(), references.size(), System.currentTimeMillis() - ragStartMillis);
+        }
         List<AiProvider.AiPromptMessage> prompts = buildPrompts(session, mode, references);
 
         SseEmitter emitter = new SseEmitter(120_000L);
@@ -319,10 +370,15 @@ public class AiService {
         log.info("AI 流式对话开始 userId={} sessionId={} mode={} 引用条数={} model={}",
                 userId, session.getId(), mode, references.size(), request.model());
         final long streamStartMillis = System.currentTimeMillis();
+        final AtomicBoolean firstTokenLogged = new AtomicBoolean(false);
         SSE_EXECUTOR.execute(() -> {
             try {
                 AiProvider.AiAnswer answer = aiProvider.chatStream(prompts, capturedMode, capturedReferences, capturedModel, token -> {
                     try {
+                        if (firstTokenLogged.compareAndSet(false, true)) {
+                            log.info("AI 流式首 token userId={} sessionId={} 耗时={}ms",
+                                    userId, capturedSession.getId(), System.currentTimeMillis() - streamStartMillis);
+                        }
                         emitter.send(SseEmitter.event()
                                 .data(objectMapper.writeValueAsString(Map.of("type", "token", "content", token))));
                     } catch (Exception e) {
@@ -542,8 +598,8 @@ public class AiService {
         return prompts;
     }
 
-    private List<AiReferenceItem> searchReferences(String keyword, Long spaceId) {
-        return knowledgeIndexService.searchReferences(keyword, spaceId, 5);
+    private List<AiReferenceItem> searchReferences(String keyword, Long spaceId, Long userId) {
+        return knowledgeIndexService.searchReferences(keyword, spaceId, 5, userId);
     }
 
     private List<AiSessionItem> toSessionItems(List<AiSession> sessions) {
@@ -610,6 +666,20 @@ public class AiService {
                         embedding.getCreatedAt(),
                         embedding.getUpdatedAt()))
                 .toList();
+    }
+
+    private AiMessageFeedbackItem toFeedbackItem(AiMessageFeedback feedback) {
+        return new AiMessageFeedbackItem(
+                feedback.getId(),
+                feedback.getMessageId(),
+                feedback.getUserId(),
+                feedback.getRating(),
+                feedback.getReason(),
+                feedback.getExpectedDocId(),
+                feedback.getComment(),
+                feedback.getCreatedAt(),
+                feedback.getUpdatedAt()
+        );
     }
 
     private AiSession getSessionEntity(Long id) {
@@ -684,6 +754,14 @@ public class AiService {
         }
         String normalized = text.replaceAll("\\s+", " ").trim();
         return normalized.length() > 120 ? normalized.substring(0, 120) + "..." : normalized;
+    }
+
+    private String trimToNull(String value, int max) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() > max ? trimmed.substring(0, max) : trimmed;
     }
 
     private String writeReferences(List<AiReferenceItem> references) {

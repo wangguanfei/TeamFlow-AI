@@ -27,7 +27,7 @@ The project is designed as a production-minded SaaS backend and frontend system.
 
 - **AI-native collaboration**: chat, knowledge Q&A, document summary, code generation, SQL assistant, DeepSeek / OpenAI-compatible provider, and MockAIProvider fallback.
 - **Complete RBAC pipeline**: JWT, Spring Security, role-permission model, dynamic menus, button-level permissions, and API-level authorization, with user permissions cached in Redis to eliminate repeated lookups in the JWT filter on every request.
-- **Lightweight local RAG**: Qdrant vector database + bge-small-zh local Embedding service + BM25 keyword retrieval + RRF fusion ranking, runnable on 2C2G; Markdown, TXT, PDF, and DOCX import, automatic slice refresh on publish, end-to-end knowledge Q&A.
+- **Lightweight local RAG**: Qdrant vector database + bge-small-zh local Embedding service + custom keyword retrieval + RRF fusion ranking, runnable on 2C2G; Markdown, TXT, PDF, and DOCX import, automatic slice refresh on publish, end-to-end knowledge Q&A.
 - **Project and task workflow**: projects, members, tags, task list, Kanban drag-and-drop, Gantt view, comments, worklogs, attachments, and executors.
 - **Enterprise file center**: MinIO storage, upload, preview, download, sharing, business archive, and large-file support.
 - **Real-time notification**: unread badges, search, read status, deletion, and WebSocket push.
@@ -68,7 +68,7 @@ Spring Boot 3 Application
 | Data | MySQL 8, Redis, MyBatis-Plus |
 | File Storage | MinIO, multipart upload, 500MB upload limit |
 | AI | OpenAI-compatible HTTP client, DeepSeek-compatible config, MockAIProvider fallback |
-| RAG | Qdrant vector database, bge-small-zh local Embedding service, BM25 keyword retrieval, RRF fusion ranking |
+| RAG | Qdrant vector database, bge-small-zh local Embedding service, custom keyword retrieval, RRF fusion ranking |
 | Deployment | Docker, Docker Compose, Nginx, health checks, reverse proxy, deploy-agent.sh host proxy |
 
 ## Feature Map
@@ -109,7 +109,7 @@ Spring Boot 3 Application
 - Publishing, version history, rollback, and favorites.
 - Markdown, TXT, PDF, and DOCX import.
 - Published documents automatically refresh AI retrieval slices for knowledge Q&A.
-- Lightweight local RAG: Qdrant vector store + bge-small-zh local Embedding + BM25 keyword retrieval + RRF fusion ranking, runnable on 2C2G.
+- Lightweight local RAG: Qdrant vector store + bge-small-zh local Embedding + custom keyword retrieval + RRF fusion ranking, runnable on 2C2G.
 - `/api/rag/status` health check, `/api/rag/rebuild` manual index rebuild.
 - `RAG_ENABLED` / `RAG_LOCAL_EMBEDDING` feature flags for mode switching without code changes.
 

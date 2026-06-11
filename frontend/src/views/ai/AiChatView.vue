@@ -81,6 +81,14 @@
                 <strong>{{ message.role === 'ASSISTANT' ? 'TeamFlow AI' : '我' }}</strong>
                 <span>{{ formatDate(message.createdAt) }}</span>
                 <el-tag v-if="message.role === 'ASSISTANT'" size="small">{{ message.tokens }} tokens</el-tag>
+                <span v-if="message.role === 'ASSISTANT' && message.id > 0" class="ai-message-feedback">
+                  <el-tooltip content="有用" placement="top">
+                    <el-button link :icon="CircleCheck" @click="submitMessageFeedback(message, 5, 'HELPFUL')" />
+                  </el-tooltip>
+                  <el-tooltip content="引用不准" placement="top">
+                    <el-button link type="warning" :icon="Warning" @click="submitMessageFeedback(message, 2, 'BAD_REFERENCE')" />
+                  </el-tooltip>
+                </span>
               </div>
               <MdPreview v-if="message.role === 'ASSISTANT'" :model-value="message.content" />
               <p v-else class="ai-message__plain">{{ message.content }}</p>
@@ -227,7 +235,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatDotRound, Connection, Cpu, Delete, Document, MagicStick, Plus, Promotion, Reading, Search } from '@element-plus/icons-vue'
+import { ChatDotRound, CircleCheck, Connection, Cpu, Delete, Document, MagicStick, Plus, Promotion, Reading, Search, Warning } from '@element-plus/icons-vue'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import PageContainer from '@/components/PageContainer.vue'
@@ -236,6 +244,7 @@ import { knowledgeSpacePageApi, type KnowledgeSpaceItem } from '@/api/knowledge'
 import { loadProfilePreferences } from '@/utils/profilePreferences'
 import {
   aiChatStreamApi,
+  aiMessageFeedbackApi,
   aiMessagePageApi,
   aiProviderStatusApi,
   aiSessionPageApi,
@@ -479,6 +488,11 @@ async function removeSession(session: AiSessionItem) {
     startNewChat()
   }
   await loadSessions()
+}
+
+async function submitMessageFeedback(message: AiMessageItem, rating: number, reason: 'HELPFUL' | 'BAD_REFERENCE') {
+  await aiMessageFeedbackApi(message.id, { rating, reason })
+  ElMessage.success(reason === 'HELPFUL' ? '反馈已记录' : '引用问题已记录')
 }
 
 function scrollToBottom() {
@@ -984,6 +998,19 @@ function loadPreferredAiMode() {
   color: var(--tf-primary);
   font-size: 12px;
   font-weight: 700;
+}
+
+.ai-message-feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 2px;
+}
+
+.ai-message-feedback :deep(.el-button) {
+  width: 24px;
+  height: 24px;
+  padding: 0;
 }
 
 .ai-composer {

@@ -13,10 +13,16 @@ import com.teamflow.ai.modules.ai.rag.EmbeddingClient;
 import com.teamflow.ai.modules.ai.rag.QdrantVectorStore;
 import com.teamflow.ai.modules.ai.rag.RagProperties;
 import com.teamflow.ai.modules.ai.rag.RagResourceGuardService;
+import com.teamflow.ai.modules.ai.rag.RagSearchScope;
 import com.teamflow.ai.modules.knowledge.entity.KnowledgeDoc;
 import com.teamflow.ai.modules.knowledge.entity.KnowledgeSpace;
 import com.teamflow.ai.modules.knowledge.mapper.KnowledgeDocMapper;
 import com.teamflow.ai.modules.knowledge.mapper.KnowledgeSpaceMapper;
+import com.teamflow.ai.modules.system.service.PermissionQueryService;
+import com.teamflow.ai.modules.team.entity.Team;
+import com.teamflow.ai.modules.team.entity.TeamMember;
+import com.teamflow.ai.modules.team.mapper.TeamMapper;
+import com.teamflow.ai.modules.team.mapper.TeamMemberMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -54,6 +60,7 @@ public class AiKnowledgeIndexService {
     private static final String STATUS_RUNNING = "RUNNING";
     private static final String STATUS_DONE = "DONE";
     private static final String STATUS_FAILED = "FAILED";
+    private static final String SUPER_ADMIN_ROLE = "SUPER_ADMIN";
 
     /** RAG 检索结果缓存：按 query+space+topK 缓存；索引变化时统一失效。 */
     private static final String RAG_KEY_PREFIX = "ai:rag:";
@@ -63,6 +70,9 @@ public class AiKnowledgeIndexService {
     private final AiIndexJobMapper indexJobMapper;
     private final KnowledgeDocMapper docMapper;
     private final KnowledgeSpaceMapper spaceMapper;
+    private final TeamMapper teamMapper;
+    private final TeamMemberMapper teamMemberMapper;
+    private final PermissionQueryService permissionQueryService;
     private final JsonCacheService jsonCacheService;
     private final RagProperties ragProperties;
     private final RagResourceGuardService resourceGuardService;
@@ -74,6 +84,9 @@ public class AiKnowledgeIndexService {
             AiIndexJobMapper indexJobMapper,
             KnowledgeDocMapper docMapper,
             KnowledgeSpaceMapper spaceMapper,
+            TeamMapper teamMapper,
+            TeamMemberMapper teamMemberMapper,
+            PermissionQueryService permissionQueryService,
             JsonCacheService jsonCacheService,
             RagProperties ragProperties,
             RagResourceGuardService resourceGuardService,
@@ -84,6 +97,9 @@ public class AiKnowledgeIndexService {
         this.indexJobMapper = indexJobMapper;
         this.docMapper = docMapper;
         this.spaceMapper = spaceMapper;
+        this.teamMapper = teamMapper;
+        this.teamMemberMapper = teamMemberMapper;
+        this.permissionQueryService = permissionQueryService;
         this.jsonCacheService = jsonCacheService;
         this.ragProperties = ragProperties;
         this.resourceGuardService = resourceGuardService;
@@ -117,18 +133,24 @@ public class AiKnowledgeIndexService {
     // 若包在事务里会在网络调用期间长时间占用 DB 连接（叠加 MySQL max-connections 限制易耗尽连接池）。
     // 缺失索引补建走的是各自独立提交的 enqueueIndexJob，无需事务原子性。
     public List<AiReferenceItem> searchReferences(String query, Long spaceId, int topK) {
+        return searchReferences(query, spaceId, topK, null);
+    }
+
+    public List<AiReferenceItem> searchReferences(String query, Long spaceId, int topK, Long userId) {
         String safeQuery = normalize(query);
         int finalTopK = topK > 0 ? topK : ragProperties.getRetrieval().getFinalTopK();
+        RagSearchScope scope = searchScope(userId);
         String cacheKey = RAG_KEY_PREFIX
                 + (ragProperties.isEnabled() ? "hybrid" : "keyword") + ":"
+                + scope.cacheKey() + ":"
                 + (spaceId == null ? "all" : spaceId) + ":"
                 + Math.max(1, finalTopK) + ":"
                 + sha256(safeQuery);
         boolean ragEnabled = ragProperties.isEnabled();
         return jsonCacheService.getOrLoad(cacheKey, RAG_TTL, new TypeReference<List<AiReferenceItem>>() {},
                 () -> ragEnabled
-                        ? hybridSearch(safeQuery, spaceId, finalTopK)
-                        : keywordCandidates(safeQuery, spaceId, finalTopK).stream().map(ReferenceCandidate::toReference).toList(),
+                        ? hybridSearch(safeQuery, spaceId, finalTopK, scope)
+                        : keywordCandidates(safeQuery, finalTopK, visibleSpaceIds(scope, spaceId)).stream().map(ReferenceCandidate::toReference).toList(),
                 // RAG 关闭时关键词结果可正常缓存；RAG 启用时仅当向量召回真正生效（结果含 VECTOR/HYBRID 来源）
                 // 才缓存——否则视为 embedding/Qdrant 故障降级，不缓存以免恢复后仍在 TTL 内返回降级结果。
                 results -> !ragEnabled || hasDenseSource(results));
@@ -203,11 +225,12 @@ public class AiKnowledgeIndexService {
         }
     }
 
-    private List<AiReferenceItem> hybridSearch(String safeQuery, Long spaceId, int topK) {
+    private List<AiReferenceItem> hybridSearch(String safeQuery, Long spaceId, int topK, RagSearchScope scope) {
+        List<Long> visibleSpaceIds = visibleSpaceIds(scope, spaceId);
         List<ReferenceCandidate> keywordCandidates = keywordCandidates(
-                safeQuery, spaceId, ragProperties.getRetrieval().getKeywordTopK());
+                safeQuery, ragProperties.getRetrieval().getKeywordTopK(), visibleSpaceIds);
         List<ReferenceCandidate> denseCandidates = denseCandidates(
-                safeQuery, spaceId, ragProperties.getRetrieval().getDenseTopK());
+                safeQuery, spaceId, ragProperties.getRetrieval().getDenseTopK(), visibleSpaceIds);
         List<AiReferenceItem> fused = fuseCandidates(denseCandidates, keywordCandidates, topK);
         if (!fused.isEmpty()) {
             return fused;
@@ -215,18 +238,24 @@ public class AiKnowledgeIndexService {
         return keywordCandidates.stream().limit(Math.max(1, topK)).map(ReferenceCandidate::toReference).toList();
     }
 
-    private List<ReferenceCandidate> denseCandidates(String safeQuery, Long spaceId, int topK) {
-        if (safeQuery.isBlank() || !resourceGuardService.localEmbeddingAllowed()) {
+    private List<ReferenceCandidate> denseCandidates(String safeQuery, Long spaceId, int topK, List<Long> visibleSpaceIds) {
+        if (safeQuery.isBlank()
+                || !resourceGuardService.localEmbeddingAllowed()
+                || visibleSpaceIds != null && visibleSpaceIds.isEmpty()) {
             return List.of();
         }
         List<Double> queryVector = embeddingClient.embedQuery(safeQuery);
         if (queryVector.isEmpty()) {
             return List.of();
         }
-        return qdrantVectorStore.search(queryVector, spaceId, Math.max(1, topK))
+        Long qdrantSpaceId = visibleSpaceIds != null && visibleSpaceIds.size() == 1 ? visibleSpaceIds.get(0) : spaceId;
+        int qdrantTopK = visibleSpaceIds == null ? Math.max(1, topK) : Math.max(topK * 8, topK + 20);
+        return qdrantVectorStore.search(queryVector, qdrantSpaceId, Math.max(1, qdrantTopK))
                 .stream()
                 .map(result -> candidateFromPayload(result.pointId(), result.score(), result.payload(), safeQuery))
                 .filter(Objects::nonNull)
+                .filter(candidate -> visibleSpaceIds == null || visibleSpaceIds.contains(candidate.spaceId()))
+                .limit(Math.max(1, topK))
                 .toList();
     }
 
@@ -264,18 +293,21 @@ public class AiKnowledgeIndexService {
         );
     }
 
-    private List<ReferenceCandidate> keywordCandidates(String safeQuery, Long spaceId, int topK) {
+    private List<ReferenceCandidate> keywordCandidates(String safeQuery, int topK, List<Long> visibleSpaceIds) {
+        if (visibleSpaceIds != null && visibleSpaceIds.isEmpty()) {
+            return List.of();
+        }
         List<KnowledgeDoc> docs = docMapper.selectList(new LambdaQueryWrapper<KnowledgeDoc>()
                 .eq(KnowledgeDoc::getDeleted, 0)
                 .eq(KnowledgeDoc::getDocStatus, "PUBLISHED")
-                .eq(spaceId != null, KnowledgeDoc::getSpaceId, spaceId)
+                .in(visibleSpaceIds != null, KnowledgeDoc::getSpaceId, visibleSpaceIds)
                 .orderByDesc(KnowledgeDoc::getUpdatedAt)
                 .last("LIMIT 80"));
         if (docs.isEmpty()) {
             return List.of();
         }
         enqueueMissingIndexes(docs);
-        log.debug("RAG关键词检索 spaceId={} topK={} 候选文档数={}", spaceId, topK, docs.size());
+        log.debug("RAG关键词检索 spaces={} topK={} 候选文档数={}", visibleSpaceIds == null ? "all" : visibleSpaceIds, topK, docs.size());
         Map<Long, KnowledgeDoc> docMap = docs.stream().collect(Collectors.toMap(KnowledgeDoc::getId, Function.identity()));
         Map<Long, KnowledgeSpace> spaceMap = loadSpaces(docs);
         List<AiEmbedding> embeddings = embeddingMapper.selectList(new LambdaQueryWrapper<AiEmbedding>()
@@ -485,6 +517,9 @@ public class AiKnowledgeIndexService {
         payload.put("title", doc.getTitle());
         payload.put("spaceId", doc.getSpaceId());
         payload.put("spaceName", space == null ? null : space.getSpaceName());
+        payload.put("teamId", space == null ? null : space.getTeamId());
+        payload.put("visibility", space == null ? null : space.getVisibility());
+        payload.put("ownerId", space == null ? null : space.getOwnerId());
         payload.put("versionNo", doc.getVersionNo());
         payload.put("chunkIndex", embedding.getChunkIndex());
         payload.put("chunkText", embedding.getChunkText());
@@ -492,6 +527,56 @@ public class AiKnowledgeIndexService {
         payload.put("contentHash", contentHash);
         payload.put("updatedAt", doc.getUpdatedAt() == null ? null : doc.getUpdatedAt().toString());
         return payload;
+    }
+
+    private RagSearchScope searchScope(Long userId) {
+        if (userId == null) {
+            return RagSearchScope.anonymous();
+        }
+        if (permissionQueryService != null
+                && permissionQueryService.listRoleCodes(userId).contains(SUPER_ADMIN_ROLE)) {
+            return RagSearchScope.unrestricted(userId);
+        }
+        Set<Long> teamIds = new LinkedHashSet<>();
+        if (teamMemberMapper != null) {
+            teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
+                            .eq(TeamMember::getDeleted, 0)
+                            .eq(TeamMember::getStatus, 1)
+                            .eq(TeamMember::getUserId, userId))
+                    .stream()
+                    .map(TeamMember::getTeamId)
+                    .filter(Objects::nonNull)
+                    .forEach(teamIds::add);
+        }
+        if (teamMapper != null) {
+            teamMapper.selectList(new LambdaQueryWrapper<Team>()
+                            .eq(Team::getDeleted, 0)
+                            .eq(Team::getStatus, 1)
+                            .eq(Team::getOwnerId, userId))
+                    .stream()
+                    .map(Team::getId)
+                    .filter(Objects::nonNull)
+                    .forEach(teamIds::add);
+        }
+        return new RagSearchScope(userId, false, teamIds);
+    }
+
+    /**
+     * 返回 null 表示无限制；返回空集合表示当前用户没有可检索空间。
+     */
+    private List<Long> visibleSpaceIds(RagSearchScope scope, Long requestedSpaceId) {
+        if (scope.unrestricted()) {
+            return requestedSpaceId == null ? null : List.of(requestedSpaceId);
+        }
+        List<KnowledgeSpace> spaces = spaceMapper.selectList(new LambdaQueryWrapper<KnowledgeSpace>()
+                .eq(KnowledgeSpace::getDeleted, 0)
+                .eq(requestedSpaceId != null, KnowledgeSpace::getId, requestedSpaceId));
+        return spaces.stream()
+                .filter(scope::canAccess)
+                .map(KnowledgeSpace::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     private Map<Long, KnowledgeSpace> loadSpaces(List<KnowledgeDoc> docs) {

@@ -356,6 +356,22 @@ CREATE TABLE IF NOT EXISTS `ai_message` (
   KEY `idx_session_id` (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ai_message';
 
+CREATE TABLE IF NOT EXISTS `ai_message_feedback` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'PK',
+  `message_id` BIGINT NOT NULL COMMENT 'AI消息ID',
+  `user_id` BIGINT NOT NULL COMMENT '反馈用户ID',
+  `rating` TINYINT NOT NULL COMMENT '1-5评分',
+  `reason` VARCHAR(64) DEFAULT NULL COMMENT 'HELPFUL/NOT_HELPFUL/BAD_REFERENCE/OUTDATED等',
+  `expected_doc_id` BIGINT DEFAULT NULL COMMENT '期望命中文档ID',
+  `comment` VARCHAR(1000) DEFAULT NULL COMMENT '补充说明',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_message_user` (`message_id`, `user_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_rating` (`rating`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ai_message_feedback';
+
 CREATE TABLE IF NOT EXISTS `ai_embedding` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'PK',
   `doc_id` BIGINT DEFAULT NULL COMMENT '文档ID',

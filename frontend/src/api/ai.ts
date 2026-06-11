@@ -40,6 +40,25 @@ export interface AiMessageItem {
   createdAt?: string
 }
 
+export interface AiMessageFeedbackRequest {
+  rating: number
+  reason?: 'HELPFUL' | 'NOT_HELPFUL' | 'BAD_REFERENCE' | 'OUTDATED'
+  expectedDocId?: number
+  comment?: string
+}
+
+export interface AiMessageFeedbackItem {
+  id: number
+  messageId: number
+  userId: number
+  rating: number
+  reason?: string
+  expectedDocId?: number
+  comment?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface AiChatResponse {
   session: AiSessionItem
   userMessage: AiMessageItem
@@ -114,8 +133,16 @@ export interface AiChatPayload {
   message: string
 }
 
-export function aiChatApi(data: AiChatPayload) {
-  return http.post<unknown, AiChatResponse>('/ai/chat/stream', data)
+export function aiKnowledgeAskApi(data: AiChatPayload) {
+  return http.post<unknown, AiChatResponse>('/ai/knowledge/ask', {
+    ...data,
+    mode: 'KNOWLEDGE',
+    useKnowledge: true,
+  })
+}
+
+export function aiMessageFeedbackApi(messageId: number, data: AiMessageFeedbackRequest) {
+  return http.post<unknown, AiMessageFeedbackItem>(`/ai-messages/${messageId}/feedback`, data)
 }
 
 export async function aiChatStreamApi(

@@ -1,13 +1,18 @@
 package com.teamflow.ai.modules.ai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.teamflow.ai.common.cache.DashboardCacheService;
 import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.common.security.DemoAccountConstants;
 import com.teamflow.ai.modules.ai.dto.AiChatRequest;
 import com.teamflow.ai.modules.ai.dto.AiChatResponse;
+import com.teamflow.ai.modules.ai.dto.AiMessageFeedbackRequest;
+import com.teamflow.ai.modules.ai.dto.AiMessageFeedbackItem;
 import com.teamflow.ai.modules.ai.entity.AiMessage;
+import com.teamflow.ai.modules.ai.entity.AiMessageFeedback;
 import com.teamflow.ai.modules.ai.entity.AiSession;
 import com.teamflow.ai.modules.ai.mapper.AiEmbeddingMapper;
+import com.teamflow.ai.modules.ai.mapper.AiMessageFeedbackMapper;
 import com.teamflow.ai.modules.ai.mapper.AiMessageMapper;
 import com.teamflow.ai.modules.ai.mapper.AiSessionMapper;
 import com.teamflow.ai.modules.ai.provider.AiProperties;
@@ -114,15 +119,49 @@ class AiServiceTest {
         verify(fixture.messageMapper, never()).insert(any(AiMessage.class));
     }
 
+    @Test
+    void feedbackMessageUpsertsOwnAssistantMessageFeedback() {
+        ServiceFixture fixture = new ServiceFixture();
+        AiSession session = new AiSession();
+        session.setId(7L);
+        session.setUserId(3L);
+        session.setDeleted(0);
+        AiMessage message = new AiMessage();
+        message.setId(101L);
+        message.setSessionId(7L);
+        message.setRole("ASSISTANT");
+        when(fixture.sessionMapper.selectById(7L)).thenReturn(session);
+        when(fixture.messageMapper.selectById(101L)).thenReturn(message);
+        when(fixture.messageFeedbackMapper.insert(any(AiMessageFeedback.class))).thenAnswer(invocation -> {
+            AiMessageFeedback feedback = invocation.getArgument(0);
+            feedback.setId(1001L);
+            return 1;
+        });
+
+        AiMessageFeedbackItem feedback = fixture.service.feedbackMessage(
+                101L,
+                new AiMessageFeedbackRequest(2, "BAD_REFERENCE", 9L, "引用不准确"),
+                3L);
+
+        assertThat(feedback.id()).isEqualTo(1001L);
+        assertThat(feedback.messageId()).isEqualTo(101L);
+        assertThat(feedback.rating()).isEqualTo(2);
+        assertThat(feedback.reason()).isEqualTo("BAD_REFERENCE");
+        assertThat(feedback.expectedDocId()).isEqualTo(9L);
+        verify(fixture.messageFeedbackMapper).insert(any(AiMessageFeedback.class));
+    }
+
     private static class ServiceFixture {
         private final AiSessionMapper sessionMapper = mock(AiSessionMapper.class);
         private final AiMessageMapper messageMapper = mock(AiMessageMapper.class);
+        private final AiMessageFeedbackMapper messageFeedbackMapper = mock(AiMessageFeedbackMapper.class);
         private final AiEmbeddingMapper embeddingMapper = mock(AiEmbeddingMapper.class);
         private final KnowledgeSpaceMapper spaceMapper = mock(KnowledgeSpaceMapper.class);
         private final SysUserMapper userMapper = mock(SysUserMapper.class);
         private final AiProvider aiProvider = mock(AiProvider.class);
+        private final DashboardCacheService dashboardCacheService = mock(DashboardCacheService.class);
         private final AiKnowledgeIndexService knowledgeIndexService = new AiKnowledgeIndexService(
-                null, null, null, null, null, new RagProperties(), null, null, null);
+                null, null, null, null, null, null, null, null, new RagProperties(), null, null, null);
         private final RecordingDemoAiQuotaService demoAiQuotaService = new RecordingDemoAiQuotaService();
         private final AiProperties properties = new AiProperties();
         private final List<AiSession> sessions = new ArrayList<>();
@@ -140,6 +179,7 @@ class AiServiceTest {
             service = new AiService(
                     sessionMapper,
                     messageMapper,
+                    messageFeedbackMapper,
                     embeddingMapper,
                     spaceMapper,
                     userMapper,
@@ -148,8 +188,7 @@ class AiServiceTest {
                     new ObjectMapper(),
                     knowledgeIndexService,
                     demoAiQuotaService,
-                    new com.teamflow.ai.common.cache.DashboardCacheService(
-                            new com.teamflow.ai.common.cache.JsonCacheService(null))
+                    dashboardCacheService
             );
         }
 

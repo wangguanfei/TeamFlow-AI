@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AiKnowledgeIndexServiceTest {
 
     private final AiKnowledgeIndexService service = new AiKnowledgeIndexService(
-            null, null, null, null, null, new RagProperties(), null, null, null);
+            null, null, null, null, null, null, null, null, new RagProperties(), null, null, null);
 
     @SuppressWarnings("unchecked")
     private <T> T invoke(String name, Class<?>[] paramTypes, Object... args) {
