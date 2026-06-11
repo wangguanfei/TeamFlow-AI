@@ -9,6 +9,8 @@
 #      lockfile 是 9.0 格式 → 固定 pnpm@9
 #   4. build-geo 从 raw.githubusercontent.com 下载 GeoLite2 且无超时，会永久挂起
 #      → 预置 geo/GeoLite2-City.mmdb 后跳过该步骤，runner 阶段显式 COPY
+#   5. cypress postinstall 从 download.cypress.io 下载 ~200MB 二进制（构建用不到）
+#      → CYPRESS_INSTALL_BINARY=0 跳过
 #
 # 用法（幂等，可重复执行刷新补丁）：
 #   git clone --depth 1 --branch v2.20.2 git@github.com:umami-software/umami.git umami-src
@@ -33,7 +35,7 @@ PJ=umami-src/package.json
 [ -f "$PJ.bak" ] && cp "$PJ.bak" "$PJ"
 
 sed -i.bak \
-  -e 's#^FROM node:22-alpine AS deps$#&\nENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma#' \
+  -e 's#^FROM node:22-alpine AS deps$#&\nENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma\nENV CYPRESS_INSTALL_BINARY=0#' \
   -e 's#^FROM node:22-alpine AS builder$#&\nENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma#' \
   -e 's#RUN npm install -g pnpm#RUN npm config set registry https://mirrors.cloud.tencent.com/npm/ \&\& npm install -g pnpm@9#g' \
   -e 's#^COPY --from=builder /app/scripts ./scripts$#&\nCOPY --from=builder --chown=nextjs:nodejs /app/geo ./geo#' \
