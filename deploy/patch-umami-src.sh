@@ -5,6 +5,8 @@
 #       （如 intl-messageformat-parser-5.5.1 报 ERR_PNPM_TARBALL_INTEGRITY），
 #       故 npm registry 用腾讯云镜像（透明代理官方 tarball，字节一致），
 #       prisma engine 二进制仍走 npmmirror（腾讯镜像无此产物）。
+#       另：Dockerfile 装的是最新 pnpm，pnpm 10 默认拒绝依赖的 build scripts
+#       （ERR_PNPM_IGNORED_BUILDS），lockfile 是 9.0 格式，固定 pnpm@9。
 # 用法：clone umami 源码后执行（幂等，可重复执行刷新补丁）：
 #   git clone --depth 1 --branch v2.20.2 git@github.com:umami-software/umami.git umami-src
 #   bash deploy/patch-umami-src.sh
@@ -19,7 +21,7 @@ DF=umami-src/Dockerfile
 sed -i.bak \
   -e 's#^FROM node:22-alpine AS deps$#&\nENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma#' \
   -e 's#^FROM node:22-alpine AS builder$#&\nENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma#' \
-  -e 's#RUN npm install -g pnpm#RUN npm config set registry https://mirrors.cloud.tencent.com/npm/ \&\& npm install -g pnpm#g' \
+  -e 's#RUN npm install -g pnpm#RUN npm config set registry https://mirrors.cloud.tencent.com/npm/ \&\& npm install -g pnpm@9#g' \
   "$DF"
 
 echo "补丁完成，diff："
