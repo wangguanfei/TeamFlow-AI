@@ -461,11 +461,16 @@ CREATE TABLE IF NOT EXISTS `notification` (
   `target_type` VARCHAR(32) DEFAULT NULL COMMENT 'USER/TEAM/PROJECT',
   `target_id` BIGINT DEFAULT NULL COMMENT '目标ID',
   `sender_id` BIGINT DEFAULT NULL COMMENT '发送人',
+  `biz_type` VARCHAR(32) DEFAULT NULL COMMENT '业务类型',
+  `biz_id` BIGINT DEFAULT NULL COMMENT '业务ID',
+  `biz_time` DATETIME DEFAULT NULL COMMENT '业务时间',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除',
   PRIMARY KEY (`id`),
   KEY `idx_target_id` (`target_id`),
-  KEY `idx_sender_id` (`sender_id`)
+  KEY `idx_sender_id` (`sender_id`),
+  KEY `idx_biz` (`biz_type`, `biz_id`),
+  KEY `idx_biz_time` (`biz_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='notification';
 
 CREATE TABLE IF NOT EXISTS `notification_read` (

@@ -31,20 +31,34 @@
             <el-icon><Bell /></el-icon>
           </span>
           <span class="notification-item__main">
-            <strong>{{ item.title }}</strong>
+            <span class="notification-item__heading">
+              <strong>{{ item.title }}</strong>
+              <span v-if="isTaskNotification(item)" class="notification-item__task-time" :class="{ 'is-empty': !item.bizTime }">
+                <el-icon><Calendar /></el-icon>
+                <span>任务时间</span>
+                <b>{{ formatDate(item.bizTime) }}</b>
+              </span>
+            </span>
             <small>{{ item.content || '暂无内容' }}</small>
             <span class="notification-item__meta">
               <el-tag size="small" :type="tagType(item.notifyType)">{{ typeLabel(item.notifyType) }}</el-tag>
               <span>{{ item.senderName || '系统' }}</span>
-              <span>{{ formatDate(item.createdAt) }}</span>
+              <span v-if="taskReference(item)">{{ taskReference(item) }}</span>
             </span>
           </span>
-          <span class="notification-item__actions">
-            <el-tag v-if="!item.read" size="small" type="danger">未读</el-tag>
-            <el-tag v-else size="small" type="info">已读</el-tag>
-            <PermissionButton permission="notification:delete" text type="danger" @click.stop="removeNotification(item)">
-              删除
-            </PermissionButton>
+          <span class="notification-item__side">
+            <span class="notification-item__message-time">
+              <el-icon><Clock /></el-icon>
+              <span>消息时间</span>
+              <b>{{ formatDate(item.createdAt) }}</b>
+            </span>
+            <span class="notification-item__actions">
+              <el-tag v-if="!item.read" size="small" type="danger">未读</el-tag>
+              <el-tag v-else size="small" type="info">已读</el-tag>
+              <PermissionButton permission="notification:delete" text type="danger" @click.stop="removeNotification(item)">
+                删除
+              </PermissionButton>
+            </span>
           </span>
         </button>
         <el-empty v-if="!loading && notifications.length === 0" description="暂无通知" />
@@ -67,7 +81,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Check, Refresh, Search } from '@element-plus/icons-vue'
+import { Bell, Calendar, Check, Clock, Refresh, Search } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
 import PermissionButton from '@/components/PermissionButton.vue'
 import {
@@ -145,16 +159,28 @@ function typeLabel(type: string) {
     SYSTEM: '系统',
     PROJECT: '项目',
     TASK: '任务',
+    COMMENT: '评论',
     AI: 'AI'
   }
   return map[type] || type
 }
 
 function tagType(type: string) {
-  if (type === 'TASK') return 'warning'
+  if (type === 'TASK' || type === 'COMMENT') return 'warning'
   if (type === 'AI') return 'success'
   if (type === 'PROJECT') return 'primary'
   return 'info'
+}
+
+function isTaskNotification(item: NotificationItem) {
+  return item.bizType === 'TASK' || item.notifyType === 'TASK' || item.notifyType === 'COMMENT'
+}
+
+function taskReference(item: NotificationItem) {
+  if (item.bizType !== 'TASK' || !item.bizId) {
+    return ''
+  }
+  return `任务 #${item.bizId}`
 }
 
 function formatDate(value?: string) {
@@ -237,14 +263,22 @@ function formatDate(value?: string) {
   flex: 1;
 }
 
+.notification-item__heading,
 .notification-item__main strong,
 .notification-item__main small {
   display: block;
 }
 
+.notification-item__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
 .notification-item__main strong {
   overflow: hidden;
-  margin-bottom: 4px;
   font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -261,6 +295,7 @@ function formatDate(value?: string) {
 }
 
 .notification-item__meta,
+.notification-item__side,
 .notification-item__actions {
   display: flex;
   align-items: center;
@@ -278,10 +313,71 @@ function formatDate(value?: string) {
   justify-content: flex-end;
 }
 
+.notification-item__side {
+  width: 188px;
+  flex: 0 0 188px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.notification-item__task-time,
+.notification-item__message-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  color: var(--tf-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.notification-item__task-time {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.notification-item__task-time.is-empty {
+  background: #f8fafc;
+  color: var(--tf-muted);
+}
+
+.notification-item__message-time {
+  justify-content: flex-end;
+  color: var(--tf-muted);
+}
+
+.notification-item__task-time b,
+.notification-item__message-time b {
+  font-weight: 600;
+  color: var(--tf-text);
+}
+
 @media (max-width: 760px) {
   .notification-toolbar,
   .notification-item {
     flex-direction: column;
+  }
+
+  .notification-item__heading,
+  .notification-item__side {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .notification-item__heading {
+    flex-direction: column;
+  }
+
+  .notification-item__side {
+    flex-basis: auto;
+  }
+
+  .notification-item__message-time {
+    justify-content: flex-start;
   }
 
   .notification-item__actions {

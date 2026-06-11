@@ -18,6 +18,9 @@ public class Notification {
     private String targetType;
     private Long targetId;
     private Long senderId;
+    private String bizType;
+    private Long bizId;
+    private LocalDateTime bizTime;
     private LocalDateTime createdAt;
     @TableLogic
     private Integer deleted;
@@ -36,6 +39,12 @@ public class Notification {
     public void setTargetId(Long targetId) { this.targetId = targetId; }
     public Long getSenderId() { return senderId; }
     public void setSenderId(Long senderId) { this.senderId = senderId; }
+    public String getBizType() { return bizType; }
+    public void setBizType(String bizType) { this.bizType = bizType; }
+    public Long getBizId() { return bizId; }
+    public void setBizId(Long bizId) { this.bizId = bizId; }
+    public LocalDateTime getBizTime() { return bizTime; }
+    public void setBizTime(LocalDateTime bizTime) { this.bizTime = bizTime; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public Integer getDeleted() { return deleted; }

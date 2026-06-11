@@ -723,6 +723,7 @@ public class TaskService {
             return;
         }
         createNotification(
+                task,
                 targetUserId,
                 senderId,
                 title,
@@ -736,6 +737,7 @@ public class TaskService {
                 .filter(targetUserId -> targetUserId != null && !targetUserId.equals(senderId))
                 .distinct()
                 .forEach(targetUserId -> createNotification(
+                        task,
                         targetUserId,
                         senderId,
                         "你被分配为任务执行人",
@@ -755,6 +757,7 @@ public class TaskService {
         targetUserIds.addAll(listExecutorIds(task.getId()));
         targetUserIds.remove(senderId);
         targetUserIds.forEach(targetUserId -> createNotification(
+                task,
                 targetUserId,
                 senderId,
                 "任务有新评论",
@@ -763,13 +766,32 @@ public class TaskService {
         ));
     }
 
-    private void createNotification(Long targetUserId, Long senderId, String title, String content, String notifyType) {
+    private void createNotification(Task task, Long targetUserId, Long senderId, String title, String content, String notifyType) {
         try {
-            notificationService.create(new NotificationRequest(title, content, notifyType, "USER", targetUserId), senderId);
+            notificationService.create(new NotificationRequest(
+                    title,
+                    content,
+                    notifyType,
+                    "USER",
+                    targetUserId,
+                    "TASK",
+                    task.getId(),
+                    taskBizTime(task)
+            ), senderId);
         } catch (Exception ex) {
             // 通知属于辅助链路，不能影响任务创建、编辑或评论主流程，失败仅记录。
             log.debug("发送任务通知失败（忽略）targetUserId={} type={} 原因={}", targetUserId, notifyType, ex.getMessage());
         }
+    }
+
+    private LocalDateTime taskBizTime(Task task) {
+        if (task.getDueTime() != null) {
+            return task.getDueTime();
+        }
+        if (task.getUpdatedAt() != null) {
+            return task.getUpdatedAt();
+        }
+        return task.getCreatedAt();
     }
 
     private String statusTitle(String status) {

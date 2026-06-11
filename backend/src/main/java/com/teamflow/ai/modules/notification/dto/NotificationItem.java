@@ -11,6 +11,9 @@ public record NotificationItem(
         Long targetId,
         Long senderId,
         String senderName,
+        String bizType,
+        Long bizId,
+        LocalDateTime bizTime,
         boolean read,
         LocalDateTime readTime,
         LocalDateTime createdAt

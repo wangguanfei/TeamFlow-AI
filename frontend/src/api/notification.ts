@@ -10,6 +10,9 @@ export interface NotificationItem {
   targetId?: number
   senderId?: number
   senderName?: string
+  bizType?: string
+  bizId?: number
+  bizTime?: string
   read: boolean
   readTime?: string
   createdAt?: string
@@ -21,6 +24,9 @@ export interface NotificationForm {
   notifyType?: string
   targetType?: string
   targetId?: number
+  bizType?: string
+  bizId?: number
+  bizTime?: string
 }
 
 export function notificationPageApi(params: { page?: number; size?: number; keyword?: string; unreadOnly?: boolean }) {

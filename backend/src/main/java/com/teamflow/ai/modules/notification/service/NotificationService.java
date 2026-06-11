@@ -61,6 +61,9 @@ public class NotificationService {
             throw new BusinessException("用户通知必须指定目标用户");
         }
         notification.setSenderId(senderId);
+        notification.setBizType(defaultNullableValue(request.bizType()));
+        notification.setBizId(request.bizId());
+        notification.setBizTime(request.bizTime());
         notification.setCreatedAt(LocalDateTime.now());
         notification.setDeleted(0);
         notificationMapper.insert(notification);
@@ -219,6 +222,9 @@ public class NotificationService {
                             notification.getTargetId(),
                             notification.getSenderId(),
                             senderName,
+                            notification.getBizType(),
+                            notification.getBizId(),
+                            notification.getBizTime(),
                             read != null,
                             read == null ? null : read.getReadTime(),
                             notification.getCreatedAt()
@@ -229,5 +235,9 @@ public class NotificationService {
 
     private String defaultValue(String value, String defaultValue) {
         return value == null || value.isBlank() ? defaultValue : value.trim().toUpperCase();
+    }
+
+    private String defaultNullableValue(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toUpperCase();
     }
 }
