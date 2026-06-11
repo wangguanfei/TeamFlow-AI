@@ -169,9 +169,11 @@ services:
       start_period: 10s
 
   umami:
-    # Next.js 的 BASE_PATH 是编译期注入，官方镜像写死根路径，子路径部署必须自构建
+    # Next.js 的 BASE_PATH 是编译期注入，官方镜像写死根路径，子路径部署必须自构建。
+    # 服务器 HTTPS 连不上 GitHub，构建前需先用 SSH clone 源码：
+    #   git clone --depth 1 --branch v2.20.2 git@github.com:umami-software/umami.git umami-src
     build:
-      context: https://github.com/umami-software/umami.git#v2.20.2
+      context: ./umami-src
       args:
         DATABASE_TYPE: mysql
         BASE_PATH: /umami
