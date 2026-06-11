@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex 能力检索台</title>
+  <script defer src="http://81.69.248.152:8091/script.js" data-website-id="0d856dd6-4287-44b2-a4d4-4f2420920041"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-strong: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #d9e2ec;
+      --line-strong: #c6d3df;
+      --green: #047857;
+      --green-soft: #ecfdf5;
+      --blue: #2563eb;
+      --blue-soft: #e9f0ff;
+      --amber: #b7791f;
+      --amber-soft: #fff5dd;
+      --red: #b42318;
+      --red-soft: #fff0ed;
+      --purple: #6d28d9;
+      --purple-soft: #f3f0ff;
+      --cyan: #0369a1;
+      --cyan-soft: #e8f4ff;
+      --shadow: 0 18px 48px rgba(20, 37, 63, .12);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      letter-spacing: 0;
+    }
+    button, input { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      flex: 0 0 auto;
+      color: var(--green);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      color: #111827;
+    }
+    .brand p {
+      margin: 5px 0 0;
+      color: var(--muted);
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .text-btn, .icon-btn {
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: #344054;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .text-btn {
+      gap: 6px;
+      padding: 0 12px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .icon-btn {
+      width: 40px;
+      padding: 0;
+    }
+    .text-btn:hover, .icon-btn:hover, .icon-btn.active {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-soft);
+      text-decoration: none;
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: 304px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .rail, .main-panel, .search-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .rail {
+      position: sticky;
+      top: 18px;
+      padding: 16px;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--panel-strong);
+    }
+    .stat b {
+      display: block;
+      font-size: 22px;
+      line-height: 1.1;
+      color: #111827;
+    }
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .section-title {
+      margin: 18px 0 10px;
+      font-size: 13px;
+      color: #475467;
+      font-weight: 700;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      min-height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #344054;
+      padding: 6px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .chip:hover, .chip.active {
+      border-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green);
+    }
+    .note {
+      margin: 16px 0 0;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--amber-soft);
+      color: #614700;
+      border: 1px solid #f2d891;
+      font-size: 13px;
+    }
+    .note a {
+      color: #7c4a03;
+      font-weight: 700;
+      text-decoration: underline;
+    }
+    .main-panel { overflow: hidden; }
+    .search-panel {
+      box-shadow: none;
+      border-width: 0 0 1px;
+      border-radius: 0;
+      padding: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .search-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .search-box {
+      position: relative;
+    }
+    .search-box svg {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #667085;
+      pointer-events: none;
+    }
+    #searchInput {
+      width: 100%;
+      height: 46px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 0 14px 0 42px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+    #searchInput:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(4, 120, 87, .14);
+    }
+    .result-meta {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .type-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .type-tab {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 34px;
+      padding: 6px 10px;
+      background: #fff;
+      color: #344054;
+      cursor: pointer;
+    }
+    .type-tab.active {
+      background: #111827;
+      color: #fff;
+      border-color: #111827;
+    }
+    .results {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 12px;
+    }
+    .results.list {
+      grid-template-columns: 1fr;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      min-height: 244px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+    }
+    .list .card { min-height: 0; }
+    .card-head {
+      padding: 13px 14px 10px;
+      border-bottom: 1px solid #edf1f5;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+    }
+    .name {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge.surface { color: var(--green); background: var(--green-soft); }
+    .badge.workflow { color: var(--blue); background: var(--blue-soft); }
+    .badge.skill { color: var(--purple); background: var(--purple-soft); }
+    .badge.plugin { color: var(--cyan); background: var(--cyan-soft); }
+    .badge.mcp { color: var(--amber); background: var(--amber-soft); }
+    .badge.hook { color: var(--red); background: var(--red-soft); }
+    .badge.config { color: #475467; background: #eef2f6; }
+    .badge.command { color: #0f766e; background: #dcfce7; }
+    .badge.automation { color: #854d0e; background: #fef3c7; }
+    .badge.security { color: #991b1b; background: #fee2e2; }
+    .card-body {
+      padding: 12px 14px;
+    }
+    .purpose, .when {
+      margin: 0;
+      color: #344054;
+    }
+    .when {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .tag-row {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .tag {
+      font-size: 12px;
+      color: #475467;
+      background: #f2f4f7;
+      border: 1px solid #e4e7ec;
+      border-radius: 999px;
+      padding: 2px 7px;
+    }
+    .card-foot {
+      padding: 12px 14px 14px;
+      border-top: 1px solid #edf1f5;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      background: #fbfcfd;
+    }
+    .example {
+      margin: 0;
+      color: #475467;
+      font-size: 13px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .copy-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: #344054;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-soft);
+    }
+    .empty {
+      grid-column: 1 / -1;
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      padding: 48px 16px;
+      text-align: center;
+      color: var(--muted);
+      background: #fff;
+    }
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      padding: 10px 12px;
+      background: #111827;
+      color: #fff;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity .16s ease, transform .16s ease;
+      z-index: 20;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (max-width: 940px) {
+      .page { padding: 16px; }
+      .topbar { grid-template-columns: 1fr; }
+      .toolbar { justify-content: flex-start; }
+      .shell { grid-template-columns: 1fr; }
+      .rail { position: static; }
+      .search-panel { position: static; }
+    }
+    @media (max-width: 560px) {
+      .brand { align-items: flex-start; }
+      .brand-mark { width: 42px; height: 42px; }
+      .brand h1 { font-size: 20px; }
+      .search-row { grid-template-columns: 1fr; }
+      .result-meta { white-space: normal; }
+      .results { grid-template-columns: 1fr; padding: 12px; }
+      .card-foot { grid-template-columns: 1fr auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="7" y="8" width="50" height="48" rx="8" fill="currentColor" opacity=".12"></rect>
+          <path d="M18 22h28M18 32h20M18 42h28" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"></path>
+          <path d="M45 18l6 6-6 6M43 38l6 6-6 6" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <div>
+          <h1>Codex 能力检索台</h1>
+          <p>按项目开发流程检索 Codex 的插件、MCP、Hooks、技能、命令和工作模式</p>
+        </div>
+      </div>
+      <div class="toolbar" aria-label="页面与视图工具">
+        <a class="text-btn" href="Codex-Tutorial.html" title="Codex 使用教程">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          Codex 教程
+        </a>
+        <a class="text-btn" href="Claude-Code-Skill-Finder.html" title="Claude Code 能力检索台">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          Claude 检索
+        </a>
+        <a class="text-btn" href="Claude-Code-Tutorial.html" title="Claude Code 实战教程">
+          Claude 教程
+        </a>
+        <button class="icon-btn active" id="gridBtn" title="卡片视图" aria-label="卡片视图">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" id="listBtn" title="列表视图" aria-label="列表视图">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="icon-btn" id="resetBtn" title="清空筛选" aria-label="清空筛选">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7H4M18 7l-1 13H7L6 7M10 11v6M14 11v6M9 7V4h6v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="rail">
+        <div class="stat-grid" id="statGrid"></div>
+        <div class="section-title">常见场景</div>
+        <div class="chips" id="tagChips"></div>
+        <div class="note">
+          数据快照：2026-06-11<br>
+          基于 OpenAI Codex 官方手册、当前 Codex Desktop 插件能力和项目开发常见流程整理。需要实时能力时，以当前会话可用工具和 <a href="https://developers.openai.com/codex/codex-manual.md" target="_blank" rel="noreferrer">官方手册</a> 为准。
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <section class="search-panel">
+          <div class="search-row">
+            <label class="search-box">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m21 21-4.3-4.3M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <input id="searchInput" autocomplete="off" placeholder="搜索 Codex 能力、插件、MCP、Hooks、场景或关键词">
+            </label>
+            <div class="result-meta" id="resultMeta"></div>
+          </div>
+          <div class="type-tabs" id="typeTabs" aria-label="类别筛选"></div>
+        </section>
+        <section class="results" id="results" aria-live="polite"></section>
+      </main>
+    </div>
+  </div>
+  <div class="toast" id="toast">已复制使用示例</div>
+
+  <script>
+    const ITEMS = [
+      { type: "surface", typeLabel: "入口", name: "Codex Desktop App", purpose: "桌面端多线程协作入口，适合本地项目、工作树、云任务、浏览器验证、插件和自动化管理。", when: "项目开发主工作台，尤其适合边改边验和多任务并行。", example: "打开当前项目，让 Codex 在 Local 模式完成这个功能，并在浏览器里验证结果。", tags: ["项目初始化", "编码", "测试", "Git", "桌面"] },
+      { type: "surface", typeLabel: "入口", name: "Codex CLI", purpose: "终端优先的本地编码代理，可读写文件、运行命令、管理 MCP、插件、hooks 和会话。", when: "适合习惯终端、需要脚本化、远程 SSH 或非交互执行的开发者。", example: "codex --cd /path/to/repo --sandbox workspace-write --ask-for-approval on-request", tags: ["命令", "编码", "测试", "配置"] },
+      { type: "surface", typeLabel: "入口", name: "Codex IDE Extension", purpose: "把编辑器打开文件、选区和诊断带入 Codex 上下文，适合在 VS Code 或 JetBrains 内就地协作。", when: "处理当前文件、局部重构、解释编辑器选区和快速修复时使用。", example: "把 IDE 当前选中的组件作为上下文，请 Codex 修复这个渲染问题。", tags: ["编码", "前端", "上下文", "桌面"] },
+      { type: "surface", typeLabel: "入口", name: "Codex Cloud", purpose: "在云端容器里执行任务，支持环境设置、依赖安装、PR 修复和后台工作。", when: "适合耗时任务、CI 修复、PR 跟进或不想阻塞本机的工作。", example: "@codex fix the CI failures", tags: ["云端", "测试", "协作", "部署"] },
+      { type: "workflow", typeLabel: "流程", name: "需求澄清", purpose: "让 Codex 先收敛目标、上下文、约束和完成标准，避免直接进入错误实现。", when: "需求模糊、跨模块改动、业务规则不完整时。", example: "先问我最多 5 个关键问题，把需求收敛成可执行清单，暂时不要改代码。", tags: ["规划", "项目初始化", "技巧"] },
+      { type: "workflow", typeLabel: "流程", name: "计划模式 /plan", purpose: "切换到规划优先的工作方式，让 Codex 先读代码、识别风险、给出步骤，再进入实现。", when: "复杂功能、架构调整、大规模重构、迁移和风险较高的任务。", example: "/plan 为这个支付回调幂等改造制定实现计划，包含文件、测试和回滚点。", tags: ["规划", "命令", "安全"] },
+      { type: "workflow", typeLabel: "流程", name: "目标模式 /goal", purpose: "给 Codex 一个持续目标，让它跨多个动作保持完成条件和当前状态。", when: "需要持续推进到测试通过、部署完成或问题闭环的任务。", example: "/goal 完成登录重构，保持现有测试通过，并只修改 auth 相关文件。", tags: ["规划", "上下文", "自动化"] },
+      { type: "workflow", typeLabel: "流程", name: "执行优先开发", purpose: "让 Codex 直接改代码、运行验证、根据结果继续修正，直到满足完成标准。", when: "需求明确且代码范围可控时。", example: "修复这个分页 bug，改完直接运行相关单测和前端页面验证。", tags: ["编码", "测试", "验证"] },
+      { type: "workflow", typeLabel: "流程", name: "TDD 工作流", purpose: "先补失败测试，再写实现，最后回归验证，降低 AI 生成代码的假正确风险。", when: "业务逻辑、并发、金额、权限、数据转换等高风险代码。", example: "先为 CouponService.applyCoupon 写失败测试，再实现让测试通过。", tags: ["测试", "后端", "安全"] },
+      { type: "workflow", typeLabel: "流程", name: "变更审查", purpose: "以 code review 姿态检查 diff，优先找 bug、回归、缺测和安全风险。", when: "提交前、合并前、AI 改完后或多人协作前。", example: "/review 审查当前工作区改动，按严重程度列出问题。", tags: ["评审", "Git", "安全"] },
+      { type: "workflow", typeLabel: "流程", name: "提交与 PR", purpose: "让 Codex 分组查看 diff、窄范围 stage、写提交信息、推送并创建 PR。", when: "功能完成且验证通过后。", example: "只 stage 这次静态页改动，按 feat(cc-tools): 中文摘要 提交。", tags: ["Git", "协作", "部署"] },
+      { type: "workflow", typeLabel: "流程", name: "云端修复 PR", purpose: "在 GitHub PR 或 Codex Cloud 中把 CI、审查意见和小修复交给后台任务处理。", when: "本地正在处理其他事，或需要 Codex 针对 PR 上下文补丁。", example: "@codex fix the P1 issue and keep the tests green", tags: ["云端", "协作", "测试"] },
+
+      { type: "config", typeLabel: "配置", name: "AGENTS.md", purpose: "Codex 的项目指导文件，写入仓库结构、命令、规范、禁区和完成标准。", when: "新项目接入、团队统一约定、AI 反复犯同类错误时。", example: "/init 生成 AGENTS.md，然后补充构建、测试、部署和禁止操作规则。", tags: ["项目初始化", "上下文", "规则"] },
+      { type: "config", typeLabel: "配置", name: "嵌套 AGENTS.md", purpose: "在子目录放更具体的指导，越靠近工作目录优先级越高。", when: "monorepo、前后端分离、不同模块测试命令不同。", example: "在 backend/AGENTS.md 写 Spring Boot 测试和数据库约定，在 frontend/AGENTS.md 写 Vue 规范。", tags: ["项目初始化", "后端", "前端", "规则"] },
+      { type: "config", typeLabel: "配置", name: "config.toml", purpose: "Codex 的本地配置入口，管理模型、推理强度、沙箱、审批、MCP、hooks 和插件开关。", when: "希望跨会话保持行为一致，或需要配置外部能力。", example: "打开 ~/.codex/config.toml，设置默认 sandbox_mode、approval_policy 和 MCP servers。", tags: ["配置", "安全", "MCP", "Hooks"] },
+      { type: "config", typeLabel: "配置", name: "项目 .codex/config.toml", purpose: "给可信项目设置局部 Codex 配置，适合项目级 MCP、hooks、规则和工作目录约束。", when: "团队希望把部分 Codex 设置随仓库共享。", example: "在 .codex/config.toml 中声明项目本地 hook 和只适用于本仓库的 MCP 设置。", tags: ["配置", "项目初始化", "安全"] },
+      { type: "config", typeLabel: "配置", name: "权限 Profile", purpose: "把文件系统、网络、审批组合成可复用安全档位。", when: "需要在只读审查、工作区写入、全权限隔离环境之间切换。", example: "用只读 profile 做审查，用 workspace-write profile 做开发。", tags: ["安全", "配置", "评审"] },
+      { type: "config", typeLabel: "配置", name: "模型与推理强度", purpose: "为快速小改、复杂架构、深度调试选择不同模型和 reasoning effort。", when: "任务难度差异大，或需要控制速度、成本和质量。", example: "这个问题涉及并发和事务，请提高 reasoning effort 后再分析。", tags: ["规划", "配置", "技巧"] },
+      { type: "config", typeLabel: "配置", name: "记忆 Memories", purpose: "让 Codex 复用稳定偏好、项目经验和常见坑，但团队硬规则仍应放在 AGENTS.md。", when: "个人长期使用 Codex，希望少重复解释偏好和项目习惯。", example: "/memories 查看当前线程是否使用和生成记忆。", tags: ["上下文", "配置", "技巧"] },
+
+      { type: "skill", typeLabel: "技能", name: "Skills", purpose: "可复用工作流封装，包含 SKILL.md、脚本、参考资料和触发说明。", when: "同一类任务反复出现，如发布、代码审查、文档生成、Figma 转代码。", example: "$skill-creator 创建一个发布检查技能，包含构建、测试、部署前核对。", tags: ["技能", "自动化", "流程"] },
+      { type: "skill", typeLabel: "技能", name: "skill-creator", purpose: "官方内置技能创建器，引导生成结构化 SKILL.md。", when: "要把个人经验或团队 SOP 做成 Codex 可自动调用的能力。", example: "$skill-creator 帮我创建一个 quanzhan 本地 Docker 验证技能。", tags: ["技能", "文档", "自动化"] },
+      { type: "skill", typeLabel: "技能", name: "skill-installer", purpose: "安装 OpenAI curated 或 GitHub 仓库中的可复用技能。", when: "已有成熟技能可复用，不想从零写工作流。", example: "$skill-installer install migrate-to-codex", tags: ["技能", "插件", "配置"] },
+      { type: "skill", typeLabel: "技能", name: "openai-docs", purpose: "检索 OpenAI 官方文档和 Codex 手册，用于核对最新产品能力和 API 行为。", when: "涉及 Codex、OpenAI API、模型、Responses API 或官方能力说明。", example: "使用 openai-docs 核对 Codex MCP 和 hooks 的最新配置方式。", tags: ["文档", "OpenAI", "检索"] },
+      { type: "skill", typeLabel: "技能", name: "imagegen", purpose: "在 Codex 内生成或编辑位图素材，适合 UI 背景、插图、占位图和视觉资产。", when: "前端页面需要真实视觉资产而不是纯 CSS 装饰。", example: "$imagegen 生成一张 SaaS 仪表盘背景图，16:9，低饱和商务风。", tags: ["前端", "设计", "素材"] },
+      { type: "skill", typeLabel: "技能", name: "documents / spreadsheets / presentations", purpose: "生成和编辑 Word、Excel、PPT 等非代码交付物，并进行渲染检查。", when: "项目需要方案文档、数据报表、汇报材料或客户交付件。", example: "把这份接口清单整理成 Excel，并生成按模块统计的图表。", tags: ["文档", "数据", "协作"] },
+      { type: "skill", typeLabel: "技能", name: "Figma 设计技能", purpose: "在 Figma 中生成设计、组件库、Code Connect 映射和图表。", when: "需要把代码页面推到 Figma，或从设计系统生成组件。", example: "把这个后台表单页面重建到 Figma，使用现有设计系统变量。", tags: ["设计", "前端", "插件"] },
+
+      { type: "plugin", typeLabel: "插件", name: "Plugins", purpose: "Codex 的可安装能力包，可包含 skills、app connector、MCP server、hooks、资产和市场信息。", when: "要复用一整套跨项目能力，或把能力分发给团队。", example: "/plugins 打开插件目录，安装并启用需要的插件。", tags: ["插件", "配置", "自动化"] },
+      { type: "plugin", typeLabel: "插件", name: "GitHub 插件", purpose: "读取 PR、issue、评论和检查结果，辅助修 CI、处理 review 和发布 PR。", when: "需要和 GitHub 远程协作，而不仅是本地 git。", example: "用 GitHub 插件查看这个 PR 未解决的 review thread，并修复可操作问题。", tags: ["插件", "Git", "协作", "测试"] },
+      { type: "plugin", typeLabel: "插件", name: "Browser 插件", purpose: "控制 Codex 内置浏览器访问本地站点、file 页面和公开页面，做 UI 验证。", when: "前端改动后需要真实页面截图、点击、表单和布局检查。", example: "打开 http://localhost:5173，验证登录页在移动端没有文字溢出。", tags: ["插件", "前端", "测试", "验证"] },
+      { type: "plugin", typeLabel: "插件", name: "Chrome 插件", purpose: "控制用户 Chrome，使用已有登录态、cookie、扩展和标签页。", when: "验证必须依赖真实 Chrome 登录状态或扩展环境。", example: "用 Chrome 插件打开当前已登录后台，复现报表导出问题。", tags: ["插件", "前端", "桌面"] },
+      { type: "plugin", typeLabel: "插件", name: "Computer Use 插件", purpose: "操作本机 macOS/Windows 应用，点击、输入、滚动并读取 UI 状态。", when: "问题只在桌面 App、模拟器、安装器或系统设置中出现。", example: "用 Computer Use 检查这个桌面应用的设置页是否能保存配置。", tags: ["插件", "桌面", "测试"] },
+      { type: "plugin", typeLabel: "插件", name: "Gmail / Slack 插件", purpose: "读取和整理邮箱、Slack 上下文，生成摘要、待办和回复草稿。", when: "开发任务依赖沟通记录、会议结论或待确认事项。", example: "总结今天 Slack 里和支付回调相关的讨论，提取影响开发的决策。", tags: ["插件", "协作", "文档"] },
+      { type: "plugin", typeLabel: "插件", name: "Sites 插件", purpose: "创建并部署可访问的网站、Web App 或小游戏。", when: "需要快速做一个可发布的展示页、工具页或可交互原型。", example: "用 Sites 做一个内部工具演示页，并部署为可访问链接。", tags: ["插件", "前端", "部署"] },
+
+      { type: "mcp", typeLabel: "MCP", name: "MCP 基础", purpose: "把 Codex 连接到外部工具和上下文服务，支持 tools、resources、prompts。", when: "需要访问浏览器、数据库、Figma、文档、监控或内部系统。", example: "/mcp 查看当前会话已连接的 MCP server。", tags: ["MCP", "检索", "外部系统"] },
+      { type: "mcp", typeLabel: "MCP", name: "Context7 MCP", purpose: "检索框架和库的最新官方文档，降低过时 API 使用风险。", when: "React、Next.js、Spring、Vue、数据库库等版本敏感问题。", example: "用 Context7 查询 Vue 3 defineModel 的最新用法，再修改组件。", tags: ["MCP", "文档", "前端", "后端"] },
+      { type: "mcp", typeLabel: "MCP", name: "Playwright MCP", purpose: "让 Codex 控制真实浏览器做 E2E、截图、DOM 检查和交互验证。", when: "需要证明页面真实可用，而不是只看代码。", example: "用 Playwright MCP 打开本地页面，截图并检查按钮点击后是否出现弹窗。", tags: ["MCP", "前端", "测试", "验证"] },
+      { type: "mcp", typeLabel: "MCP", name: "MySQL / PostgreSQL MCP", purpose: "读取表结构、执行只读 SQL、分析数据关系和验证迁移影响。", when: "后端接口、SQL 性能、迁移脚本、报表口径和数据排查。", example: "用 MySQL MCP 查看 orders 表结构，确认新增索引是否覆盖查询条件。", tags: ["MCP", "数据", "后端"] },
+      { type: "mcp", typeLabel: "MCP", name: "Redis MCP", purpose: "查看 key、读写缓存样例、验证 TTL 和排查会话或队列状态。", when: "缓存、限流、分布式锁、任务队列和会话状态问题。", example: "用 Redis MCP 检查 user:session:* 的 TTL 是否符合登录策略。", tags: ["MCP", "数据", "后端", "运维"] },
+      { type: "mcp", typeLabel: "MCP", name: "Figma MCP", purpose: "读取或操作 Figma 文件、组件和设计系统，连接设计与实现。", when: "根据设计稿开发、生成组件库或同步页面到 Figma。", example: "用 Figma MCP 读取这个页面的设计 token，再实现 Vue 组件。", tags: ["MCP", "设计", "前端"] },
+      { type: "mcp", typeLabel: "MCP", name: "OpenAI Docs MCP", purpose: "搜索和读取 OpenAI 开发者文档，适合 Codex、模型、API 和 SDK 问题。", when: "需要官方依据，不应依赖模型记忆。", example: "用 OpenAI Docs MCP 查询 Responses API 工具调用参数。", tags: ["MCP", "OpenAI", "文档"] },
+      { type: "mcp", typeLabel: "MCP", name: "Sentry / 监控 MCP", purpose: "读取错误事件、trace 和生产异常上下文，辅助定位线上问题。", when: "线上 bug、性能回退、异常堆栈和告警分析。", example: "读取最近 24 小时 checkout 相关 Sentry issue，定位最可能的回归提交。", tags: ["MCP", "运维", "后端", "测试"] },
+
+      { type: "hook", typeLabel: "Hook", name: "PreToolUse", purpose: "工具调用前触发脚本，可检查命令、文件路径、危险操作和策略。", when: "需要在 Codex 动手前做安全拦截或上下文校验。", example: "配置 PreToolUse 拦截 rm、git reset 和未授权的生产部署命令。", tags: ["Hooks", "安全", "自动化"] },
+      { type: "hook", typeLabel: "Hook", name: "PostToolUse", purpose: "工具调用后触发脚本，可自动格式化、扫描输出、生成审计或修正提示。", when: "每次写文件、运行命令后需要机械检查。", example: "PostToolUse 在 apply_patch 后运行 prettier 或 eslint --fix。", tags: ["Hooks", "测试", "自动化"] },
+      { type: "hook", typeLabel: "Hook", name: "PermissionRequest", purpose: "在 Codex 请求权限时插入审查逻辑，可自动识别高风险操作。", when: "团队希望审批提示带有额外策略判断。", example: "PermissionRequest 检查命令是否访问生产数据库或写出 workspace。", tags: ["Hooks", "安全", "配置"] },
+      { type: "hook", typeLabel: "Hook", name: "UserPromptSubmit", purpose: "用户提交提示后触发，可扫描密钥、补充上下文或记录审计。", when: "担心误贴 token、密码、客户数据或内部机密。", example: "UserPromptSubmit 检测 sk-、AKIA、password= 等模式并阻止继续。", tags: ["Hooks", "安全", "上下文"] },
+      { type: "hook", typeLabel: "Hook", name: "Stop / SubagentStop", purpose: "主线程或子代理停止时触发，可做最终检查、报告生成或继续条件判断。", when: "需要在任务结束前统一验证或输出摘要。", example: "Stop hook 在任务结束时运行 npm test，并把失败摘要写入报告。", tags: ["Hooks", "测试", "自动化"] },
+
+      { type: "command", typeLabel: "命令", name: "/status", purpose: "查看当前线程、模型、上下文、权限和资源使用状态。", when: "任务开始、权限疑惑、上下文变长或验证当前环境。", example: "/status", tags: ["命令", "上下文", "配置"] },
+      { type: "command", typeLabel: "命令", name: "/permissions", purpose: "调整当前会话审批和沙箱策略。", when: "需要从只读审查切换到可写开发，或收紧高风险任务权限。", example: "/permissions 选择 workspace-write + on-request", tags: ["命令", "安全", "配置"] },
+      { type: "command", typeLabel: "命令", name: "/skills", purpose: "浏览和显式启用可用技能。", when: "知道某个技能适合当前任务，想避免隐式匹配不稳定。", example: "/skills 选择 openai-docs 或 imagegen", tags: ["命令", "技能", "检索"] },
+      { type: "command", typeLabel: "命令", name: "/plugins", purpose: "浏览、安装、启用、禁用插件。", when: "需要 Gmail、Slack、GitHub、Browser、Figma 等外部能力。", example: "/plugins 搜索 GitHub 并检查是否已启用。", tags: ["命令", "插件", "配置"] },
+      { type: "command", typeLabel: "命令", name: "/hooks", purpose: "查看和信任当前配置的 Codex hooks。", when: "新 hook 不执行、启动提示需要 review、或想关闭某个 hook。", example: "/hooks review changed hooks", tags: ["命令", "Hooks", "安全"] },
+      { type: "command", typeLabel: "命令", name: "/compact", purpose: "压缩长对话，保留任务状态和关键决策，释放上下文窗口。", when: "上下文接近上限、长任务跨多个阶段、输出开始混乱。", example: "/compact 保留当前改动范围、已验证命令、未解决问题和下一步。", tags: ["命令", "上下文", "技巧"] },
+      { type: "command", typeLabel: "命令", name: "/diff", purpose: "查看当前工作区 diff，包含未跟踪文件。", when: "提交前、审查前、确认 Codex 有没有改错范围。", example: "/diff", tags: ["命令", "Git", "评审"] },
+      { type: "command", typeLabel: "命令", name: "/mcp", purpose: "列出当前可用 MCP server 和工具状态。", when: "外部能力没有被调用、刚安装 MCP 后需要确认。", example: "/mcp verbose", tags: ["命令", "MCP", "检索"] },
+
+      { type: "automation", typeLabel: "自动化", name: "Thread Automation", purpose: "让当前线程按周期醒来，保持上下文继续轮询或跟进。", when: "等待部署、CI、PR 审查、异步任务结果，并希望在同一线程持续跟进。", example: "每 10 分钟检查一次部署状态，有失败就汇报并继续排查。", tags: ["自动化", "部署", "协作"] },
+      { type: "automation", typeLabel: "自动化", name: "Standalone Automation", purpose: "定时运行独立任务，把发现放到 Codex triage/inbox。", when: "每日巡检、定期依赖检查、日志摘要、PR 状态扫描。", example: "每天 9 点检查这个项目的失败 CI 和未处理 review。", tags: ["自动化", "运维", "测试"] },
+      { type: "automation", typeLabel: "自动化", name: "Worktree Automation", purpose: "在独立 Git worktree 里执行后台任务，避免污染主工作区。", when: "自动化可能产生文件改动，且本地还有未提交工作。", example: "每周在独立 worktree 更新依赖并运行测试，失败时只报告。", tags: ["自动化", "Git", "安全"] },
+
+      { type: "security", typeLabel: "安全", name: "Sandbox", purpose: "限制 Codex 对文件系统和网络的访问范围。", when: "任何本地执行任务都应先确认沙箱边界。", example: "保持 workspace-write，只在必要命令上临时审批越权。", tags: ["安全", "配置", "桌面"] },
+      { type: "security", typeLabel: "安全", name: "审批策略", purpose: "控制 Codex 什么时候必须停下来请求用户批准。", when: "涉及安装依赖、网络、生产操作、写出工作区或破坏性命令。", example: "把审批设为 on-request，让测试自动跑，但部署必须确认。", tags: ["安全", "配置", "部署"] },
+      { type: "security", typeLabel: "安全", name: "Secrets 处理", purpose: "避免把 API key、密码、cookie、证书写入日志、记忆或提交。", when: "配置 MCP、云环境、部署脚本、日志分析和支持工单。", example: "扫描这次 diff，确认没有把 .env、token 或数据库密码提交。", tags: ["安全", "评审", "配置"] },
+      { type: "security", typeLabel: "安全", name: "自动审查 Auto Review", purpose: "对审批请求或 PR diff 做自动策略审查，降低危险操作进入执行阶段的概率。", when: "团队要求审批策略可审计，或本地权限较宽。", example: "启用 auto_review，对网络和越权写入请求做策略检查。", tags: ["安全", "评审", "配置"] },
+
+      { type: "workflow", typeLabel: "流程", name: "浏览器像素验证", purpose: "页面改动后用真实浏览器打开，截图、检查布局、交互、错误日志和响应式。", when: "任何可视化 UI、表单、图表、移动端适配和 canvas/3D 页面。", example: "打开 file:// 或 localhost 页面，检查移动端 390px 下按钮文字不溢出。", tags: ["前端", "测试", "验证"] },
+      { type: "workflow", typeLabel: "流程", name: "数据库迁移验证", purpose: "让 Codex 从 schema、迁移脚本、SQL 执行计划和回滚方案四个角度检查。", when: "新增表、索引、字段、数据迁移或兼容发布。", example: "检查这次 schema.sql 改动是否可重复执行，并给出回滚策略。", tags: ["后端", "数据", "评审"] },
+      { type: "workflow", typeLabel: "流程", name: "部署前检查", purpose: "按构建、配置、环境变量、健康检查、回滚和日志观察顺序执行。", when: "准备发布到测试、预发或生产环境。", example: "部署前检查这个改动，列出必须验证的健康检查和回滚点。", tags: ["部署", "运维", "测试"] },
+      { type: "workflow", typeLabel: "流程", name: "从 Claude Code 迁移", purpose: "把 CLAUDE.md、settings、skills、MCP、hooks、subagents 和 slash commands 映射到 Codex。", when: "已有 Claude Code 工作流，希望在 Codex 中复用。", example: "参考 Claude Code 配置，把可迁移部分转换为 AGENTS.md、config.toml、skills 和 hooks。", tags: ["迁移", "Claude", "配置"] }
+    ];
+
+    const typeLabels = [
+      ["all", "全部"],
+      ["surface", "入口"],
+      ["workflow", "流程"],
+      ["config", "配置"],
+      ["skill", "技能"],
+      ["plugin", "插件"],
+      ["mcp", "MCP"],
+      ["hook", "Hooks"],
+      ["command", "命令"],
+      ["automation", "自动化"],
+      ["security", "安全"]
+    ];
+    const scenarioTags = ["全部", "项目初始化", "规划", "编码", "测试", "验证", "评审", "前端", "后端", "数据", "设计", "Git", "部署", "运维", "协作", "文档", "上下文", "插件", "MCP", "Hooks", "安全", "自动化", "技巧", "Claude", "云端", "桌面"];
+    const state = { type: "all", tag: "全部", view: "grid" };
+    const els = {
+      search: document.getElementById("searchInput"),
+      results: document.getElementById("results"),
+      meta: document.getElementById("resultMeta"),
+      typeTabs: document.getElementById("typeTabs"),
+      tagChips: document.getElementById("tagChips"),
+      toast: document.getElementById("toast"),
+      gridBtn: document.getElementById("gridBtn"),
+      listBtn: document.getElementById("listBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      statGrid: document.getElementById("statGrid")
+    };
+
+    const normalizedItems = ITEMS.map((item, index) => ({
+      ...item,
+      id: `${item.type}-${index}`,
+      search: normalize([item.typeLabel, item.name, item.purpose, item.when, item.example, item.tags.join(" ")].join(" "))
+    }));
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function normalize(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function filteredItems() {
+      const q = normalize(els.search.value);
+      return normalizedItems.filter((item) => {
+        const typeOk = state.type === "all" || item.type === state.type;
+        const tagOk = state.tag === "全部" || item.tags.includes(state.tag) || item.search.includes(normalize(state.tag));
+        const queryOk = !q || item.search.includes(q);
+        return typeOk && tagOk && queryOk;
+      });
+    }
+
+    function renderStats() {
+      const statDefs = [
+        ["plugin", "插件"],
+        ["mcp", "MCP"],
+        ["hook", "Hooks"],
+        ["all", "总能力"]
+      ];
+      els.statGrid.innerHTML = statDefs.map(([key, label]) => {
+        const count = key === "all" ? normalizedItems.length : normalizedItems.filter((item) => item.type === key).length;
+        return `<div class="stat"><b>${count}</b><span>${label}</span></div>`;
+      }).join("");
+    }
+
+    function renderTabs() {
+      const q = normalize(els.search.value);
+      const baseFiltered = normalizedItems.filter((item) => {
+        const tagOk = state.tag === "全部" || item.tags.includes(state.tag) || item.search.includes(normalize(state.tag));
+        const queryOk = !q || item.search.includes(q);
+        return tagOk && queryOk;
+      });
+      els.typeTabs.innerHTML = typeLabels.map(([key, label]) => {
+        const count = key === "all" ? baseFiltered.length : baseFiltered.filter((item) => item.type === key).length;
+        return `<button class="type-tab ${state.type === key ? "active" : ""}" data-type="${key}">${label} <span>${count}</span></button>`;
+      }).join("");
+      els.tagChips.innerHTML = scenarioTags.map((tag) => {
+        return `<button class="chip ${state.tag === tag ? "active" : ""}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`;
+      }).join("");
+    }
+
+    function card(item) {
+      const tags = item.tags.slice(0, 5).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("");
+      return `<article class="card">
+        <div class="card-head">
+          <h2 class="name">${escapeHtml(item.name)}</h2>
+          <span class="badge ${item.type}">${escapeHtml(item.typeLabel)}</span>
+        </div>
+        <div class="card-body">
+          <p class="purpose">${escapeHtml(item.purpose)}</p>
+          <p class="when">适用：${escapeHtml(item.when)}</p>
+          <div class="tag-row">${tags}</div>
+        </div>
+        <div class="card-foot">
+          <p class="example">${escapeHtml(item.example)}</p>
+          <button class="copy-btn" data-copy="${escapeHtml(item.example)}" title="复制使用示例" aria-label="复制使用示例">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 8V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3M5 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </article>`;
+    }
+
+    function renderResults() {
+      const list = filteredItems();
+      els.results.classList.toggle("list", state.view === "list");
+      els.meta.textContent = `找到 ${list.length} 项`;
+      if (!list.length) {
+        els.results.innerHTML = '<div class="empty">没有匹配结果。换一个关键词，或清空筛选。</div>';
+        return;
+      }
+      els.results.innerHTML = list.map(card).join("");
+    }
+
+    function render() {
+      renderStats();
+      renderTabs();
+      renderResults();
+      els.gridBtn.classList.toggle("active", state.view === "grid");
+      els.listBtn.classList.toggle("active", state.view === "list");
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+      }
+      els.toast.classList.add("show");
+      window.clearTimeout(window.__toastTimer);
+      window.__toastTimer = window.setTimeout(() => els.toast.classList.remove("show"), 1300);
+    }
+
+    els.search.addEventListener("input", render);
+    els.search.addEventListener("change", render);
+    els.typeTabs.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-type]");
+      if (!btn) return;
+      state.type = btn.dataset.type;
+      render();
+    });
+    els.tagChips.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-tag]");
+      if (!btn) return;
+      state.tag = btn.dataset.tag;
+      render();
+    });
+    els.results.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-copy]");
+      if (!btn) return;
+      copyText(btn.dataset.copy);
+    });
+    els.gridBtn.addEventListener("click", () => { state.view = "grid"; render(); });
+    els.listBtn.addEventListener("click", () => { state.view = "list"; render(); });
+    els.resetBtn.addEventListener("click", () => {
+      state.type = "all";
+      state.tag = "全部";
+      els.search.value = "";
+      render();
+      els.search.focus();
+    });
+    render();
+  </script>
+</body>
+</html>

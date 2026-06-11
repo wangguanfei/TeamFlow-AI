@@ -1,0 +1,1282 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex 项目开发实战教程</title>
+  <script defer src="http://81.69.248.152:8091/script.js" data-website-id="0d856dd6-4287-44b2-a4d4-4f2420920041"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --panel-strong: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --line: #d9e2ec;
+      --line-strong: #c6d3df;
+      --green: #047857;
+      --green-soft: #ecfdf5;
+      --blue: #2563eb;
+      --blue-soft: #e9f0ff;
+      --amber: #b7791f;
+      --amber-soft: #fff5dd;
+      --red: #b42318;
+      --red-soft: #fff0ed;
+      --purple: #6d28d9;
+      --purple-soft: #f3f0ff;
+      --shadow: 0 18px 48px rgba(20,37,63,.10);
+      --radius: 8px;
+      --sidebar-w: 286px;
+      --content-max: 800px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      letter-spacing: 0;
+    }
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 0 28px;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+      color: #111827;
+      white-space: nowrap;
+    }
+    .topbar-brand svg { color: var(--green); flex-shrink: 0; }
+    .topbar-divider { width: 1px; height: 22px; background: var(--line); }
+    .topbar-subtitle { color: var(--muted); font-size: 13px; }
+    .topbar-spacer { flex: 1; }
+    .topbar-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #344054;
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color .15s, color .15s, background .15s;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .topbar-link:hover {
+      border-color: var(--green);
+      color: var(--green);
+      background: var(--green-soft);
+      text-decoration: none;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-w) minmax(0,1fr);
+      min-height: calc(100vh - 58px);
+    }
+    .sidebar {
+      position: sticky;
+      top: 58px;
+      height: calc(100vh - 58px);
+      overflow-y: auto;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 20px 0;
+      scrollbar-width: thin;
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+    .nav-group-title {
+      padding: 6px 20px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #9ba6b4;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      font-size: 13.5px;
+      color: #344054;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background .12s, color .12s, border-color .12s;
+      text-decoration: none;
+    }
+    .nav-item:hover { background: var(--panel-strong); color: var(--green); text-decoration: none; }
+    .nav-item.active {
+      border-left-color: var(--green);
+      background: var(--green-soft);
+      color: var(--green);
+      font-weight: 600;
+    }
+    .nav-item .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--line-strong);
+      flex-shrink: 0;
+    }
+    .nav-item.active .dot { background: var(--green); }
+    .content {
+      padding: 40px 48px;
+      max-width: calc(var(--content-max) + 96px);
+    }
+    .chapter { display: none; }
+    .chapter.visible { display: block; animation: fadeIn .25s ease; }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: #0d1b2a;
+    }
+    h2 {
+      margin: 44px 0 14px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    h3 {
+      margin: 28px 0 10px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1e3a5f;
+    }
+    p { margin: 0 0 14px; }
+    ul, ol { margin: 0 0 14px; padding-left: 22px; }
+    li { margin-bottom: 5px; }
+    .chapter-intro {
+      color: var(--muted);
+      font-size: 15px;
+      margin-bottom: 32px;
+      line-height: 1.8;
+    }
+    .chapter-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .badge-beginner { background: var(--green-soft); color: var(--green); }
+    .badge-intermediate { background: var(--blue-soft); color: var(--blue); }
+    .badge-advanced { background: var(--purple-soft); color: var(--purple); }
+    pre {
+      margin: 12px 0 20px;
+      background: #0f1f33;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 13.5px;
+      line-height: 1.6;
+      font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+    }
+    code {
+      font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+      font-size: 13px;
+    }
+    p code, li code, td code {
+      background: #edf2f7;
+      color: #c7254e;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .cmd { color: #7dd3fc; }
+    .cmt { color: #6b8fa5; font-style: italic; }
+    .str { color: #86efac; }
+    .kw  { color: #c084fc; }
+    .callout {
+      border-left: 3px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 20px 0;
+      display: flex;
+      gap: 12px;
+    }
+    .callout-icon {
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+      margin-top: 2px;
+    }
+    .callout-body { flex: 1; }
+    .callout-body strong { display: block; margin-bottom: 3px; }
+    .callout.tip { border-color: var(--green); background: var(--green-soft); }
+    .callout.tip .callout-icon { background: var(--green); color: #fff; }
+    .callout.warn { border-color: var(--amber); background: var(--amber-soft); }
+    .callout.warn .callout-icon { background: var(--amber); color: #fff; }
+    .callout.info { border-color: var(--blue); background: var(--blue-soft); }
+    .callout.info .callout-icon { background: var(--blue); color: #fff; }
+    .callout.danger { border-color: var(--red); background: var(--red-soft); }
+    .callout.danger .callout-icon { background: var(--red); color: #fff; }
+    .steps { display: flex; flex-direction: column; gap: 0; margin: 20px 0; }
+    .step {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+      align-items: start;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--green);
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      display: grid;
+      place-items: center;
+    }
+    .step-body h4 { margin: 2px 0 8px; font-size: 15px; font-weight: 700; color: #111827; }
+    .step-body p { margin: 0 0 8px; color: #374151; }
+    .step-body pre { margin: 8px 0 0; }
+    .flow {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin: 24px 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .flow-node {
+      flex: 0 0 auto;
+      min-width: 106px;
+      background: var(--panel);
+      border: 1.5px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e3a5f;
+      position: relative;
+    }
+    .flow-node.active { border-color: var(--green); background: var(--green-soft); color: var(--green); }
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 14px;
+    }
+    th {
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 700;
+      color: #374151;
+    }
+    td {
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      color: #374151;
+      vertical-align: top;
+    }
+    tr:hover td { background: var(--panel-strong); }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 16px 0 24px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: var(--panel);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .card:hover { border-color: var(--green); box-shadow: 0 4px 16px rgba(4,120,87,.08); }
+    .card-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: var(--green-soft);
+      color: var(--green);
+      font-weight: 800;
+      margin-bottom: 9px;
+      font-size: 12px;
+    }
+    .card-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #111827; }
+    .card-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .progress-section {
+      background: linear-gradient(135deg, #047857 0%, #2563eb 100%);
+      border-radius: 12px;
+      padding: 28px 32px;
+      color: #fff;
+      margin: 32px 0;
+    }
+    .progress-section h3 { color: #fff; margin-top: 0; }
+    .progress-section p { color: rgba(255,255,255,.88); margin-bottom: 0; }
+    .chapter-nav {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 56px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #344054;
+      background: var(--panel);
+      cursor: pointer;
+      transition: border-color .15s, color .15s;
+      text-decoration: none;
+    }
+    .nav-btn:hover { border-color: var(--green); color: var(--green); text-decoration: none; }
+    .nav-btn.primary {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+    }
+    .nav-btn.primary:hover { background: #036b4b; border-color: #036b4b; color: #fff; }
+    .nav-btn.disabled { opacity: .4; pointer-events: none; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 900px) {
+      .topbar {
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: start;
+        gap: 8px;
+        padding: 10px 16px;
+      }
+      .topbar-brand, .topbar-link, .topbar-subtitle {
+        min-width: 0;
+      }
+      .topbar-divider, .topbar-spacer {
+        display: none;
+      }
+      .topbar-link {
+        width: 100%;
+        justify-content: center;
+      }
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+      .content {
+        min-width: 0;
+        padding: 24px 20px;
+      }
+      table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="currentColor" opacity=".12"/>
+      <path d="M7 9h14M7 14h10M7 19h14" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+      <path d="M19 11l3 3-3 3" stroke="#2563eb" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Codex
+  </div>
+  <div class="topbar-divider"></div>
+  <span class="topbar-subtitle">项目开发实战教程</span>
+  <div class="topbar-spacer"></div>
+  <a href="Codex-Skill-Finder.html" class="topbar-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    Codex 检索
+  </a>
+  <a href="Claude-Code-Tutorial.html" class="topbar-link">Claude 教程</a>
+  <a href="Claude-Code-Skill-Finder.html" class="topbar-link">Claude 检索</a>
+</header>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-group-title">入门</div>
+    <a class="nav-item active" data-chapter="c0" href="#c0"><span class="dot"></span>什么是 Codex</a>
+    <a class="nav-item" data-chapter="c1" href="#c1"><span class="dot"></span>入口与安装配置</a>
+
+    <div class="nav-group-title" style="margin-top:12px">开发全流程</div>
+    <a class="nav-item" data-chapter="c2" href="#c2"><span class="dot"></span>① 项目接入</a>
+    <a class="nav-item" data-chapter="c3" href="#c3"><span class="dot"></span>② 规划与目标</a>
+    <a class="nav-item" data-chapter="c4" href="#c4"><span class="dot"></span>③ 编码实现</a>
+    <a class="nav-item" data-chapter="c5" href="#c5"><span class="dot"></span>④ 测试验证</a>
+    <a class="nav-item" data-chapter="c6" href="#c6"><span class="dot"></span>⑤ 审查与 Git</a>
+    <a class="nav-item" data-chapter="c7" href="#c7"><span class="dot"></span>⑥ 发布与云任务</a>
+
+    <div class="nav-group-title" style="margin-top:12px">扩展能力</div>
+    <a class="nav-item" data-chapter="c8" href="#c8"><span class="dot"></span>Skills 与 Plugins</a>
+    <a class="nav-item" data-chapter="c9" href="#c9"><span class="dot"></span>MCP 外部系统</a>
+    <a class="nav-item" data-chapter="c10" href="#c10"><span class="dot"></span>Hooks 自动化</a>
+    <a class="nav-item" data-chapter="c11" href="#c11"><span class="dot"></span>自动化与工作树</a>
+
+    <div class="nav-group-title" style="margin-top:12px">最佳实践</div>
+    <a class="nav-item" data-chapter="c12" href="#c12"><span class="dot"></span>安全与权限</a>
+    <a class="nav-item" data-chapter="c13" href="#c13"><span class="dot"></span>提示词技巧</a>
+    <a class="nav-item" data-chapter="c14" href="#c14"><span class="dot"></span>从 Claude Code 迁移</a>
+  </nav>
+
+  <main class="content">
+    <section class="chapter visible" id="c0">
+      <div class="chapter-badge badge-beginner">入门</div>
+      <h1>什么是 Codex</h1>
+      <p class="chapter-intro">
+        Codex 是 OpenAI 面向软件开发的编码代理。它可以在本地项目、IDE、桌面应用和云端环境中读代码、改文件、运行命令、调用插件与 MCP 工具，并把开发过程推进到可验证的结果。
+      </p>
+
+      <h2>核心心智模型</h2>
+      <div class="card-grid">
+        <div class="card"><div class="card-icon">01</div><div class="card-title">不是补全，是执行代理</div><div class="card-desc">Codex 可以直接进入仓库读写文件、运行测试、查看 diff，并根据结果继续修正。</div></div>
+        <div class="card"><div class="card-icon">02</div><div class="card-title">多入口共享配置</div><div class="card-desc">CLI、IDE Extension 和 Codex App 共享 `~/.codex/config.toml`、MCP 和技能等配置。</div></div>
+        <div class="card"><div class="card-icon">03</div><div class="card-title">能力由层组成</div><div class="card-desc">AGENTS.md 定规则，Skills 定流程，Plugins 分发能力，MCP 连接外部系统，Hooks 做生命周期自动化。</div></div>
+        <div class="card"><div class="card-icon">04</div><div class="card-title">验证是完成标准</div><div class="card-desc">让 Codex 跑测试、打开浏览器、看日志、检查健康接口，而不是只输出“已完成”。</div></div>
+      </div>
+
+      <h2>Codex 与 Claude Code 的关键差异</h2>
+      <table>
+        <thead><tr><th>维度</th><th>Claude Code 常见做法</th><th>Codex 推荐做法</th></tr></thead>
+        <tbody>
+          <tr><td>项目规则</td><td><code>CLAUDE.md</code></td><td><code>AGENTS.md</code>，支持全局、仓库和子目录层级</td></tr>
+          <tr><td>配置入口</td><td><code>~/.claude/settings.json</code></td><td><code>~/.codex/config.toml</code> 与项目 <code>.codex/config.toml</code></td></tr>
+          <tr><td>扩展分发</td><td>技能、命令、代理、MCP</td><td>Skills 是工作流，Plugins 是安装分发单元，可带 MCP、apps、hooks</td></tr>
+          <tr><td>本地安全</td><td>工具 allowlist 和 hooks</td><td>审批策略、sandbox、permissions profile、rules、hooks 一起约束</td></tr>
+          <tr><td>桌面能力</td><td>终端与 IDE 为主</td><td>Codex App 支持多线程、工作树、插件、自动化、浏览器和桌面应用操作</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <div class="callout-icon">i</div>
+        <div class="callout-body">
+          <strong>使用原则</strong>
+          把 Codex 当成一个有工具权限的工程师。你负责目标、边界和验收，Codex 负责读代码、修改、执行、验证和反馈。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn disabled">上一节</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c1')">入口与安装配置 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c1">
+      <div class="chapter-badge badge-beginner">入门</div>
+      <h1>入口与安装配置</h1>
+      <p class="chapter-intro">Codex 有 App、CLI、IDE Extension 和 Cloud 几个常用入口。选入口不是偏好问题，而是任务环境问题。</p>
+
+      <h2>入口选择</h2>
+      <table>
+        <thead><tr><th>入口</th><th>适合场景</th><th>典型动作</th></tr></thead>
+        <tbody>
+          <tr><td>Codex App</td><td>日常项目开发、多线程、工作树、插件、自动化、浏览器验证</td><td>打开项目目录，选择 Local / Worktree / Cloud</td></tr>
+          <tr><td>Codex CLI</td><td>终端开发、SSH、脚本化、非交互任务</td><td><code>codex</code>、<code>codex exec</code>、<code>codex mcp</code></td></tr>
+          <tr><td>IDE Extension</td><td>围绕当前文件、选区、诊断快速协作</td><td>带入 IDE context 让 Codex 修改当前文件</td></tr>
+          <tr><td>Codex Cloud</td><td>后台任务、CI 修复、PR 审查、长任务</td><td>从 App、GitHub 评论或 CLI 提交云任务</td></tr>
+        </tbody>
+      </table>
+
+      <h2>首次配置建议</h2>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>确认认证与环境</h4><p>登录后先确认 CLI 和 App 都能看到同一个项目环境。</p><pre><span class="cmd">codex login</span>
+<span class="cmd">codex doctor --summary</span>
+<span class="cmd">codex app /your/project</span></pre></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>设置安全默认值</h4><p>新手优先使用 workspace-write 和 on-request。需要更宽权限时按命令临时审批。</p><pre><span class="cmt"># ~/.codex/config.toml</span>
+approval_policy = <span class="str">"on-request"</span>
+sandbox_mode = <span class="str">"workspace-write"</span></pre></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>接入项目规则</h4><p>用 <code>/init</code> 生成 AGENTS.md，再手动补充真实命令和禁区。</p><pre><span class="cmd">codex</span>
+<span class="cmt"># 在 Codex 中执行</span>
+/init</pre></div></div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">!</div>
+        <div class="callout-body">
+          <strong>不要一上来开最大权限</strong>
+          <code>danger-full-access</code> 只适合外部已经隔离的环境。日常项目开发用 workspace-write，再对必要命令做明确审批。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c0')">← 什么是 Codex</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c2')">① 项目接入 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c2">
+      <div class="chapter-badge badge-beginner">开发流程</div>
+      <h1>① 项目接入</h1>
+      <p class="chapter-intro">项目接入的目标不是“让 Codex 知道所有事”，而是让它每次都先知道正确的边界、命令和验收方式。</p>
+
+      <div class="progress-section">
+        <h3>推荐流程</h3>
+        <p>接入 → 规划 → 编码 → 测试 → 审查 → 发布 → 自动化沉淀</p>
+      </div>
+
+      <div class="flow">
+        <div class="flow-node active">接入</div><div class="flow-arrow">→</div>
+        <div class="flow-node">规划</div><div class="flow-arrow">→</div>
+        <div class="flow-node">编码</div><div class="flow-arrow">→</div>
+        <div class="flow-node">测试</div><div class="flow-arrow">→</div>
+        <div class="flow-node">审查</div><div class="flow-arrow">→</div>
+        <div class="flow-node">发布</div>
+      </div>
+
+      <h2>AGENTS.md 最小模板</h2>
+      <pre><span class="cmt"># AGENTS.md</span>
+
+## 项目概况
+- 产品是什么，核心模块是什么，哪些目录最重要
+
+## 常用命令
+- 构建:
+- 单测:
+- 前端验证:
+- 本地运行:
+
+## 工程约定
+- 代码风格、提交信息、目录边界、测试要求
+
+## 禁止操作
+- 不提交密钥
+- 不修改生产配置
+- 不使用 git add .
+
+## 完成标准
+- 改动范围清晰
+- 对应测试通过
+- 需要 UI 时完成浏览器验证
+</pre>
+
+      <h2>子目录规则</h2>
+      <p>Codex 会从项目根向当前目录加载指导，越靠近当前目录越具体。大型项目建议按模块放置局部 <code>AGENTS.md</code>。</p>
+      <pre>repo/
+├── AGENTS.md              <span class="cmt"># 全局规范</span>
+├── backend/
+│   └── AGENTS.md          <span class="cmt"># 后端测试、数据库、事务规则</span>
+├── frontend/
+│   └── AGENTS.md          <span class="cmt"># 组件、样式、浏览器验证规则</span>
+└── deploy/
+    └── AGENTS.md          <span class="cmt"># 部署和回滚规则</span></pre>
+
+      <h2>让 Codex 自己梳理项目</h2>
+      <pre>先阅读仓库结构、README、package 文件和现有 AGENTS.md，
+输出一份项目开发入口说明：常用命令、关键目录、测试方式、风险区域。
+暂时不要修改任何文件。</pre>
+
+      <div class="callout tip">
+        <div class="callout-icon">i</div>
+        <div class="callout-body">
+          <strong>接入后要验证</strong>
+          让 Codex 复述它加载到的规则和项目根目录。若它误判技术栈或命令，立即修正 AGENTS.md。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c1')">← 入口与安装配置</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c3')">② 规划与目标 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c3">
+      <div class="chapter-badge badge-beginner">开发流程</div>
+      <h1>② 规划与目标</h1>
+      <p class="chapter-intro">复杂任务先规划。规划阶段让 Codex 读代码、识别文件、列风险和测试，不要急着写实现。</p>
+
+      <div class="flow">
+        <div class="flow-node">接入</div><div class="flow-arrow">→</div>
+        <div class="flow-node active">规划</div><div class="flow-arrow">→</div>
+        <div class="flow-node">编码</div><div class="flow-arrow">→</div>
+        <div class="flow-node">测试</div><div class="flow-arrow">→</div>
+        <div class="flow-node">审查</div><div class="flow-arrow">→</div>
+        <div class="flow-node">发布</div>
+      </div>
+
+      <h2>四段式提示词</h2>
+      <table>
+        <thead><tr><th>字段</th><th>说明</th><th>示例</th></tr></thead>
+        <tbody>
+          <tr><td>目标</td><td>要改变什么行为</td><td>让知识库问答支持按项目隔离检索</td></tr>
+          <tr><td>上下文</td><td>相关文件、错误、设计、日志</td><td>先读 backend/modules/ai 和 frontend/views/ai</td></tr>
+          <tr><td>约束</td><td>不能改什么，必须遵守什么</td><td>不改数据库连接配置，不部署</td></tr>
+          <tr><td>完成标准</td><td>什么结果算完成</td><td>单测通过，接口返回引用来源，页面可验证</td></tr>
+        </tbody>
+      </table>
+
+      <h2>使用 /plan</h2>
+      <pre>/plan 为 AI 知识库新增“按项目检索范围”能力。
+请先阅读相关代码，输出：
+1. 涉及文件
+2. 数据流变化
+3. 后端和前端改动步骤
+4. 测试计划
+5. 风险和回滚点
+先不要改代码。</pre>
+
+      <h2>使用 /goal</h2>
+      <pre>/goal 完成知识库检索范围改造：
+- 只改 AI 模块相关文件
+- 改完跑后端相关测试和前端构建
+- 给出验证命令和结果
+- 未经我确认不要部署</pre>
+
+      <div class="callout info">
+        <div class="callout-icon">i</div>
+        <div class="callout-body">
+          <strong>目标模式适合长任务</strong>
+          当任务需要多轮读代码、实现、测试、修复时，用 /goal 保持 Codex 的终点稳定。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c2')">← 项目接入</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c4')">③ 编码实现 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c4">
+      <div class="chapter-badge badge-beginner">开发流程</div>
+      <h1>③ 编码实现</h1>
+      <p class="chapter-intro">实现阶段要让 Codex 小步修改、持续看 diff、及时运行验证。明确“只改哪些文件”和“改完怎么验”。</p>
+
+      <div class="flow">
+        <div class="flow-node">接入</div><div class="flow-arrow">→</div>
+        <div class="flow-node">规划</div><div class="flow-arrow">→</div>
+        <div class="flow-node active">编码</div><div class="flow-arrow">→</div>
+        <div class="flow-node">测试</div><div class="flow-arrow">→</div>
+        <div class="flow-node">审查</div><div class="flow-arrow">→</div>
+        <div class="flow-node">发布</div>
+      </div>
+
+      <h2>高质量实现提示词</h2>
+      <pre>按刚才的计划实现第一阶段：
+范围：
+- backend/src/main/java/.../AiService.java
+- backend/src/main/java/.../RagSearchScope.java
+- frontend/src/api/ai.ts
+
+要求：
+1. 保持现有接口兼容
+2. 新增参数必须有默认行为
+3. 每改完一个层次先说明 diff
+4. 不修改部署配置</pre>
+
+      <h2>让 Codex 读现有模式</h2>
+      <p>不要让 Codex凭空设计。让它先找相邻实现，照项目风格改。</p>
+      <pre>先找项目里已有的分页查询、错误处理和权限校验写法。
+实现新接口时必须复用现有响应结构和异常风格。</pre>
+
+      <h2>控制改动粒度</h2>
+      <div class="card-grid">
+        <div class="card"><div class="card-icon">A</div><div class="card-title">先后端契约</div><div class="card-desc">确定 DTO、接口参数和兼容默认值，再写实现。</div></div>
+        <div class="card"><div class="card-icon">B</div><div class="card-title">再业务逻辑</div><div class="card-desc">服务层、查询、事务和错误处理小步落地。</div></div>
+        <div class="card"><div class="card-icon">C</div><div class="card-title">再前端接入</div><div class="card-desc">类型、API、状态、页面交互逐层验证。</div></div>
+        <div class="card"><div class="card-icon">D</div><div class="card-title">最后收尾</div><div class="card-desc">删临时代码、补测试、看 diff、总结风险。</div></div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">!</div>
+        <div class="callout-body">
+          <strong>警惕“顺手优化”</strong>
+          如果 Codex开始重构无关文件，立刻收窄范围。AI 改动越宽，验证成本越高。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c3')">← 规划与目标</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c5')">④ 测试验证 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c5">
+      <div class="chapter-badge badge-intermediate">开发流程</div>
+      <h1>④ 测试验证</h1>
+      <p class="chapter-intro">Codex 的结果必须走真实验证路径：单测、集成测试、构建、浏览器、数据库、健康检查，按风险选择。</p>
+
+      <div class="flow">
+        <div class="flow-node">接入</div><div class="flow-arrow">→</div>
+        <div class="flow-node">规划</div><div class="flow-arrow">→</div>
+        <div class="flow-node">编码</div><div class="flow-arrow">→</div>
+        <div class="flow-node active">测试</div><div class="flow-arrow">→</div>
+        <div class="flow-node">审查</div><div class="flow-arrow">→</div>
+        <div class="flow-node">发布</div>
+      </div>
+
+      <h2>验证矩阵</h2>
+      <table>
+        <thead><tr><th>改动类型</th><th>最低验证</th><th>更可靠验证</th></tr></thead>
+        <tbody>
+          <tr><td>纯工具页 / 静态页</td><td>浏览器打开、控制台无错误</td><td>桌面和移动视口截图检查</td></tr>
+          <tr><td>前端组件</td><td>构建或单测</td><td>真实浏览器交互 + 响应式检查</td></tr>
+          <tr><td>后端接口</td><td>相关单测</td><td>容器运行 + curl/API 验证 + 日志检查</td></tr>
+          <tr><td>数据库迁移</td><td>SQL 语法检查</td><td>空库和已有数据各跑一次，确认回滚策略</td></tr>
+          <tr><td>部署配置</td><td>配置解析</td><td>目标环境健康检查和回滚演练</td></tr>
+        </tbody>
+      </table>
+
+      <h2>让 Codex 主动跑验证</h2>
+      <pre>改完后请按以下顺序验证：
+1. 运行相关后端测试
+2. 运行前端构建
+3. 打开页面做浏览器验证
+4. 如果失败，先分析失败原因，再决定是否修代码</pre>
+
+      <h2>浏览器验证提示词</h2>
+      <pre>使用 Browser 打开本地页面：
+- 桌面宽度 1440
+- 移动宽度 390
+检查是否有 JS 错误、文字溢出、按钮遮挡、空白区域异常。
+如果发现问题，直接修复并重新截图验证。</pre>
+
+      <div class="callout tip">
+        <div class="callout-icon">i</div>
+        <div class="callout-body">
+          <strong>失败输出也有价值</strong>
+          不要只说“测试失败”。让 Codex 贴出关键失败原因、它判断的根因、下一步修复点。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c4')">← 编码实现</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c6')">⑤ 审查与 Git →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c6">
+      <div class="chapter-badge badge-intermediate">开发流程</div>
+      <h1>⑤ 审查与 Git</h1>
+      <p class="chapter-intro">Codex 可以审查自己的 diff，但你要让它按工程风险排序，而不是泛泛夸代码。</p>
+
+      <div class="flow">
+        <div class="flow-node">接入</div><div class="flow-arrow">→</div>
+        <div class="flow-node">规划</div><div class="flow-arrow">→</div>
+        <div class="flow-node">编码</div><div class="flow-arrow">→</div>
+        <div class="flow-node">测试</div><div class="flow-arrow">→</div>
+        <div class="flow-node active">审查</div><div class="flow-arrow">→</div>
+        <div class="flow-node">发布</div>
+      </div>
+
+      <h2>本地审查</h2>
+      <pre>/diff
+/review 请审查当前工作区改动：
+1. 优先找 bug、回归、安全风险和缺失测试
+2. 标出文件和行号
+3. 不要列无关风格建议
+4. 如果没有问题，说清楚剩余风险</pre>
+
+      <h2>提交原则</h2>
+      <ul>
+        <li>不要让 Codex 使用 <code>git add .</code>，要求它按文件确认 stage。</li>
+        <li>脏工作区里只 stage 本次任务文件。</li>
+        <li>提交信息写清楚类型和范围，例如 <code>feat(cc-tools): 新增 Codex 能力页</code>。</li>
+        <li>提交前让 Codex 复述验证命令和结果。</li>
+      </ul>
+
+      <h2>GitHub 协作</h2>
+      <pre>使用 GitHub 插件检查当前 PR：
+- 未解决 review thread
+- 失败的 checks
+- 最近一次 CI 日志关键错误
+先汇总，再修复可操作问题。</pre>
+
+      <div class="callout warn">
+        <div class="callout-icon">!</div>
+        <div class="callout-body">
+          <strong>审查不等于测试</strong>
+          代码审查能发现风险，但不能证明行为正确。提交前仍然需要真实验证结果。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c5')">← 测试验证</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c7')">⑥ 发布与云任务 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c7">
+      <div class="chapter-badge badge-intermediate">开发流程</div>
+      <h1>⑥ 发布与云任务</h1>
+      <p class="chapter-intro">发布不是“运行部署命令”。发布是构建、配置、健康检查、回滚点和观察窗口的组合。</p>
+
+      <div class="flow">
+        <div class="flow-node">接入</div><div class="flow-arrow">→</div>
+        <div class="flow-node">规划</div><div class="flow-arrow">→</div>
+        <div class="flow-node">编码</div><div class="flow-arrow">→</div>
+        <div class="flow-node">测试</div><div class="flow-arrow">→</div>
+        <div class="flow-node">审查</div><div class="flow-arrow">→</div>
+        <div class="flow-node active">发布</div>
+      </div>
+
+      <h2>发布前检查清单</h2>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>构建产物</h4><p>确认本地或 CI 构建通过，产物和镜像标签明确。</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>配置与迁移</h4><p>确认环境变量、数据库迁移、兼容发布和回滚策略。</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>健康检查</h4><p>部署后检查进程、容器、健康接口、关键 API 和日志。</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>观察窗口</h4><p>查看错误率、慢查询、告警和用户核心路径。</p></div></div>
+      </div>
+
+      <h2>云端任务适用场景</h2>
+      <table>
+        <thead><tr><th>场景</th><th>为什么用 Cloud</th><th>提示词重点</th></tr></thead>
+        <tbody>
+          <tr><td>修 CI</td><td>直接读取 PR 和日志上下文</td><td>要求先定位失败根因，再最小修改</td></tr>
+          <tr><td>PR review 修复</td><td>围绕 PR diff 和评论工作</td><td>只处理 unresolved thread</td></tr>
+          <tr><td>依赖升级</td><td>耗时、可在隔离环境运行</td><td>要求分批升级和测试结果</td></tr>
+          <tr><td>后台巡检</td><td>不阻塞本机开发</td><td>只报告有行动价值的发现</td></tr>
+        </tbody>
+      </table>
+
+      <pre>@codex fix the CI failures.
+Scope:
+- Do not refactor unrelated code.
+- Keep the patch minimal.
+- Report the failing check, root cause, changed files, and validation result.</pre>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c6')">← 审查与 Git</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c8')">Skills 与 Plugins →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c8">
+      <div class="chapter-badge badge-advanced">扩展能力</div>
+      <h1>Skills 与 Plugins</h1>
+      <p class="chapter-intro">Skills 定义“怎么做”，Plugins 负责“怎么分发和接入外部能力”。不要把所有东西都塞进 AGENTS.md。</p>
+
+      <h2>什么时候用 Skill</h2>
+      <ul>
+        <li>同一类任务反复出现，例如发布检查、代码审查、报告生成。</li>
+        <li>流程需要参考资料、脚本或固定输出格式。</li>
+        <li>希望 Codex 能根据描述自动选择工作流。</li>
+      </ul>
+
+      <pre><span class="cmt"># .agents/skills/release-check/SKILL.md</span>
+---
+name: release-check
+description: 发布前检查技能。用于构建、测试、配置、健康检查和回滚核对。
+---
+
+1. 读取 AGENTS.md 和部署文档。
+2. 列出发布风险和必须验证命令。
+3. 运行允许范围内的检查。
+4. 输出发布结论和剩余风险。</pre>
+
+      <h2>什么时候用 Plugin</h2>
+      <p>当你想把多个 skills、MCP、app connector、hooks、资产打包给自己或团队复用时，用 Plugin。</p>
+      <table>
+        <thead><tr><th>需求</th><th>推荐</th></tr></thead>
+        <tbody>
+          <tr><td>只是一段项目规则</td><td><code>AGENTS.md</code></td></tr>
+          <tr><td>一个可复用工作流</td><td>Skill</td></tr>
+          <tr><td>工作流 + 外部工具 + 团队分发</td><td>Plugin</td></tr>
+          <tr><td>连接外部系统</td><td>MCP 或 App Connector，可由 Plugin 打包</td></tr>
+        </tbody>
+      </table>
+
+      <h2>常用插件场景</h2>
+      <div class="card-grid">
+        <div class="card"><div class="card-icon">GH</div><div class="card-title">GitHub</div><div class="card-desc">PR、issue、CI、review thread、发布协作。</div></div>
+        <div class="card"><div class="card-icon">BR</div><div class="card-title">Browser / Chrome</div><div class="card-desc">本地页面验证、登录态浏览器、截图和交互。</div></div>
+        <div class="card"><div class="card-icon">FG</div><div class="card-title">Figma</div><div class="card-desc">设计稿读取、组件库、页面生成和 Code Connect。</div></div>
+        <div class="card"><div class="card-icon">DOC</div><div class="card-title">Docs / Sheets / Slides</div><div class="card-desc">非代码交付物、报表、演示文稿和视觉 QA。</div></div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c7')">← 发布与云任务</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c9')">MCP 外部系统 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c9">
+      <div class="chapter-badge badge-advanced">扩展能力</div>
+      <h1>MCP 外部系统</h1>
+      <p class="chapter-intro">MCP 是 Codex 连接外部工具和上下文的标准方式。它适合“信息不在仓库里”的任务。</p>
+
+      <h2>配置方式</h2>
+      <pre><span class="cmt"># CLI 添加 stdio MCP</span>
+<span class="cmd">codex mcp add context7 -- npx -y @upstash/context7-mcp</span>
+
+<span class="cmt"># 查看 MCP 状态</span>
+<span class="cmd">codex mcp list</span>
+
+<span class="cmt"># 在 TUI / App 中查看当前会话</span>
+/mcp</pre>
+
+      <h2>config.toml 示例</h2>
+      <pre><span class="cmt"># ~/.codex/config.toml</span>
+[mcp_servers.context7]
+command = <span class="str">"npx"</span>
+args = [<span class="str">"-y"</span>, <span class="str">"@upstash/context7-mcp"</span>]
+
+[mcp_servers.figma]
+url = <span class="str">"https://mcp.figma.com/mcp"</span>
+bearer_token_env_var = <span class="str">"FIGMA_OAUTH_TOKEN"</span></pre>
+
+      <h2>常用 MCP 选择</h2>
+      <table>
+        <thead><tr><th>MCP</th><th>解决什么问题</th><th>典型提示词</th></tr></thead>
+        <tbody>
+          <tr><td>Context7</td><td>最新框架文档</td><td>用 Context7 查询 Next.js 当前路由写法</td></tr>
+          <tr><td>Playwright</td><td>真实浏览器验证</td><td>打开登录页，检查移动端布局</td></tr>
+          <tr><td>MySQL / PostgreSQL</td><td>表结构和查询分析</td><td>查看订单表索引，解释慢查询</td></tr>
+          <tr><td>Redis</td><td>缓存和队列状态</td><td>检查登录 session key 的 TTL</td></tr>
+          <tr><td>Figma</td><td>设计稿和组件</td><td>读取设计 token，生成页面实现</td></tr>
+          <tr><td>Sentry</td><td>线上异常</td><td>读取最近错误，定位回归点</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <div class="callout-icon">i</div>
+        <div class="callout-body">
+          <strong>MCP 最好和 Skill 配套</strong>
+          Skill 说明流程，MCP 提供工具。比如“前端验收”技能可以固定要求使用 Browser 或 Playwright MCP。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c8')">← Skills 与 Plugins</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c10')">Hooks 自动化 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c10">
+      <div class="chapter-badge badge-advanced">扩展能力</div>
+      <h1>Hooks 自动化</h1>
+      <p class="chapter-intro">Hooks 是 Codex 生命周期里的脚本扩展点。它适合机械、确定、可审计的检查，不适合塞复杂业务判断。</p>
+
+      <h2>常用事件</h2>
+      <table>
+        <thead><tr><th>事件</th><th>触发时机</th><th>适合用途</th></tr></thead>
+        <tbody>
+          <tr><td><code>PreToolUse</code></td><td>工具调用前</td><td>拦截危险命令、校验路径、检查策略</td></tr>
+          <tr><td><code>PermissionRequest</code></td><td>请求权限时</td><td>判断是否访问生产、是否写出工作区</td></tr>
+          <tr><td><code>PostToolUse</code></td><td>工具调用后</td><td>格式化、lint、扫描命令输出</td></tr>
+          <tr><td><code>UserPromptSubmit</code></td><td>用户提交提示后</td><td>扫描密钥、补充上下文、审计</td></tr>
+          <tr><td><code>Stop</code></td><td>任务停止时</td><td>最终检查、报告、提醒未验证项</td></tr>
+        </tbody>
+      </table>
+
+      <h2>hooks.json 示例</h2>
+      <pre>{
+  <span class="str">"hooks"</span>: {
+    <span class="str">"PreToolUse"</span>: [
+      {
+        <span class="str">"matcher"</span>: <span class="str">"Bash"</span>,
+        <span class="str">"hooks"</span>: [
+          {
+            <span class="str">"type"</span>: <span class="str">"command"</span>,
+            <span class="str">"command"</span>: <span class="str">"/usr/bin/python3 .codex/hooks/pre_tool_use_policy.py"</span>,
+            <span class="str">"statusMessage"</span>: <span class="str">"Checking command policy"</span>
+          }
+        ]
+      }
+    ],
+    <span class="str">"PostToolUse"</span>: [
+      {
+        <span class="str">"matcher"</span>: <span class="str">"apply_patch|Edit|Write"</span>,
+        <span class="str">"hooks"</span>: [
+          { <span class="str">"type"</span>: <span class="str">"command"</span>, <span class="str">"command"</span>: <span class="str">"npm run lint --if-present"</span>, <span class="str">"timeout"</span>: 60 }
+        ]
+      }
+    ]
+  }
+}</pre>
+
+      <h2>Hook 设计原则</h2>
+      <ul>
+        <li>只做确定性检查，不让 hook 生成大段不可控改动。</li>
+        <li>脚本输出要短，失败原因要清楚。</li>
+        <li>高风险 hook 放用户级或受信项目级配置，不随便接受陌生仓库 hooks。</li>
+        <li>新 hook 需要在 <code>/hooks</code> 里 review 和 trust。</li>
+      </ul>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c9')">← MCP 外部系统</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c11')">自动化与工作树 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c11">
+      <div class="chapter-badge badge-advanced">扩展能力</div>
+      <h1>自动化与工作树</h1>
+      <p class="chapter-intro">Automations 适合周期性任务，Worktree 适合隔离并行改动。两者配合可以把例行检查从主工作区移走。</p>
+
+      <h2>三种自动化</h2>
+      <table>
+        <thead><tr><th>类型</th><th>特点</th><th>适用场景</th></tr></thead>
+        <tbody>
+          <tr><td>Thread Automation</td><td>回到同一个线程</td><td>等待部署、轮询 CI、继续同一调查</td></tr>
+          <tr><td>Standalone Automation</td><td>每次独立运行</td><td>日报、巡检、依赖提醒、PR 汇总</td></tr>
+          <tr><td>Project Worktree Automation</td><td>在独立工作树运行</td><td>可能产生改动的定时任务</td></tr>
+        </tbody>
+      </table>
+
+      <h2>自动化提示词模板</h2>
+      <pre>每天上午 9 点检查这个项目：
+1. 是否有失败的 GitHub Actions
+2. 是否有未处理 PR review
+3. 是否有依赖安全告警
+只报告需要我处理的事项。
+如果没有发现，自动归档本次运行。</pre>
+
+      <h2>Worktree 使用建议</h2>
+      <ul>
+        <li>探索性重构、依赖升级、并行 bug 修复优先用 Worktree。</li>
+        <li>本地主工作区有未提交改动时，不要让后台任务直接在 Local 模式改文件。</li>
+        <li>任务完成后再把 diff 合并回主工作区或开 PR。</li>
+      </ul>
+
+      <div class="callout warn">
+        <div class="callout-icon">!</div>
+        <div class="callout-body">
+          <strong>自动化也受权限影响</strong>
+          自动化无人值守运行，默认沙箱和审批策略要更保守。需要写文件或联网时，先手动跑通一次。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c10')">← Hooks 自动化</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c12')">安全与权限 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c12">
+      <div class="chapter-badge badge-intermediate">最佳实践</div>
+      <h1>安全与权限</h1>
+      <p class="chapter-intro">Codex 能执行真实命令，所以安全设计要前置。默认约束要保守，放权要有理由和范围。</p>
+
+      <h2>权限分层</h2>
+      <div class="card-grid">
+        <div class="card"><div class="card-icon">FS</div><div class="card-title">文件系统</div><div class="card-desc">read、write、deny 控制路径访问。敏感目录和 .env 应显式保护。</div></div>
+        <div class="card"><div class="card-icon">NET</div><div class="card-title">网络</div><div class="card-desc">默认可关闭或按域名允许。生产、内网、Docker socket 要谨慎。</div></div>
+        <div class="card"><div class="card-icon">APP</div><div class="card-title">应用连接</div><div class="card-desc">插件和 connectors 可能访问私有数据，按任务最小授权。</div></div>
+        <div class="card"><div class="card-icon">CMD</div><div class="card-title">命令审批</div><div class="card-desc">安装依赖、部署、删除、越权写入、联网失败重试都应明确审批。</div></div>
+      </div>
+
+      <h2>常见安全提示词</h2>
+      <pre>开始前先确认：
+1. 本次会修改哪些目录
+2. 是否需要网络
+3. 是否需要访问密钥或生产环境
+4. 哪些命令需要我审批
+如果可以在当前 workspace-write 范围内完成，就不要请求额外权限。</pre>
+
+      <h2>密钥与日志</h2>
+      <ul>
+        <li>不要把 API key、cookie、证书、数据库密码贴进提示词。</li>
+        <li>需要用密钥时，优先让系统从环境变量读取。</li>
+        <li>让 Codex 在提交前扫描 diff，确认没有密钥、token、客户数据。</li>
+        <li>不要让记忆或文档沉淀短期凭证。</li>
+      </ul>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c11')">← 自动化与工作树</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c13')">提示词技巧 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c13">
+      <div class="chapter-badge badge-intermediate">最佳实践</div>
+      <h1>提示词技巧</h1>
+      <p class="chapter-intro">Codex 的提示词不需要华丽，但必须可执行。最好的提示词像一张任务工单。</p>
+
+      <h2>高效模式</h2>
+      <table>
+        <thead><tr><th>场景</th><th>低效说法</th><th>高效说法</th></tr></thead>
+        <tbody>
+          <tr><td>修 bug</td><td>这个页面有问题</td><td>登录后访问 /profile 403，/orders 正常；先读后端日志和 auth 中间件</td></tr>
+          <tr><td>新功能</td><td>帮我做优惠券</td><td>先实现满减券核销接口，保持现有订单接口兼容，补并发测试</td></tr>
+          <tr><td>UI</td><td>优化页面</td><td>按现有设计风格修移动端 390px 布局，不能出现文字溢出或卡片套卡片</td></tr>
+          <tr><td>审查</td><td>看看代码怎么样</td><td>按 P0/P1/P2 找 bug、回归、安全风险和缺失测试，给文件行号</td></tr>
+          <tr><td>部署</td><td>发一下</td><td>先列部署步骤和回滚点，确认后再执行，部署后检查 /healthz 和关键 API</td></tr>
+        </tbody>
+      </table>
+
+      <h2>让 Codex 保持边界</h2>
+      <pre>只处理以下范围：
+- src/auth/**
+- tests/auth/**
+
+不要修改：
+- 数据库迁移
+- 部署脚本
+- UI 文案
+
+如果发现必须修改范围外文件，先暂停并说明原因。</pre>
+
+      <h2>让 Codex 给证据</h2>
+      <pre>完成后请输出：
+1. 修改了哪些文件
+2. 每个文件为什么改
+3. 运行了哪些验证命令
+4. 验证结果
+5. 没有验证的剩余风险</pre>
+
+      <div class="callout tip">
+        <div class="callout-icon">i</div>
+        <div class="callout-body">
+          <strong>最重要的五个词</strong>
+          目标、上下文、约束、验收、证据。每个复杂任务都尽量覆盖这五项。
+        </div>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c12')">← 安全与权限</button>
+        <button class="nav-btn primary" onclick="gotoChapter('c14')">从 Claude Code 迁移 →</button>
+      </div>
+    </section>
+
+    <section class="chapter" id="c14">
+      <div class="chapter-badge badge-intermediate">最佳实践</div>
+      <h1>从 Claude Code 迁移</h1>
+      <p class="chapter-intro">不要逐字迁移。先判断每个配置在 Codex 中应该落到哪个层：AGENTS.md、config.toml、Skill、Plugin、MCP、Hook 或 Automation。</p>
+
+      <h2>映射表</h2>
+      <table>
+        <thead><tr><th>Claude Code</th><th>Codex</th><th>备注</th></tr></thead>
+        <tbody>
+          <tr><td><code>CLAUDE.md</code></td><td><code>AGENTS.md</code></td><td>迁移规则、命令和完成标准，删掉过时描述</td></tr>
+          <tr><td><code>settings.json</code></td><td><code>config.toml</code></td><td>重点检查模型、权限、MCP、hooks</td></tr>
+          <tr><td>自定义命令</td><td>Skills</td><td>可复用流程优先做成 SKILL.md</td></tr>
+          <tr><td>Agents / subagents</td><td>Subagents 或 Skills</td><td>角色分工保留，但要重新核对工具权限</td></tr>
+          <tr><td>MCP servers</td><td><code>codex mcp</code> 或 <code>[mcp_servers]</code></td><td>认证、环境变量和工具审批需要重配</td></tr>
+          <tr><td>Hooks</td><td><code>hooks.json</code> 或 <code>[hooks]</code></td><td>事件名和 matcher 需要按 Codex 文档核对</td></tr>
+          <tr><td>团队能力包</td><td>Plugin</td><td>适合分发 skills、MCP、hooks 和 app mappings</td></tr>
+        </tbody>
+      </table>
+
+      <h2>迁移提示词</h2>
+      <pre>请检查当前 Claude Code 配置，并按 Codex 层级给出迁移计划：
+1. CLAUDE.md → AGENTS.md
+2. settings.json → config.toml
+3. slash commands → skills
+4. MCP → codex mcp/config.toml
+5. hooks → hooks.json
+6. 哪些内容不应迁移
+先输出计划，不要写文件。</pre>
+
+      <h2>迁移后验证</h2>
+      <ul>
+        <li>新开 Codex 线程，让它列出加载到的 AGENTS.md 来源。</li>
+        <li>用 <code>/mcp</code> 验证外部工具是否可用。</li>
+        <li>用 <code>/hooks</code> review 和 trust 迁移后的 hooks。</li>
+        <li>跑一个小任务验证技能是否被正确触发。</li>
+        <li>不要把 Claude 的危险 allowlist 原样迁移成 Codex 宽权限。</li>
+      </ul>
+
+      <div class="progress-section">
+        <h3>完成教程</h3>
+        <p>下一步可以打开 Codex 能力检索台，按当前任务搜索插件、MCP、Hooks、Skills 或工作流。需要和 Claude Code 对照时，顶部入口可以在四个页面间切换。</p>
+      </div>
+
+      <div class="chapter-nav">
+        <button class="nav-btn" onclick="gotoChapter('c13')">← 提示词技巧</button>
+        <a href="Codex-Skill-Finder.html" class="nav-btn primary">前往 Codex 检索台 →</a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const navItems = document.querySelectorAll('.nav-item[data-chapter]');
+  const chapters = document.querySelectorAll('.chapter');
+
+  function gotoChapter(id) {
+    chapters.forEach(c => c.classList.remove('visible'));
+    navItems.forEach(n => n.classList.remove('active'));
+
+    const target = document.getElementById(id);
+    if (target) {
+      target.classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (history.replaceState) {
+        history.replaceState(null, '', '#' + id);
+      }
+    }
+
+    const navTarget = document.querySelector(`.nav-item[data-chapter="${id}"]`);
+    if (navTarget) {
+      navTarget.classList.add('active');
+      navTarget.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  navItems.forEach(item => {
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      gotoChapter(item.dataset.chapter);
+    });
+  });
+
+  const initial = window.location.hash.replace('#', '');
+  if (initial && document.getElementById(initial)) {
+    gotoChapter(initial);
+  }
+</script>
+</body>
+</html>
