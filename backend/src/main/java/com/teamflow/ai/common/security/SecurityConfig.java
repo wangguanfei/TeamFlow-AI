@@ -59,10 +59,7 @@ public class SecurityConfig {
                                 "/api/auth/refresh-token",
                                 "/api/profile/avatar-file/**",
                                 "/api/file-shares/access/**",
-                                "/ws/notifications",
-                                "/v3/api-docs/**",
-                                "/swagger-ui.html",
-                                "/swagger-ui/**"
+                                "/ws/notifications"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
