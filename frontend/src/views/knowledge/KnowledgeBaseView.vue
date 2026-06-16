@@ -1,12 +1,5 @@
 <template>
   <PageContainer title="知识库" description="沉淀团队知识、发布版本并支持 Markdown 编辑预览">
-    <template #actions>
-      <el-button :icon="Refresh" @click="loadAll">刷新</el-button>
-      <PermissionButton permission="knowledge:space:create" type="primary" :icon="Plus" @click="openSpaceDialog">新建空间</PermissionButton>
-      <PermissionButton permission="knowledge:doc:create" type="primary" :icon="DocumentAdd" :disabled="!activeSpaceId" @click="openDocDialog">新建文档</PermissionButton>
-      <PermissionButton permission="knowledge:doc:create" type="primary" :icon="UploadFilled" :disabled="!activeSpaceId" @click="openImportDialog">上传文档</PermissionButton>
-    </template>
-
     <div v-loading="loading" class="knowledge-layout">
       <aside class="knowledge-sidebar system-card">
         <div class="knowledge-sidebar__search">
@@ -19,11 +12,20 @@
             @clear="loadDocs({ selectFirst: true })"
           />
         </div>
+        <div class="knowledge-sidebar__actions">
+          <PermissionButton permission="knowledge:doc:create" type="primary" :icon="DocumentAdd" :disabled="!activeSpaceId" @click="openDocDialog">新建文档</PermissionButton>
+          <PermissionButton permission="knowledge:doc:create" :icon="UploadFilled" :disabled="!activeSpaceId" @click="openImportDialog">上传文档</PermissionButton>
+        </div>
 
         <section class="knowledge-section knowledge-section--tree">
           <div class="knowledge-section__title">
-            <span>资源树</span>
-            <el-tag>{{ spaces.length }} 空间 · {{ docs.length }} 文档</el-tag>
+            <div class="knowledge-section__heading">
+              <span>资源树</span>
+            </div>
+            <div class="knowledge-section__tools">
+              <el-button :icon="Refresh" circle aria-label="刷新资源树" title="刷新资源树" @click="loadAll" />
+              <PermissionButton permission="knowledge:space:create" :icon="Plus" circle aria-label="新建空间" title="新建空间" @click="openSpaceDialog" />
+            </div>
           </div>
           <el-empty v-if="!spaces.length" description="暂无知识空间" :image-size="92" />
           <el-tree
@@ -62,22 +64,21 @@
         <template v-if="currentDoc">
           <header class="knowledge-editor__header">
             <div class="knowledge-title-block">
-              <el-input v-model="editor.title" class="knowledge-title-input" placeholder="文档标题" />
+              <div class="knowledge-title-row">
+                <el-input v-model="editor.title" class="knowledge-title-input" placeholder="文档标题" />
+              </div>
               <div class="knowledge-meta">
-                <el-tag :type="statusType(editor.docStatus)">{{ statusLabel(editor.docStatus) }}</el-tag>
+                <span class="knowledge-status-pill" :class="`is-${editor.docStatus.toLowerCase()}`">{{ statusLabel(editor.docStatus) }}</span>
                 <span>版本 v{{ currentDoc.versionNo || 0 }}</span>
                 <span>{{ currentDoc.authorName || '未知作者' }}</span>
                 <span>{{ formatDate(currentDoc.updatedAt) }}</span>
               </div>
             </div>
             <div class="knowledge-editor__actions">
-              <el-button :icon="Star" :type="currentDoc.favorite ? 'warning' : 'default'" @click="toggleFavorite">
-                {{ currentDoc.favorite ? '已收藏' : '收藏' }}
-              </el-button>
-              <el-button :icon="Clock" @click="openHistory">历史版本</el-button>
-              <PermissionButton permission="knowledge:doc:update" :icon="Check" @click="saveDocument">保存</PermissionButton>
-              <PermissionButton permission="knowledge:doc:delete" type="danger" :icon="Delete" @click="removeDocument">删除</PermissionButton>
               <PermissionButton permission="knowledge:doc:publish" type="primary" :icon="UploadFilled" @click="publishDocument">发布</PermissionButton>
+              <PermissionButton permission="knowledge:doc:update" :icon="Check" @click="saveDocument">保存</PermissionButton>
+              <el-button :icon="Clock" @click="openHistory">历史版本</el-button>
+              <PermissionButton permission="knowledge:doc:delete" type="danger" plain :icon="Delete" @click="removeDocument">删除</PermissionButton>
             </div>
           </header>
 
@@ -247,7 +248,6 @@ import {
   Plus,
   Refresh,
   Search,
-  Star,
   UploadFilled
 } from '@element-plus/icons-vue'
 import { MdEditor, MdPreview } from 'md-editor-v3'
@@ -256,10 +256,8 @@ import PageContainer from '@/components/PageContainer.vue'
 import PermissionButton from '@/components/PermissionButton.vue'
 import {
   createKnowledgeDocApi,
-  createKnowledgeFavoriteApi,
   createKnowledgeSpaceApi,
   deleteKnowledgeDocApi,
-  deleteKnowledgeFavoriteApi,
   deleteKnowledgeSpaceApi,
   importKnowledgeDocFileApi,
   knowledgeDocDetailApi,
@@ -680,20 +678,6 @@ async function publishDocument() {
   await loadDocs()
 }
 
-async function toggleFavorite() {
-  if (!currentDoc.value) {
-    return
-  }
-  if (currentDoc.value.favorite && currentDoc.value.favoriteId) {
-    await deleteKnowledgeFavoriteApi(currentDoc.value.favoriteId)
-    ElMessage.success('已取消收藏')
-  } else {
-    await createKnowledgeFavoriteApi({ docId: currentDoc.value.id })
-    ElMessage.success('已收藏')
-  }
-  await selectDoc(currentDoc.value.id)
-}
-
 async function openHistory() {
   if (!activeDocId.value) {
     return
@@ -744,12 +728,6 @@ function statusLabel(status: string) {
   return map[status] || status
 }
 
-function statusType(status: string) {
-  if (status === 'PUBLISHED') return 'success'
-  if (status === 'ARCHIVED') return 'info'
-  return 'warning'
-}
-
 function formatDate(value?: string) {
   if (!value) {
     return '暂无时间'
@@ -761,10 +739,10 @@ function formatDate(value?: string) {
 <style scoped>
 .knowledge-layout {
   display: grid;
-  grid-template-columns: 316px minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 336px) minmax(0, 1fr);
   gap: 20px;
   align-items: stretch;
-  min-height: calc(100vh - 184px);
+  min-height: calc(100vh - 144px);
 }
 
 .knowledge-sidebar,
@@ -781,6 +759,27 @@ function formatDate(value?: string) {
 
 .knowledge-sidebar__search {
   margin-bottom: 12px;
+}
+
+.knowledge-sidebar__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.knowledge-sidebar__actions .el-button {
+  width: 100%;
+  height: 40px;
+  margin: 0;
+  border-radius: 8px;
+  font-weight: 760;
+}
+
+.knowledge-sidebar__actions .el-button--primary {
+  border: 0;
+  background: linear-gradient(135deg, var(--tf-primary), var(--tf-secondary));
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2);
 }
 
 .knowledge-section {
@@ -803,21 +802,70 @@ function formatDate(value?: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   flex: 0 0 auto;
-  height: 32px;
+  min-height: 34px;
   color: var(--tf-text);
   font-size: 12px;
   font-weight: 760;
 }
 
-.knowledge-section__title .el-tag {
-  height: 22px;
+.knowledge-section__heading {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.knowledge-section__heading span {
+  color: var(--tf-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.knowledge-section__heading small {
+  color: var(--tf-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.knowledge-section__tools {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 999px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.knowledge-section__tools .el-button {
+  width: 28px;
+  height: 28px;
+  margin: 0;
   border: 0;
   border-radius: 999px;
-  background: #eef6ff;
+  background: transparent;
+  color: #64748b;
+  box-shadow: none;
+}
+
+.knowledge-section__tools .el-button:focus,
+.knowledge-section__tools .el-button:focus-visible {
+  outline: none;
+  background: transparent;
+  color: #64748b;
+  box-shadow: none;
+}
+
+.knowledge-section__tools .el-button:hover {
+  background: #fff;
   color: var(--tf-primary);
-  font-size: 11px;
-  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.knowledge-section__tools :deep(.el-icon) {
+  font-size: 15px;
 }
 
 .knowledge-space-item {
@@ -1079,6 +1127,13 @@ function formatDate(value?: string) {
   gap: 10px;
 }
 
+.knowledge-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .knowledge-title-input :deep(.el-input__wrapper) {
   padding-left: 0;
   border-radius: 0;
@@ -1107,11 +1162,52 @@ function formatDate(value?: string) {
   font-size: 12px;
 }
 
+.knowledge-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.knowledge-status-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.knowledge-status-pill.is-published {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.knowledge-status-pill.is-draft {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.knowledge-status-pill.is-archived {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
 .knowledge-editor__actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  white-space: nowrap;
 }
 
 .knowledge-editor__actions .el-button {
+  height: 38px;
+  margin: 0;
   border-radius: 8px;
   font-weight: 700;
 }
@@ -1212,6 +1308,8 @@ function formatDate(value?: string) {
   }
 
   .knowledge-editor__actions {
+    width: 100%;
+    flex: 0 0 auto;
     justify-content: flex-start;
   }
 
