@@ -27,6 +27,7 @@ public class OperationLogSchemaUpgrade implements CommandLineRunner {
     public void run(String... args) {
         addColumnIfAbsent("operation_log", "username", "VARCHAR(64) DEFAULT NULL COMMENT '操作人账号'", "user_id");
         addColumnIfAbsent("operation_log", "error_message", "VARCHAR(500) DEFAULT NULL COMMENT '异常信息'", "response_status");
+        addColumnIfAbsent("operation_log", "source", "VARCHAR(32) NOT NULL DEFAULT 'USER' COMMENT '操作来源：USER/AI_AGENT'", "client_ip");
         ensureIndex("operation_log", "idx_username", "ALTER TABLE operation_log ADD INDEX idx_username (username)");
         ensureIndex("operation_log", "idx_module", "ALTER TABLE operation_log ADD INDEX idx_module (module_name)");
         ensureIndex("operation_log", "idx_created_at", "ALTER TABLE operation_log ADD INDEX idx_created_at (created_at)");

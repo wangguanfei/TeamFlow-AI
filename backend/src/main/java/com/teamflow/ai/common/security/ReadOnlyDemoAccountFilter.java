@@ -30,6 +30,7 @@ public class ReadOnlyDemoAccountFilter extends OncePerRequestFilter {
             "/api/auth/refresh-token",
             "/api/auth/logout",
             "/api/ai/chat/stream",
+            "/api/ai/agent/chat",
             "/api/ai/knowledge/ask",
             "/api/ai/doc/summary",
             "/api/ai/code/generate"

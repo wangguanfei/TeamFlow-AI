@@ -57,7 +57,7 @@ public class OperationLogService {
                 e.getModuleName(), e.getOperationType(),
                 e.getRequestMethod(), e.getRequestUri(), e.getRequestParams(),
                 e.getResponseStatus(), e.getErrorMessage(),
-                e.getCostMs(), e.getClientIp(), e.getCreatedAt()
+                e.getCostMs(), e.getClientIp(), e.getSource(), e.getCreatedAt()
         );
     }
 }

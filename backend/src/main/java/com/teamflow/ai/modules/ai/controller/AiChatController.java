@@ -1,7 +1,15 @@
 package com.teamflow.ai.modules.ai.controller;
 
 import com.teamflow.ai.common.api.ApiResult;
+import com.teamflow.ai.common.log.Log;
 import com.teamflow.ai.common.security.UserPrincipal;
+import com.teamflow.ai.modules.agent.dto.AgentActionResult;
+import com.teamflow.ai.modules.agent.dto.AgentCancelRequest;
+import com.teamflow.ai.modules.agent.dto.AgentChatRequest;
+import com.teamflow.ai.modules.agent.dto.AgentConfirmRequest;
+import com.teamflow.ai.modules.agent.dto.AgentToolItem;
+import com.teamflow.ai.modules.agent.service.AgentOrchestrator;
+import com.teamflow.ai.modules.agent.service.AgentToolRegistry;
 import com.teamflow.ai.modules.ai.dto.AiChatRequest;
 import com.teamflow.ai.modules.ai.dto.AiChatResponse;
 import com.teamflow.ai.modules.ai.dto.AiProviderStatus;
@@ -19,15 +27,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.List;
+
 @Tag(name = "AI会话")
 @RestController
 @RequestMapping("/api/ai")
 public class AiChatController {
 
     private final AiService aiService;
+    private final AgentOrchestrator agentOrchestrator;
+    private final AgentToolRegistry agentToolRegistry;
 
-    public AiChatController(AiService aiService) {
+    public AiChatController(AiService aiService,
+                            AgentOrchestrator agentOrchestrator,
+                            AgentToolRegistry agentToolRegistry) {
         this.aiService = aiService;
+        this.agentOrchestrator = agentOrchestrator;
+        this.agentToolRegistry = agentToolRegistry;
     }
 
     @Operation(summary = "AI提供商状态")
@@ -43,6 +59,38 @@ public class AiChatController {
     public SseEmitter chat(@Valid @RequestBody AiChatRequest request,
                            @AuthenticationPrincipal UserPrincipal principal) {
         return aiService.chatStream(request, principal.getUserId());
+    }
+
+    @Operation(summary = "AI企业助理流式对话")
+    @PostMapping(value = "/agent/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAuthority('ai:agent')")
+    public SseEmitter agentChat(@Valid @RequestBody AgentChatRequest request,
+                                @AuthenticationPrincipal UserPrincipal principal) {
+        return agentOrchestrator.chat(request, principal);
+    }
+
+    @Log(module = "AI企业助理", type = "确认执行", source = "AI_AGENT")
+    @Operation(summary = "确认并执行AI待办动作")
+    @PostMapping("/agent/confirm")
+    @PreAuthorize("hasAuthority('ai:agent')")
+    public ApiResult<AgentActionResult> confirmAgentAction(@Valid @RequestBody AgentConfirmRequest request,
+                                                           @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResult.success(agentOrchestrator.confirm(request.confirmToken(), principal));
+    }
+
+    @Operation(summary = "取消AI待办动作")
+    @PostMapping("/agent/cancel")
+    @PreAuthorize("hasAuthority('ai:agent')")
+    public ApiResult<AgentActionResult> cancelAgentAction(@Valid @RequestBody AgentCancelRequest request,
+                                                          @AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResult.success(agentOrchestrator.cancel(request.confirmToken(), principal));
+    }
+
+    @Operation(summary = "查询当前可用AI工具")
+    @GetMapping("/agent/tools")
+    @PreAuthorize("hasAuthority('ai:agent')")
+    public ApiResult<List<AgentToolItem>> agentTools() {
+        return ApiResult.success(agentToolRegistry.list());
     }
 
     @Operation(summary = "知识库问答RAG")

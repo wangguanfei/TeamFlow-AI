@@ -27,6 +27,7 @@ class ReadOnlyDemoAccountFilterTest {
     @ParameterizedTest
     @ValueSource(strings = {
             "/api/ai/chat/stream",
+            "/api/ai/agent/chat",
             "/api/ai/knowledge/ask",
             "/api/ai/doc/summary",
             "/api/ai/code/generate"
@@ -43,6 +44,7 @@ class ReadOnlyDemoAccountFilterTest {
     @ParameterizedTest
     @ValueSource(strings = {
             "/api/tasks",
+            "/api/ai/agent/confirm",
             "/api/ai-sessions",
             "/api/ai-messages",
             "/api/notifications/read"

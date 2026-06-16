@@ -15,5 +15,6 @@ public record OperationLogPageItem(
         String errorMessage,
         Long costMs,
         String clientIp,
+        String source,
         LocalDateTime createdAt
 ) {}

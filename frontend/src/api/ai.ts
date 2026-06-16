@@ -67,6 +67,23 @@ export interface AiChatResponse {
   mock: boolean
 }
 
+export interface AgentActionResult {
+  actionId?: number
+  status: string
+  summary: string
+  targetType?: string
+  targetId?: number
+  url?: string
+}
+
+export interface AgentPendingAction {
+  actionId: number
+  confirmToken: string
+  toolName: string
+  toolLabel: string
+  preview: Record<string, unknown>
+}
+
 export interface AiProviderStatus {
   provider: string
   model: string
@@ -206,6 +223,87 @@ export async function aiChatStreamApi(
       }
     }
   }
+}
+
+export async function aiAgentChatStreamApi(
+  data: AiChatPayload,
+  handlers: {
+    onStatus?: (message: string) => void
+    onToolCall?: (payload: Record<string, unknown>) => void
+    onToolResult?: (payload: Record<string, unknown>) => void
+    onPendingAction?: (action: AgentPendingAction) => void
+    onDone: (payload: { sessionId: number; assistantMessageId?: number; mock?: boolean }) => void
+    onError: (message: string) => void
+  },
+  signal?: AbortSignal
+): Promise<void> {
+  const token = localStorage.getItem('teamflow_access_token')
+  const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api'
+
+  const response = await fetch(`${baseUrl}/ai/agent/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(data),
+    signal,
+  })
+
+  if (!response.ok) {
+    handlers.onError(await readErrorMessage(response))
+    return
+  }
+
+  const reader = response.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finished = false
+
+  while (!finished) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue
+      const jsonStr = line.slice(5).trim()
+      if (!jsonStr) continue
+      try {
+        const event = JSON.parse(jsonStr) as Record<string, unknown>
+        if (event.type === 'agent_status') {
+          handlers.onStatus?.((event.message as string) || '处理中')
+        } else if (event.type === 'agent_tool_call') {
+          handlers.onToolCall?.(event)
+        } else if (event.type === 'agent_tool_result') {
+          handlers.onToolResult?.(event)
+        } else if (event.type === 'agent_pending_action') {
+          handlers.onPendingAction?.(event as unknown as AgentPendingAction)
+        } else if (event.type === 'agent_done') {
+          handlers.onDone(event as unknown as { sessionId: number; assistantMessageId?: number; mock?: boolean })
+          finished = true
+          break
+        } else if (event.type === 'agent_error') {
+          handlers.onError((event.message as string) || 'AI 企业助理执行失败')
+          finished = true
+          break
+        }
+      } catch {
+        // ignore malformed SSE events
+      }
+    }
+  }
+}
+
+export function confirmAgentActionApi(confirmToken: string) {
+  return http.post<unknown, AgentActionResult>('/ai/agent/confirm', { confirmToken })
+}
+
+export function cancelAgentActionApi(confirmToken: string) {
+  return http.post<unknown, AgentActionResult>('/ai/agent/cancel', { confirmToken })
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

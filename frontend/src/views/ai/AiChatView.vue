@@ -130,6 +130,34 @@
               <span class="ai-stream-cursor" />
             </div>
           </article>
+
+          <article v-if="activeMode === 'AGENT' && (agentStatus || pendingAgentAction)" class="ai-message is-assistant">
+            <div class="ai-message__avatar">
+              <el-icon><Cpu /></el-icon>
+            </div>
+            <div class="ai-message__body ai-agent-card">
+              <div class="ai-message__meta">
+                <strong>AI 企业助理</strong>
+                <span>{{ agentStatus || '等待确认' }}</span>
+              </div>
+              <div v-if="pendingAgentAction" class="ai-agent-preview">
+                <div class="ai-agent-preview__head">
+                  <strong>{{ pendingAgentAction.toolLabel }}</strong>
+                  <el-tag size="small" type="warning">待确认</el-tag>
+                </div>
+                <dl class="ai-agent-preview__fields">
+                  <template v-for="[key, value] in Object.entries(pendingAgentAction.preview)" :key="key">
+                    <dt>{{ key }}</dt>
+                    <dd>{{ formatPreviewValue(value) }}</dd>
+                  </template>
+                </dl>
+                <div class="ai-agent-preview__actions">
+                  <el-button :loading="confirmingAgentAction" type="primary" @click="confirmPendingAgentAction">确认执行</el-button>
+                  <el-button :disabled="confirmingAgentAction" @click="cancelPendingAgentAction">取消</el-button>
+                </div>
+              </div>
+            </div>
+          </article>
         </div>
 
         <div class="ai-composer">
@@ -243,12 +271,16 @@ import PermissionButton from '@/components/PermissionButton.vue'
 import { knowledgeSpacePageApi, type KnowledgeSpaceItem } from '@/api/knowledge'
 import { loadProfilePreferences } from '@/utils/profilePreferences'
 import {
+  aiAgentChatStreamApi,
   aiChatStreamApi,
   aiMessageFeedbackApi,
   aiMessagePageApi,
   aiProviderStatusApi,
   aiSessionPageApi,
+  cancelAgentActionApi,
+  confirmAgentActionApi,
   deleteAiSessionApi,
+  type AgentPendingAction,
   type AiMessageItem,
   type AiReferenceItem,
   type AiSessionItem
@@ -256,6 +288,7 @@ import {
 
 const modeOptions = [
   { label: '问答', value: 'CHAT' },
+  { label: '办事', value: 'AGENT' },
   { label: '总结', value: 'SUMMARY' },
   { label: '代码', value: 'CODE' },
   { label: 'SQL', value: 'SQL' }
@@ -287,6 +320,9 @@ const latestReferences = ref<AiReferenceItem[]>([])
 const messageListRef = ref<HTMLElement | null>(null)
 const streamingContent = ref('')
 const isStreaming = ref(false)
+const agentStatus = ref('')
+const pendingAgentAction = ref<AgentPendingAction | null>(null)
+const confirmingAgentAction = ref(false)
 let temporaryMessageId = -1
 
 const activeSession = computed(() => sessions.value.find((session) => session.id === activeSessionId.value))
@@ -320,6 +356,7 @@ const selectedSpaceName = computed(() => {
 const activeModeDescription = computed(() => {
   const map: Record<string, string> = {
     CHAT: '普通问答适合快速咨询、方案讨论和日常协作问题。',
+    AGENT: '办事模式可以创建待办、查询任务，并在写操作前展示确认卡片。',
     KNOWLEDGE: '知识库问答会检索已发布文档，并在回复中展示引用来源。',
     SUMMARY: '文档总结适合提炼会议纪要、需求说明和长文档重点。',
     CODE: '代码生成适合输出示例代码、接口草案和重构建议。',
@@ -390,6 +427,8 @@ function startNewChat() {
   selectedModel.value = runtimeMock.value ? 'mock-ai' : runtimeModel.value
   input.value = ''
   latestMock.value = null
+  agentStatus.value = ''
+  pendingAgentAction.value = null
 }
 
 async function sendMessage() {
@@ -404,6 +443,8 @@ async function sendMessage() {
   sending.value = true
   isStreaming.value = false
   streamingContent.value = ''
+  agentStatus.value = ''
+  pendingAgentAction.value = null
   input.value = ''
 
   const temporaryUserMessage = createTemporaryUserMessage(content)
@@ -411,6 +452,55 @@ async function sendMessage() {
   scrollToBottom()
 
   try {
+    if (activeMode.value === 'AGENT') {
+      await aiAgentChatStreamApi(
+        {
+          sessionId: activeSessionId.value || undefined,
+          spaceId: useKnowledge.value ? selectedSpaceId.value : undefined,
+          mode: 'AGENT',
+          useKnowledge: useKnowledge.value,
+          model: selectedModel.value,
+          message: content,
+        },
+        {
+          onStatus: (message) => {
+            agentStatus.value = message
+            scrollToBottom()
+          },
+          onToolCall: (payload) => {
+            agentStatus.value = `正在调用 ${payload.toolLabel || payload.toolName || '工具'}`
+            scrollToBottom()
+          },
+          onToolResult: (payload) => {
+            agentStatus.value = (payload.summary as string) || '工具执行完成'
+            scrollToBottom()
+          },
+          onPendingAction: (action) => {
+            pendingAgentAction.value = action
+            agentStatus.value = '请确认后执行'
+            scrollToBottom()
+          },
+          onDone: (payload) => {
+            activeSessionId.value = payload.sessionId
+            latestMock.value = payload.mock ?? latestMock.value
+            messages.value = messages.value.filter((m) => m.id !== temporaryUserMessage.id)
+            loadMessages(payload.sessionId)
+            loadSessions()
+            scrollToBottom()
+          },
+          onError: (errorMsg) => {
+            messages.value = messages.value.filter((m) => m.id !== temporaryUserMessage.id)
+            input.value = content
+            agentStatus.value = ''
+            pendingAgentAction.value = null
+            ElMessage.error(errorMsg)
+            scrollToBottom()
+          }
+        }
+      )
+      return
+    }
+
     await aiChatStreamApi(
       {
         sessionId: activeSessionId.value || undefined,
@@ -458,6 +548,41 @@ async function sendMessage() {
     sending.value = false
     isStreaming.value = false
   }
+}
+
+async function confirmPendingAgentAction() {
+  if (!pendingAgentAction.value) return
+  confirmingAgentAction.value = true
+  try {
+    const result = await confirmAgentActionApi(pendingAgentAction.value.confirmToken)
+    ElMessage.success(result.summary || '已执行')
+    messages.value = [
+      ...messages.value,
+      {
+        id: temporaryMessageId--,
+        sessionId: activeSessionId.value || 0,
+        role: 'ASSISTANT',
+        content: `${result.summary || '已执行'}${result.url ? `\n\n[查看详情](${result.url})` : ''}`,
+        tokens: 0,
+        references: [],
+        createdAt: localDateTimeNow()
+      }
+    ]
+    pendingAgentAction.value = null
+    agentStatus.value = '已执行'
+    await loadSessions()
+    scrollToBottom()
+  } finally {
+    confirmingAgentAction.value = false
+  }
+}
+
+async function cancelPendingAgentAction() {
+  if (!pendingAgentAction.value) return
+  const result = await cancelAgentActionApi(pendingAgentAction.value.confirmToken)
+  ElMessage.info(result.summary || '已取消')
+  pendingAgentAction.value = null
+  agentStatus.value = '已取消'
 }
 
 function createTemporaryUserMessage(content: string): AiMessageItem {
@@ -517,6 +642,16 @@ function formatDate(value?: string) {
 
 function referenceKey(reference: AiReferenceItem, index: number) {
   return `${reference.docId}-${reference.chunkIndex ?? index}`
+}
+
+function formatPreviewValue(value: unknown) {
+  if (value === null || value === undefined || value === '') {
+    return '未设置'
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value)
+  }
+  return String(value)
 }
 
 function loadPreferredAiMode() {
@@ -858,6 +993,58 @@ function loadPreferredAiMode() {
   background: linear-gradient(135deg, var(--tf-primary), var(--tf-secondary));
   color: #fff;
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+}
+
+.ai-agent-card {
+  width: min(620px, 86%);
+}
+
+.ai-agent-preview {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-agent-preview__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-agent-preview__head strong {
+  color: var(--tf-text);
+  font-size: 15px;
+}
+
+.ai-agent-preview__fields {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--tf-border);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.ai-agent-preview__fields dt {
+  color: var(--tf-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ai-agent-preview__fields dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--tf-text);
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+}
+
+.ai-agent-preview__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .ai-message__meta {

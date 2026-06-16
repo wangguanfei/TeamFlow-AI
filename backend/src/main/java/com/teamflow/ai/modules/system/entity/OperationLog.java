@@ -22,6 +22,7 @@ public class OperationLog {
     private String errorMessage;
     private Long costMs;
     private String clientIp;
+    private String source;
     private LocalDateTime createdAt;
 
     public Long getId() { return id; }
@@ -59,6 +60,9 @@ public class OperationLog {
 
     public String getClientIp() { return clientIp; }
     public void setClientIp(String clientIp) { this.clientIp = clientIp; }
+
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

@@ -10,6 +10,7 @@ import java.lang.annotation.Target;
  * 标注在 Controller 方法上，触发操作日志异步记录。
  * module：所属模块（如 "用户管理"）
  * type：操作类型（如 "新增"/"修改"/"删除"）
+ * source：操作来源（USER/AI_AGENT）
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
@@ -19,4 +20,6 @@ public @interface Log {
     String module() default "";
 
     String type() default "";
+
+    String source() default "USER";
 }

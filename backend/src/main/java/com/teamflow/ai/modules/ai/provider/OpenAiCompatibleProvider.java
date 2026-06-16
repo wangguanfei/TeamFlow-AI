@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 @Component
@@ -69,6 +70,47 @@ public class OpenAiCompatibleProvider implements AiProvider {
         } catch (Exception exception) {
             log.warn("AI 上游调用失败，已回退 MockAIProvider：{}", exception.getMessage());
             return mockAiProvider.chat(messages, mode, references);
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public AiAgentAnswer chatWithTools(List<AiPromptMessage> messages, List<AiToolDefinition> tools, String model) {
+        if (!configured()) {
+            return mockAiProvider.chatWithTools(messages, tools);
+        }
+        String resolvedModel = resolveModel(model);
+        Map<String, Object> request = buildRequestMap(messages, resolvedModel);
+        if (tools != null && !tools.isEmpty()) {
+            request.put("tools", tools.stream().map(this::toOpenAiTool).toList());
+            request.put("tool_choice", "auto");
+        }
+
+        try {
+            Map<String, Object> response = restClient.post()
+                    .uri(chatCompletionUrl())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getApiKey())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(Map.class);
+
+            List<Map<String, Object>> choices = response == null ? List.of() : (List<Map<String, Object>>) response.getOrDefault("choices", List.of());
+            if (choices.isEmpty()) {
+                throw new IllegalStateException("AI 服务返回空结果");
+            }
+            Map<String, Object> choice = choices.get(0);
+            Map<String, Object> message = (Map<String, Object>) choice.getOrDefault("message", Map.of());
+            String content = String.valueOf(message.getOrDefault("content", ""));
+            List<AiToolCall> toolCalls = parseToolCalls((List<Map<String, Object>>) message.getOrDefault("tool_calls", List.of()));
+            if (content.isBlank() && toolCalls.isEmpty()) {
+                throw new IllegalStateException("AI 服务未返回内容或工具调用");
+            }
+            int tokens = Math.max(1, content.length() / 4);
+            return new AiAgentAnswer(content, toolCalls, tokens, resolvedModel, false);
+        } catch (Exception exception) {
+            log.warn("AI Agent 上游调用失败，已回退 MockAIProvider：{}", exception.getMessage());
+            return mockAiProvider.chatWithTools(messages, tools);
         }
     }
 
@@ -147,6 +189,53 @@ public class OpenAiCompatibleProvider implements AiProvider {
                         "content", message.content() == null ? "" : message.content()))
                 .toList());
         return request;
+    }
+
+    private Map<String, Object> toOpenAiTool(AiToolDefinition tool) {
+        Map<String, Object> function = new HashMap<>();
+        function.put("name", tool.name());
+        function.put("description", tool.description());
+        function.put("parameters", tool.parameters());
+        Map<String, Object> wrapper = new HashMap<>();
+        wrapper.put("type", "function");
+        wrapper.put("function", function);
+        return wrapper;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<AiToolCall> parseToolCalls(List<Map<String, Object>> rawCalls) {
+        if (rawCalls == null || rawCalls.isEmpty()) {
+            return List.of();
+        }
+        return rawCalls.stream()
+                .map(call -> {
+                    Map<String, Object> function = (Map<String, Object>) call.getOrDefault("function", Map.of());
+                    String id = String.valueOf(call.getOrDefault("id", "call-" + UUID.randomUUID()));
+                    String name = String.valueOf(function.getOrDefault("name", ""));
+                    Object argumentsRaw = function.get("arguments");
+                    Map<String, Object> arguments = parseArguments(argumentsRaw);
+                    return new AiToolCall(id, name, arguments);
+                })
+                .filter(call -> call.name() != null && !call.name().isBlank())
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseArguments(Object raw) {
+        if (raw instanceof Map<?, ?> map) {
+            Map<String, Object> result = new HashMap<>();
+            map.forEach((key, value) -> result.put(String.valueOf(key), value));
+            return result;
+        }
+        if (raw instanceof String text && !text.isBlank()) {
+            try {
+                return objectMapper.readValue(text, Map.class);
+            } catch (Exception e) {
+                log.warn("解析 tool_call arguments 失败：{}", e.getMessage());
+                return Map.of();
+            }
+        }
+        return Map.of();
     }
 
     private boolean configured() {

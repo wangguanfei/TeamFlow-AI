@@ -516,6 +516,7 @@ CREATE TABLE IF NOT EXISTS `operation_log` (
   `error_message` VARCHAR(500) DEFAULT NULL COMMENT '异常信息',
   `cost_ms` BIGINT DEFAULT NULL COMMENT '耗时（毫秒）',
   `client_ip` VARCHAR(64) DEFAULT NULL COMMENT 'IP',
+  `source` VARCHAR(32) NOT NULL DEFAULT 'USER' COMMENT '操作来源：USER/AI_AGENT',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
@@ -523,3 +524,32 @@ CREATE TABLE IF NOT EXISTS `operation_log` (
   KEY `idx_module` (`module_name`),
   KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='operation_log';
+
+CREATE TABLE IF NOT EXISTS `ai_agent_action` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'PK',
+  `session_id` BIGINT DEFAULT NULL COMMENT 'AI会话ID',
+  `message_id` BIGINT DEFAULT NULL COMMENT '触发消息ID',
+  `user_id` BIGINT NOT NULL COMMENT '发起用户ID',
+  `tool_name` VARCHAR(128) NOT NULL COMMENT '工具名',
+  `tool_label` VARCHAR(128) DEFAULT NULL COMMENT '工具中文名',
+  `arguments_json` JSON DEFAULT NULL COMMENT '工具参数',
+  `preview_json` JSON DEFAULT NULL COMMENT '写操作预览',
+  `result_json` JSON DEFAULT NULL COMMENT '执行结果',
+  `is_write` TINYINT NOT NULL DEFAULT 0 COMMENT '是否写操作',
+  `status` VARCHAR(32) NOT NULL COMMENT 'PENDING/RUNNING/EXECUTED/CANCELLED/FAILED',
+  `confirm_token_hash` VARCHAR(128) DEFAULT NULL COMMENT '确认token摘要',
+  `confirmed_by` BIGINT DEFAULT NULL COMMENT '确认人',
+  `confirmed_at` DATETIME DEFAULT NULL COMMENT '确认时间',
+  `target_type` VARCHAR(64) DEFAULT NULL COMMENT '业务对象类型',
+  `target_id` BIGINT DEFAULT NULL COMMENT '业务对象ID',
+  `error_message` VARCHAR(500) DEFAULT NULL COMMENT '失败原因',
+  `duration_ms` BIGINT DEFAULT NULL COMMENT '执行耗时',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_session_id` (`session_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_tool_name` (`tool_name`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AI Agent工具调用日志';

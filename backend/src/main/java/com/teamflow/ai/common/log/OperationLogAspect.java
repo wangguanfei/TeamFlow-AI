@@ -89,6 +89,7 @@ public class OperationLogAspect {
         Log logAnnotation = method.getAnnotation(Log.class);
         operationLog.setModuleName(logAnnotation.module());
         operationLog.setOperationType(logAnnotation.type());
+        operationLog.setSource(logAnnotation.source());
 
         // 当前用户
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
