@@ -81,14 +81,6 @@
                 <strong>{{ message.role === 'ASSISTANT' ? 'TeamFlow AI' : '我' }}</strong>
                 <span>{{ formatDate(message.createdAt) }}</span>
                 <el-tag v-if="message.role === 'ASSISTANT'" size="small">{{ message.tokens }} tokens</el-tag>
-                <span v-if="message.role === 'ASSISTANT' && message.id > 0" class="ai-message-feedback">
-                  <el-tooltip content="有用" placement="top">
-                    <el-button link :icon="CircleCheck" @click="submitMessageFeedback(message, 5, 'HELPFUL')" />
-                  </el-tooltip>
-                  <el-tooltip content="引用不准" placement="top">
-                    <el-button link type="warning" :icon="Warning" @click="submitMessageFeedback(message, 2, 'BAD_REFERENCE')" />
-                  </el-tooltip>
-                </span>
               </div>
               <MdPreview v-if="message.role === 'ASSISTANT'" :model-value="displayMessageContent(message)" />
               <p v-else class="ai-message__plain">{{ message.content }}</p>
@@ -96,6 +88,47 @@
                 <span v-for="(reference, index) in message.references" :key="referenceKey(reference, index)">
                   [{{ index + 1 }}] {{ reference.title }}
                 </span>
+              </div>
+              <div class="ai-message__actions">
+                <el-tooltip :content="copiedMessageId === message.id ? '已复制' : '复制消息'" placement="top">
+                  <button
+                    type="button"
+                    class="ai-message-action"
+                    :class="{ 'is-copied': copiedMessageId === message.id }"
+                    :aria-label="copiedMessageId === message.id ? '消息已复制' : '复制消息'"
+                    @click="copyMessage(message)"
+                  >
+                    <el-icon>
+                      <Check v-if="copiedMessageId === message.id" />
+                      <CopyDocument v-else />
+                    </el-icon>
+                    <span>{{ copiedMessageId === message.id ? '已复制' : '复制' }}</span>
+                  </button>
+                </el-tooltip>
+                <template v-if="message.role === 'ASSISTANT' && message.id > 0">
+                  <el-tooltip content="这个回答有帮助" placement="top">
+                    <button
+                      type="button"
+                      class="ai-message-action ai-message-action--positive"
+                      aria-label="标记回答有帮助"
+                      @click="submitMessageFeedback(message, 5, 'HELPFUL')"
+                    >
+                      <el-icon><CircleCheck /></el-icon>
+                      <span>有用</span>
+                    </button>
+                  </el-tooltip>
+                  <el-tooltip content="引用或依据不准确" placement="top">
+                    <button
+                      type="button"
+                      class="ai-message-action ai-message-action--warning"
+                      aria-label="标记引用不准确"
+                      @click="submitMessageFeedback(message, 2, 'BAD_REFERENCE')"
+                    >
+                      <el-icon><Warning /></el-icon>
+                      <span>引用有误</span>
+                    </button>
+                  </el-tooltip>
+                </template>
               </div>
             </div>
           </article>
@@ -263,7 +296,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatDotRound, CircleCheck, Connection, Cpu, Delete, Document, MagicStick, Plus, Promotion, Reading, Search, Warning } from '@element-plus/icons-vue'
+import { ChatDotRound, Check, CircleCheck, Connection, CopyDocument, Cpu, Delete, Document, MagicStick, Plus, Promotion, Reading, Search, Warning } from '@element-plus/icons-vue'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import PageContainer from '@/components/PageContainer.vue'
@@ -323,7 +356,9 @@ const isStreaming = ref(false)
 const agentStatus = ref('')
 const pendingAgentAction = ref<AgentPendingAction | null>(null)
 const confirmingAgentAction = ref(false)
+const copiedMessageId = ref<number | null>(null)
 let temporaryMessageId = -1
+let copyResetTimer: number | undefined
 
 const activeSession = computed(() => sessions.value.find((session) => session.id === activeSessionId.value))
 const isRuntimeUnknown = computed(() => runtimeMock.value === null && latestMock.value === null)
@@ -618,6 +653,52 @@ async function removeSession(session: AiSessionItem) {
 async function submitMessageFeedback(message: AiMessageItem, rating: number, reason: 'HELPFUL' | 'BAD_REFERENCE') {
   await aiMessageFeedbackApi(message.id, { rating, reason })
   ElMessage.success(reason === 'HELPFUL' ? '反馈已记录' : '引用问题已记录')
+}
+
+async function copyMessage(message: AiMessageItem) {
+  const content = displayMessageContent(message).trim()
+  if (!content) {
+    ElMessage.warning('暂无可复制内容')
+    return
+  }
+  try {
+    await copyTextToClipboard(content)
+    copiedMessageId.value = message.id
+    if (copyResetTimer) {
+      window.clearTimeout(copyResetTimer)
+    }
+    copyResetTimer = window.setTimeout(() => {
+      if (copiedMessageId.value === message.id) {
+        copiedMessageId.value = null
+      }
+    }, 1600)
+    ElMessage.success('消息已复制')
+  } catch {
+    ElMessage.error('复制失败，请手动选择内容')
+  }
+}
+
+async function copyTextToClipboard(text: string) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch {
+      // Fall through to the textarea fallback below.
+    }
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', 'true')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  document.body.removeChild(textarea)
+  if (!copied) {
+    throw new Error('copy failed')
+  }
 }
 
 function scrollToBottom() {
@@ -1198,17 +1279,78 @@ function loadPreferredAiMode() {
   font-weight: 700;
 }
 
-.ai-message-feedback {
-  display: inline-flex;
+.ai-message__actions {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 2px;
-  margin-left: 2px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
-.ai-message-feedback :deep(.el-button) {
-  width: 24px;
-  height: 24px;
-  padding: 0;
+.ai-message.is-user .ai-message__actions {
+  justify-content: flex-end;
+}
+
+.ai-message-action {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.ai-message-action:hover {
+  border-color: #e5e7eb;
+  background: #f3f4f6;
+  color: var(--tf-text);
+  transform: translateY(-1px);
+}
+
+.ai-message-action:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.32);
+  outline-offset: 2px;
+}
+
+.ai-message-action .el-icon {
+  font-size: 14px;
+}
+
+.ai-message-action.is-copied {
+  border-color: rgba(16, 185, 129, 0.18);
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.ai-message-action--positive:hover {
+  border-color: rgba(16, 185, 129, 0.2);
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.ai-message-action--warning:hover {
+  border-color: rgba(245, 158, 11, 0.22);
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.ai-message.is-user .ai-message-action {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.ai-message.is-user .ai-message-action:hover,
+.ai-message.is-user .ai-message-action.is-copied {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
 }
 
 .ai-composer {
