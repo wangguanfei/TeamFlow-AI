@@ -271,6 +271,12 @@ public class WorkflowAgentTools {
             Map<String, Object> data = buildTaskBrief(tasks);
             data.put("projectId", projectId);
             data.put("keyword", keyword);
+            if (tasks.size() == 1) {
+                TaskListItem task = tasks.get(0);
+                String summary = "任务「" + task.title() + "」当前状态为 " + task.status()
+                        + "，负责人 " + nullSafe(task.assigneeName()) + "。";
+                return ToolResult.ok(summary, data, "TASK", task.id(), "/task/list?taskId=" + task.id());
+            }
             String summary = "工作进展简报：共 " + tasks.size() + " 个事项，完成 "
                     + data.get("doneCount") + " 个，进行中 " + data.get("doingCount")
                     + " 个，逾期 " + data.get("overdueCount") + " 个。";
@@ -408,6 +414,10 @@ public class WorkflowAgentTools {
 
     private static boolean isDueToday(TaskListItem task) {
         return task.dueTime() != null && task.dueTime().toLocalDate().equals(LocalDate.now()) && !isDone(task);
+    }
+
+    private static String nullSafe(String value) {
+        return value == null || value.isBlank() ? "未指定" : value;
     }
 
     private static String reminderContent(TaskListItem task, String message) {

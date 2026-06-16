@@ -59,12 +59,18 @@ public class TaskAgentTools {
             String keyword = stringArg(arguments, "keyword");
             int limit = intArg(arguments, "limit", 10);
             PageResult<TaskListItem> page = taskService.pageTasks(1, 100, null, normalizeBlank(status), normalizeBlank(keyword), null);
-            List<Map<String, Object>> tasks = page.records().stream()
+            List<TaskListItem> matchedTasks = page.records().stream()
                     .filter(task -> Objects.equals(task.assigneeId(), user.getUserId()) || task.executorIds().contains(user.getUserId()))
                     .limit(Math.max(1, Math.min(limit, 20)))
+                    .toList();
+            List<Map<String, Object>> tasks = matchedTasks.stream()
                     .map(this::taskSummary)
                     .toList();
             String summary = tasks.isEmpty() ? "当前没有匹配的待办事项" : "找到 " + tasks.size() + " 条与你相关的待办事项";
+            if (matchedTasks.size() == 1) {
+                TaskListItem task = matchedTasks.get(0);
+                return ToolResult.ok(summary, Map.of("tasks", tasks, "count", tasks.size()), "TASK", task.id(), "/task/list?taskId=" + task.id());
+            }
             return ToolResult.ok(summary, Map.of("tasks", tasks, "count", tasks.size()), null, null, "/task/list");
         }
 
@@ -76,6 +82,7 @@ public class TaskAgentTools {
             summary.put("projectName", task.projectName());
             summary.put("status", task.status());
             summary.put("priority", task.priority());
+            summary.put("assigneeName", task.assigneeName());
             summary.put("dueTime", task.dueTime());
             return summary;
         }

@@ -302,17 +302,74 @@ public class AgentOrchestrator {
     }
 
     private String formatProjectSummary(String summary, Map<String, Object> data) {
+        List<?> recentTasks = listValue(data.get("recentTasks"));
+        Object total = data.get("total");
+        if (isSingleTaskSummary(total, recentTasks)) {
+            return formatSingleTaskProgress(recentTasks.get(0));
+        }
         StringBuilder builder = new StringBuilder("### 工作进展简报\n\n");
         builder.append(safeSummary(summary));
         appendStatusCounts(builder, data.get("statusCounts"));
         appendTaskItems(builder, "重点风险", data.get("riskTasks"), 5);
-        appendTaskItems(builder, "近期事项", data.get("recentTasks"), 6);
+        appendTaskItems(builder, "近期事项", recentTasks, 6);
+        return builder.toString();
+    }
+
+    private boolean isSingleTaskSummary(Object total, List<?> tasks) {
+        if (tasks.size() != 1) {
+            return false;
+        }
+        if (total instanceof Number number) {
+            return number.longValue() == 1L;
+        }
+        return "1".equals(String.valueOf(total));
+    }
+
+    private String formatSingleTaskProgress(Object value) {
+        Map<?, ?> task = mapValue(value);
+        String taskNo = optionalText(task.get("taskNo"));
+        String title = valueText(task.get("title"));
+        String status = optionalText(task.get("status"));
+        String priority = optionalText(task.get("priority"));
+        String assignee = optionalText(task.get("assigneeName"));
+        String projectName = optionalText(task.get("projectName"));
+        String dueTime = optionalText(task.get("dueTime"));
+
+        StringBuilder builder = new StringBuilder("### 任务进展\n\n");
+        builder.append("**").append(taskNo == null ? title : taskNo + " " + title).append("**\n\n");
+        builder.append("- 当前状态：").append(status == null ? "未设置" : statusLabel(status)).append('\n');
+        if (priority != null) {
+            builder.append("- 优先级：").append(priorityLabel(priority)).append('\n');
+        }
+        if (assignee != null) {
+            builder.append("- 负责人：").append(assignee).append('\n');
+        }
+        if (projectName != null) {
+            builder.append("- 所属项目：").append(projectName).append('\n');
+        }
+        if (dueTime != null) {
+            builder.append("- 截止时间：").append(dueTime.replace('T', ' ')).append('\n');
+        }
+        if ("DONE".equalsIgnoreCase(status) || "CLOSED".equalsIgnoreCase(status)) {
+            builder.append("\n该任务已完成或关闭。");
+        } else if ("TESTING".equalsIgnoreCase(status)) {
+            builder.append("\n该任务当前处于测试阶段，重点关注验收结果和缺陷反馈。");
+        } else if ("DOING".equalsIgnoreCase(status)) {
+            builder.append("\n该任务正在推进中，建议继续跟进负责人更新。");
+        } else {
+            builder.append("\n该任务尚未完成，可继续跟进下一步处理。");
+        }
         return builder.toString();
     }
 
     private String formatTaskList(String summary, Map<String, Object> data) {
+        List<?> tasks = listValue(data.get("tasks"));
+        Object count = data.get("count");
+        if (isSingleTaskSummary(count, tasks)) {
+            return formatSingleTaskProgress(tasks.get(0));
+        }
         StringBuilder builder = new StringBuilder(safeSummary(summary));
-        appendTaskItems(builder, "待办事项", data.get("tasks"), 10);
+        appendTaskItems(builder, "待办事项", tasks, 10);
         return builder.toString();
     }
 
