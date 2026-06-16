@@ -1,13 +1,12 @@
 <template>
   <PageContainer title="权限管理" description="维护菜单、按钮和接口权限编码">
-    <template #actions>
-      <PermissionButton permission="system:permission:create" type="primary" :icon="Plus" @click="openCreate">新建权限</PermissionButton>
-    </template>
-
     <el-card shadow="never" class="system-card">
       <div class="table-toolbar">
         <el-input v-model="keyword" class="table-search" placeholder="搜索权限编码、名称或路径" clearable :prefix-icon="Search" @keyup.enter="loadData" />
-        <el-button :icon="Search" @click="loadData">查询</el-button>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="loadData">查询</el-button>
+          <PermissionButton permission="system:permission:create" type="primary" :icon="Plus" @click="openCreate">新建权限</PermissionButton>
+        </div>
       </div>
       <el-table v-loading="loading" :data="pageData.records" row-key="id">
         <el-table-column prop="permissionCode" label="权限编码" min-width="220" show-overflow-tooltip />

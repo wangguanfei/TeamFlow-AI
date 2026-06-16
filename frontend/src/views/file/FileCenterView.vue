@@ -1,10 +1,5 @@
 <template>
   <PageContainer title="文件中心" description="统一管理项目、任务、知识库相关文件，支持上传、预览、下载和分享">
-    <template #actions>
-      <el-button :icon="Refresh" @click="loadData">刷新</el-button>
-      <PermissionButton permission="file:upload" type="primary" :icon="UploadFilled" @click="openUpload">上传文件</PermissionButton>
-    </template>
-
     <div class="file-stat-grid">
       <div class="file-stat-card">
         <span>文件总数</span>
@@ -39,7 +34,11 @@
             <el-option label="知识库素材" value="KNOWLEDGE" />
           </el-select>
         </div>
-        <el-button :icon="Search" @click="loadData">查询</el-button>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="loadData">查询</el-button>
+          <el-button :icon="Refresh" @click="loadData">刷新</el-button>
+          <PermissionButton permission="file:upload" type="primary" :icon="UploadFilled" @click="openUpload">上传文件</PermissionButton>
+        </div>
       </div>
 
       <el-table v-loading="loading" :data="pageData.records" row-key="id">

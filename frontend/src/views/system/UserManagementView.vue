@@ -1,13 +1,12 @@
 <template>
   <PageContainer title="用户管理" description="查看用户并分配系统角色">
-    <template #actions>
-      <PermissionButton permission="system:user:create" type="primary" :icon="Plus" @click="openCreate">新建用户</PermissionButton>
-    </template>
-
     <el-card shadow="never" class="system-card">
       <div class="table-toolbar">
         <el-input v-model="keyword" class="table-search" placeholder="搜索账号、昵称或邮箱" clearable :prefix-icon="Search" @keyup.enter="loadData" />
-        <el-button :icon="Search" @click="loadData">查询</el-button>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="loadData">查询</el-button>
+          <PermissionButton permission="system:user:create" type="primary" :icon="Plus" @click="openCreate">新建用户</PermissionButton>
+        </div>
       </div>
       <el-table v-loading="loading" :data="pageData.records" row-key="id">
         <el-table-column prop="username" label="账号" min-width="140" />

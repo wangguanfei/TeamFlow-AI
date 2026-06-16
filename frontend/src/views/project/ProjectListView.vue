@@ -1,9 +1,5 @@
 <template>
   <PageContainer title="项目" description="项目进度、成员协作与标签沉淀">
-    <template #actions>
-      <PermissionButton permission="project:create" type="primary" :icon="Plus" @click="openCreate">新建项目</PermissionButton>
-    </template>
-
     <div class="project-stats">
       <div class="project-stat-card">
         <span>项目总数</span>
@@ -49,7 +45,10 @@
         <el-select v-model="teamIdFilter" placeholder="全部团队" clearable style="width:160px" @change="() => { page = 1; loadData() }">
           <el-option v-for="t in activeTeams" :key="t.id" :label="t.teamName" :value="t.id" />
         </el-select>
-        <el-button :icon="Search" @click="() => { page = 1; loadData() }">查询</el-button>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="() => { page = 1; loadData() }">查询</el-button>
+          <PermissionButton permission="project:create" type="primary" :icon="Plus" @click="openCreate">新建项目</PermissionButton>
+        </div>
       </div>
 
       <el-table v-loading="loading" :data="pageData.records" row-key="id" :row-class-name="tableRowClassName">

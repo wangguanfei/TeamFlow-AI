@@ -1,13 +1,12 @@
 <template>
   <PageContainer title="菜单管理" description="维护前端动态路由、图标和菜单权限码">
-    <template #actions>
-      <PermissionButton permission="system:menu:create" type="primary" :icon="Plus" @click="openCreate">新建菜单</PermissionButton>
-    </template>
-
     <el-card shadow="never" class="system-card">
       <div class="table-toolbar">
         <el-input v-model="keyword" class="table-search" placeholder="搜索菜单名称、路由或权限码" clearable :prefix-icon="Search" @keyup.enter="loadData" />
-        <el-button :icon="Search" @click="loadData">查询</el-button>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="loadData">查询</el-button>
+          <PermissionButton permission="system:menu:create" type="primary" :icon="Plus" @click="openCreate">新建菜单</PermissionButton>
+        </div>
       </div>
       <el-table v-loading="loading" :data="pageData.records" row-key="id">
         <el-table-column prop="menuName" label="菜单名称" min-width="150" show-overflow-tooltip />

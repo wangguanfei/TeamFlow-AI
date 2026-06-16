@@ -1,9 +1,5 @@
 <template>
   <PageContainer title="工作台" description="项目协同、任务进度、知识沉淀与 AI 使用概览">
-    <template #actions>
-      <PermissionButton permission="project:create" type="primary" :icon="Plus" @click="goCreateProject">新建项目</PermissionButton>
-    </template>
-
     <section v-loading="loading" class="metric-grid">
       <article v-for="card in metricCards" :key="card.label" class="metric-card">
         <div class="metric-card__icon">
@@ -101,11 +97,9 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
-import { ChatDotRound, Collection, Finished, FolderOpened, Plus, User } from '@element-plus/icons-vue'
+import { ChatDotRound, Collection, Finished, FolderOpened, User } from '@element-plus/icons-vue'
 import PageContainer from '@/components/PageContainer.vue'
-import PermissionButton from '@/components/PermissionButton.vue'
 import {
   aiUsageApi,
   dashboardOverviewApi,
@@ -118,7 +112,6 @@ import {
 } from '@/api/dashboard'
 import { formatDateTime } from '@/utils/format'
 
-const router = useRouter()
 const loading = ref(false)
 const overview = ref<DashboardOverview>({
   userCount: 0,
@@ -341,7 +334,4 @@ function todoDueClass(value?: string) {
   return new Date(value).getTime() < Date.now() ? 'is-overdue' : 'is-planned'
 }
 
-function goCreateProject() {
-  router.push({ path: '/project/list', query: { create: '1' } })
-}
 </script>

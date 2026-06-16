@@ -1,30 +1,28 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <h2 class="page-title">团队管理</h2>
-    </div>
-
+  <PageContainer title="团队管理" description="管理企业团队与成员关系">
     <!-- 搜索栏 -->
     <el-card shadow="never" class="system-card filter-card">
-      <div class="filter-row">
-        <el-input
-          v-model="keyword"
-          placeholder="搜索团队名称或编码"
-          clearable
-          class="filter-input"
-          @keyup.enter="handleSearch"
-          @clear="handleSearch"
-        >
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-select v-model="statusFilter" placeholder="状态" clearable class="filter-select" @change="handleSearch">
-          <el-option label="启用" :value="1" />
-          <el-option label="停用" :value="0" />
-        </el-select>
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button type="primary" @click="openCreateDialog">
-          <el-icon><Plus /></el-icon>新建团队
-        </el-button>
+      <div class="table-toolbar">
+        <div class="filter-group">
+          <el-input
+            v-model="keyword"
+            placeholder="搜索团队名称或编码"
+            clearable
+            class="table-search"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          >
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+          <el-select v-model="statusFilter" placeholder="状态" clearable class="filter-select" @change="handleSearch">
+            <el-option label="启用" :value="1" />
+            <el-option label="停用" :value="0" />
+          </el-select>
+        </div>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建团队</el-button>
+        </div>
       </div>
     </el-card>
 
@@ -184,11 +182,12 @@
         <el-button type="primary" :loading="addMemberLoading" @click="submitAddMember">确定</el-button>
       </template>
     </el-dialog>
-  </div>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import PageContainer from '@/components/PageContainer.vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import {
@@ -372,25 +371,15 @@ onMounted(() => {
 .page-container {
   padding: 20px;
 }
-.page-header {
-  margin-bottom: 16px;
-}
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
 .filter-card {
   margin-bottom: 16px;
 }
-.filter-row {
+.filter-group {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
   align-items: center;
-}
-.filter-input {
-  width: 240px;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 .filter-select {
   width: 120px;

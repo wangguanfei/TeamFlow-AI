@@ -1,9 +1,5 @@
 <template>
   <PageContainer title="任务看板" description="按 TODO / DOING / TESTING / DONE 进行状态流转">
-    <template #actions>
-      <PermissionButton permission="task:create" type="primary" :icon="Plus" @click="openCreate">新建任务</PermissionButton>
-    </template>
-
     <el-card shadow="never" class="system-card task-filter-card">
       <div class="table-toolbar">
         <div class="task-filter-group">
@@ -15,7 +11,10 @@
           </el-select>
           <el-input v-model="keyword" class="table-search" placeholder="搜索任务标题、编号或描述" clearable :prefix-icon="Search" @keyup.enter="loadBoard" @clear="loadBoard" />
         </div>
-        <el-button :icon="Search" @click="loadBoard">查询</el-button>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="loadBoard">查询</el-button>
+          <PermissionButton permission="task:create" type="primary" :icon="Plus" @click="openCreate">新建任务</PermissionButton>
+        </div>
       </div>
     </el-card>
 

@@ -1,13 +1,12 @@
 <template>
   <PageContainer title="角色管理" description="维护角色、状态和权限集合">
-    <template #actions>
-      <PermissionButton permission="system:role:create" type="primary" :icon="Plus" @click="openCreate">新建角色</PermissionButton>
-    </template>
-
     <el-card shadow="never" class="system-card">
       <div class="table-toolbar">
         <el-input v-model="keyword" class="table-search" placeholder="搜索角色编码或名称" clearable :prefix-icon="Search" @keyup.enter="loadData" />
-        <el-button :icon="Search" @click="loadData">查询</el-button>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="loadData">查询</el-button>
+          <PermissionButton permission="system:role:create" type="primary" :icon="Plus" @click="openCreate">新建角色</PermissionButton>
+        </div>
       </div>
       <el-table v-loading="loading" :data="pageData.records" row-key="id">
         <el-table-column prop="roleCode" label="角色编码" min-width="160" />

@@ -1,10 +1,5 @@
 <template>
   <PageContainer title="通知中心" description="查看系统、任务、项目和 AI 事件通知，支持实时推送和已读状态">
-    <template #actions>
-      <el-button :icon="Refresh" @click="loadNotifications">刷新</el-button>
-      <PermissionButton permission="notification:read" :icon="Check" @click="markAllRead">全部已读</PermissionButton>
-    </template>
-
     <section class="notification-page system-card">
       <div class="notification-toolbar">
         <el-input
@@ -16,7 +11,11 @@
           @keyup.enter="resetAndLoad"
           @clear="resetAndLoad"
         />
-        <el-switch v-model="unreadOnly" active-text="仅看未读" @change="resetAndLoad" />
+        <div class="toolbar-actions">
+          <el-switch v-model="unreadOnly" active-text="仅看未读" @change="resetAndLoad" />
+          <el-button :icon="Refresh" @click="loadNotifications">刷新</el-button>
+          <PermissionButton permission="notification:read" :icon="Check" @click="markAllRead">全部已读</PermissionButton>
+        </div>
       </div>
 
       <div v-loading="loading" class="notification-list">

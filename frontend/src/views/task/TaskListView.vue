@@ -1,9 +1,5 @@
 <template>
   <PageContainer title="任务列表" description="多条件查询、批量视图与任务详情协作">
-    <template #actions>
-      <PermissionButton permission="task:create" type="primary" :icon="Plus" @click="openCreate">新建任务</PermissionButton>
-    </template>
-
     <el-card shadow="never" class="system-card">
       <div class="table-toolbar">
         <div class="task-filter-group">
@@ -22,7 +18,10 @@
           </el-select>
           <el-input v-model="filters.keyword" class="table-search" placeholder="搜索任务编号、标题或描述" clearable :prefix-icon="Search" @keyup.enter="loadData" />
         </div>
-        <el-button :icon="Search" @click="loadData">查询</el-button>
+        <div class="toolbar-actions">
+          <el-button :icon="Search" @click="loadData">查询</el-button>
+          <PermissionButton permission="task:create" type="primary" :icon="Plus" @click="openCreate">新建任务</PermissionButton>
+        </div>
       </div>
 
       <el-table v-loading="loading" :data="pageData.records" row-key="id">

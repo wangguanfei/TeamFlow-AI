@@ -685,24 +685,11 @@ function loadPreferredAiMode() {
 </script>
 
 <style scoped>
-:deep(.page-container__header > div:first-child) {
-  min-width: 0;
-}
-
-:deep(.page-container__header p) {
-  max-width: 760px;
-  overflow-wrap: anywhere;
-}
-
 .ai-page {
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-.ai-page :deep(.page-container__header) {
-  flex: 0 0 auto;
 }
 
 .ai-page :deep(.page-container__body) {
