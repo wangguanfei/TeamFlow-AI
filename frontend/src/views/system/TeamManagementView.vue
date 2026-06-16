@@ -21,7 +21,7 @@
         </div>
         <div class="toolbar-actions">
           <el-button :icon="Search" @click="handleSearch">查询</el-button>
-          <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建团队</el-button>
+          <PermissionButton permission="team:create" type="primary" :icon="Plus" @click="openCreateDialog">新建团队</PermissionButton>
         </div>
       </div>
     </el-card>
@@ -45,12 +45,12 @@
         </el-table-column>
         <el-table-column label="操作" width="230" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
+            <PermissionButton permission="team:update" link type="primary" @click="openEditDialog(row)">编辑</PermissionButton>
             <el-button link type="primary" @click="openMemberDrawer(row)">成员</el-button>
-            <el-button link :type="row.status === 1 ? 'warning' : 'success'" @click="toggleStatus(row)">
+            <PermissionButton permission="team:update" link :type="row.status === 1 ? 'warning' : 'success'" @click="toggleStatus(row)">
               {{ row.status === 1 ? '停用' : '启用' }}
-            </el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            </PermissionButton>
+            <PermissionButton permission="team:delete" link type="danger" @click="handleDelete(row)">删除</PermissionButton>
           </template>
         </el-table-column>
       </el-table>
@@ -104,7 +104,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">确定</el-button>
+        <PermissionButton :permission="editingId ? 'team:update' : 'team:create'" type="primary" :loading="submitting" @click="submitForm">确定</PermissionButton>
       </template>
     </el-dialog>
 
@@ -116,9 +116,7 @@
       :destroy-on-close="true"
     >
       <div class="member-toolbar">
-        <el-button type="primary" size="small" @click="openAddMemberDialog">
-          <el-icon><Plus /></el-icon>添加成员
-        </el-button>
+        <PermissionButton permission="team:member" type="primary" size="small" :icon="Plus" @click="openAddMemberDialog">添加成员</PermissionButton>
       </div>
 
       <el-table :data="members" v-loading="memberLoading" size="small">
@@ -131,6 +129,7 @@
         <el-table-column label="角色" width="140">
           <template #default="{ row }">
             <el-select
+              v-if="canManageTeamMembers"
               v-model="row.memberRole"
               size="small"
               :disabled="row.memberRole === 'OWNER'"
@@ -140,16 +139,18 @@
               <el-option label="管理员" value="ADMIN" />
               <el-option label="成员" value="MEMBER" />
             </el-select>
+            <el-tag v-else size="small">{{ memberRoleLabel(row.memberRole) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="70">
           <template #default="{ row }">
-            <el-button
+            <PermissionButton
+              permission="team:member"
               link
               type="danger"
               :disabled="row.memberRole === 'OWNER'"
               @click="removeMember(row)"
-            >移除</el-button>
+            >移除</PermissionButton>
           </template>
         </el-table-column>
       </el-table>
@@ -179,15 +180,16 @@
       </el-form>
       <template #footer>
         <el-button @click="addMemberVisible = false">取消</el-button>
-        <el-button type="primary" :loading="addMemberLoading" @click="submitAddMember">确定</el-button>
+        <PermissionButton permission="team:member" type="primary" :loading="addMemberLoading" @click="submitAddMember">确定</PermissionButton>
       </template>
     </el-dialog>
   </PageContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import PageContainer from '@/components/PageContainer.vue'
+import PermissionButton from '@/components/PermissionButton.vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import {
@@ -196,7 +198,11 @@ import {
   type TeamItem, type TeamMemberItem
 } from '@/api/project'
 import { userOptionsApi, type UserItem } from '@/api/system'
+import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/format'
+
+const userStore = useUserStore()
+const canManageTeamMembers = computed(() => userStore.hasPermission('team:member'))
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -327,6 +333,15 @@ function openAddMemberDialog() {
   memberForm.value = { userId: undefined, memberRole: 'MEMBER' }
   addMemberVisible.value = true
   memberFormRef.value?.clearValidate()
+}
+
+function memberRoleLabel(role: string) {
+  const labels: Record<string, string> = {
+    OWNER: '负责人',
+    ADMIN: '管理员',
+    MEMBER: '成员'
+  }
+  return labels[role] || role
 }
 
 async function submitAddMember() {
