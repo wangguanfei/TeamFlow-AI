@@ -23,7 +23,7 @@
               <span>资源树</span>
             </div>
             <div class="knowledge-section__tools">
-              <el-button :icon="Refresh" circle aria-label="刷新资源树" title="刷新资源树" @click="loadAll" />
+              <el-button :icon="Refresh" circle aria-label="刷新资源树" title="刷新资源树" @click="refreshTree" />
               <PermissionButton permission="knowledge:space:create" :icon="Plus" circle aria-label="新建空间" title="新建空间" @click="openSpaceDialog" />
             </div>
           </div>
@@ -103,8 +103,11 @@
           </el-tabs>
         </template>
 
-        <el-empty v-else class="knowledge-empty" description="请选择或创建一篇知识文档">
-          <PermissionButton permission="knowledge:doc:create" type="primary" :icon="DocumentAdd" :disabled="!activeSpaceId" @click="openDocDialog">新建文档</PermissionButton>
+        <el-empty v-else class="knowledge-empty" :description="emptyDescription">
+          <div class="knowledge-empty__actions">
+            <PermissionButton permission="knowledge:doc:create" type="primary" :icon="DocumentAdd" :disabled="!activeSpaceId" @click="openDocDialog">新建文档</PermissionButton>
+            <PermissionButton permission="knowledge:doc:create" :icon="UploadFilled" :disabled="!activeSpaceId" @click="openImportDialog">上传文档</PermissionButton>
+          </div>
         </el-empty>
       </section>
     </div>
@@ -136,6 +139,12 @@
         <el-form-item label="所属空间">
           <el-select v-model="docForm.spaceId" disabled>
             <el-option v-for="space in spaces" :key="space.id" :label="space.spaceName" :value="space.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="父级目录">
+          <el-select v-model="docForm.parentId" clearable placeholder="根目录">
+            <el-option label="根目录" :value="0" />
+            <el-option v-for="item in parentDocOptions" :key="item.id" :label="item.label" :value="item.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="文档标题">
@@ -344,6 +353,7 @@ const spaceForm = reactive({
 
 const docForm = reactive({
   spaceId: undefined as number | undefined,
+  parentId: 0,
   title: '',
   contentMd: '',
   tagsText: ''
@@ -369,6 +379,15 @@ const parentDocOptions = computed(() => {
   return options
 })
 
+const currentSpace = computed(() => spaces.value.find((space) => space.id === activeSpaceId.value))
+
+const emptyDescription = computed(() => {
+  if (activeSpaceId.value) {
+    return `已选中「${currentSpace.value?.spaceName || '当前空间'}」根目录`
+  }
+  return '请选择或创建知识空间'
+})
+
 onMounted(() => {
   loadAll()
 })
@@ -380,18 +399,22 @@ watch(
   }
 )
 
-async function loadAll() {
+async function loadAll(options: { selectFirst?: boolean } = { selectFirst: true }) {
   loading.value = true
   try {
     await loadSpaces()
     const targetDocId = applyRouteQuery()
-    await loadDocs({ selectFirst: !targetDocId })
+    await loadDocs({ selectFirst: targetDocId ? false : options.selectFirst ?? true })
     if (targetDocId) {
       await selectDoc(targetDocId)
     }
   } finally {
     loading.value = false
   }
+}
+
+async function refreshTree() {
+  await loadAll({ selectFirst: false })
 }
 
 async function loadSpaces() {
@@ -424,8 +447,13 @@ async function loadDocs(options: { selectFirst?: boolean } = {}) {
   ])
   docs.value = pageResult.records
   docTree.value = treeResult
-  const shouldSelectFirst = options.selectFirst || !activeDocId.value || !docs.value.some((doc) => doc.id === activeDocId.value)
-  if (docs.value.length && shouldSelectFirst) {
+  const activeDocStillExists = activeDocId.value ? docs.value.some((doc) => doc.id === activeDocId.value) : false
+  if (activeDocId.value && !activeDocStillExists) {
+    activeDocId.value = null
+    currentDoc.value = null
+    resetEditor()
+  }
+  if (docs.value.length && options.selectFirst) {
     await selectDoc(docs.value[0].id)
     return
   }
@@ -440,7 +468,8 @@ async function selectSpace(space: KnowledgeSpaceItem) {
   activeSpaceId.value = space.id
   activeDocId.value = null
   currentDoc.value = null
-  await loadDocs({ selectFirst: true })
+  resetEditor()
+  await loadDocs({ selectFirst: false })
 }
 
 async function selectDoc(id: number) {
@@ -555,6 +584,7 @@ function openDocDialog() {
   }
   Object.assign(docForm, {
     spaceId: activeSpaceId.value,
+    parentId: activeDocId.value || 0,
     title: '',
     contentMd: '',
     tagsText: ''
@@ -585,7 +615,7 @@ async function createDocument() {
   }
   const doc = await createKnowledgeDocApi({
     spaceId: docForm.spaceId,
-    parentId: 0,
+    parentId: docForm.parentId || 0,
     title: docForm.title.trim(),
     contentMd: docForm.contentMd.trim() || `## ${docForm.title.trim()}\n\n在这里编写团队知识、方案记录或面试讲解内容。`,
     docStatus: 'DRAFT',
@@ -1262,6 +1292,25 @@ function formatDate(value?: string) {
 .knowledge-empty {
   flex: 1;
   min-height: 520px;
+}
+
+.knowledge-empty :deep(.el-empty__bottom) {
+  margin-top: 14px;
+}
+
+.knowledge-empty__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.knowledge-empty__actions .el-button {
+  height: 38px;
+  margin: 0;
+  border-radius: 8px;
+  font-weight: 700;
 }
 
 .history-preview {
