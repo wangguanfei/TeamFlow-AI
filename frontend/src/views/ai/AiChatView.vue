@@ -90,7 +90,7 @@
                   </el-tooltip>
                 </span>
               </div>
-              <MdPreview v-if="message.role === 'ASSISTANT'" :model-value="message.content" />
+              <MdPreview v-if="message.role === 'ASSISTANT'" :model-value="displayMessageContent(message)" />
               <p v-else class="ai-message__plain">{{ message.content }}</p>
               <div v-if="message.references?.length" class="ai-inline-references">
                 <span v-for="(reference, index) in message.references" :key="referenceKey(reference, index)">
@@ -638,6 +638,30 @@ function formatDate(value?: string) {
     return ''
   }
   return value.replace('T', ' ').slice(0, 16)
+}
+
+function displayMessageContent(message: AiMessageItem) {
+  if (message.role !== 'ASSISTANT') {
+    return message.content
+  }
+  if (activeMode.value !== 'AGENT' && activeSession.value?.sessionType !== 'AGENT') {
+    return message.content
+  }
+  return stripTrailingJsonBlock(message.content)
+}
+
+function stripTrailingJsonBlock(content: string) {
+  const marker = content.lastIndexOf('\n\n{')
+  if (marker < 0) {
+    return content
+  }
+  const candidate = content.slice(marker + 2).trim()
+  try {
+    JSON.parse(candidate)
+    return content.slice(0, marker).trim()
+  } catch {
+    return content
+  }
 }
 
 function referenceKey(reference: AiReferenceItem, index: number) {

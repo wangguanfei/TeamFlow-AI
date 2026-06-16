@@ -173,7 +173,7 @@ public class AgentOrchestrator {
                         "summary", result.summary(),
                         "data", result.data()
                 )));
-                AiMessage assistantMessage = saveMessage(session.getId(), "ASSISTANT", result.summary() + "\n\n" + toPrettyJson(result.data()));
+                AiMessage assistantMessage = saveMessage(session.getId(), "ASSISTANT", toReadableToolMessage(tool.definition().name(), result));
                 send(emitter, doneEvent(session, assistantMessage, answer.mock()));
                 emitter.complete();
                 return;
@@ -276,12 +276,182 @@ public class AgentOrchestrator {
         emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(payload)));
     }
 
-    private String toPrettyJson(Object value) {
-        try {
-            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(value);
-        } catch (Exception e) {
-            return String.valueOf(value);
+    private String toReadableToolMessage(String toolName, ToolResult result) {
+        Map<String, Object> data = result.data() == null ? Map.of() : result.data();
+        String content = switch (toolName) {
+            case "daily_business_brief" -> formatBusinessBrief(result.summary(), data);
+            case "query_project_summary" -> formatProjectSummary(result.summary(), data);
+            case "list_my_tasks" -> formatTaskList(result.summary(), data);
+            case "search_knowledge" -> formatKnowledgeSearch(result.summary(), data);
+            default -> safeSummary(result.summary());
+        };
+        return appendRelatedLink(content, result.url());
+    }
+
+    private String formatBusinessBrief(String summary, Map<String, Object> data) {
+        StringBuilder builder = new StringBuilder("### 老板每日经营简报\n\n");
+        builder.append("- 日期：").append(valueText(data.get("briefDate"))).append('\n');
+        builder.append("- 当前事项：").append(valueText(data.get("total"))).append(" 个\n");
+        builder.append("- 今日到期：").append(valueText(data.get("todayDueCount"))).append(" 个\n");
+        builder.append("- 逾期事项：").append(valueText(data.get("overdueCount"))).append(" 个\n");
+        builder.append("- 高优先级待跟进：").append(valueText(data.get("highPriorityOpenCount"))).append(" 个");
+        appendStatusCounts(builder, data.get("statusCounts"));
+        appendTaskItems(builder, "重点风险", data.get("riskTasks"), 5);
+        appendTaskItems(builder, "近期事项", data.get("recentTasks"), 5);
+        return builder.toString();
+    }
+
+    private String formatProjectSummary(String summary, Map<String, Object> data) {
+        StringBuilder builder = new StringBuilder("### 工作进展简报\n\n");
+        builder.append(safeSummary(summary));
+        appendStatusCounts(builder, data.get("statusCounts"));
+        appendTaskItems(builder, "重点风险", data.get("riskTasks"), 5);
+        appendTaskItems(builder, "近期事项", data.get("recentTasks"), 6);
+        return builder.toString();
+    }
+
+    private String formatTaskList(String summary, Map<String, Object> data) {
+        StringBuilder builder = new StringBuilder(safeSummary(summary));
+        appendTaskItems(builder, "待办事项", data.get("tasks"), 10);
+        return builder.toString();
+    }
+
+    private String formatKnowledgeSearch(String summary, Map<String, Object> data) {
+        StringBuilder builder = new StringBuilder(safeSummary(summary));
+        List<?> references = listValue(data.get("references"));
+        if (references.isEmpty()) {
+            return builder.toString();
         }
+        builder.append("\n\n**匹配资料**");
+        int index = 1;
+        for (Object item : references.stream().limit(5).toList()) {
+            Map<?, ?> reference = mapValue(item);
+            String title = valueText(reference.get("title"));
+            String spaceName = optionalText(reference.get("spaceName"));
+            String score = optionalText(reference.get("score"));
+            String snippet = optionalText(reference.get("snippet"));
+            builder.append("\n").append(index++).append(". ").append(title);
+            if (spaceName != null || score != null) {
+                builder.append("（");
+                if (spaceName != null) builder.append(spaceName);
+                if (spaceName != null && score != null) builder.append("，");
+                if (score != null) builder.append("相关度 ").append(score);
+                builder.append("）");
+            }
+            if (snippet != null) {
+                builder.append("\n   ").append(truncate(snippet, 120));
+            }
+        }
+        return builder.toString();
+    }
+
+    private void appendStatusCounts(StringBuilder builder, Object value) {
+        Map<?, ?> counts = mapValue(value);
+        if (counts.isEmpty()) {
+            return;
+        }
+        List<String> orderedStatuses = List.of("TODO", "DOING", "TESTING", "DONE", "CLOSED");
+        List<String> parts = new java.util.ArrayList<>();
+        for (String status : orderedStatuses) {
+            Object count = counts.get(status);
+            if (count != null) {
+                parts.add(statusLabel(status) + " " + count + " 个");
+            }
+        }
+        for (Map.Entry<?, ?> entry : counts.entrySet()) {
+            String key = String.valueOf(entry.getKey());
+            if (!orderedStatuses.contains(key)) {
+                parts.add(statusLabel(key) + " " + entry.getValue() + " 个");
+            }
+        }
+        if (!parts.isEmpty()) {
+            builder.append("\n\n**状态分布**：").append(String.join("，", parts));
+        }
+    }
+
+    private void appendTaskItems(StringBuilder builder, String title, Object value, int limit) {
+        List<?> tasks = listValue(value);
+        if (tasks.isEmpty()) {
+            return;
+        }
+        builder.append("\n\n**").append(title).append("**");
+        for (Object item : tasks.stream().limit(limit).toList()) {
+            Map<?, ?> task = mapValue(item);
+            String taskTitle = valueText(task.get("title"));
+            String status = optionalText(task.get("status"));
+            String priority = optionalText(task.get("priority"));
+            String assignee = optionalText(task.get("assigneeName"));
+            String dueTime = optionalText(task.get("dueTime"));
+            builder.append("\n- ").append(taskTitle);
+            List<String> meta = new java.util.ArrayList<>();
+            if (status != null) meta.add(statusLabel(status));
+            if (priority != null) meta.add(priorityLabel(priority));
+            if (assignee != null) meta.add("负责人：" + assignee);
+            if (dueTime != null) meta.add("截止：" + dueTime.replace('T', ' '));
+            if (!meta.isEmpty()) {
+                builder.append("（").append(String.join("，", meta)).append("）");
+            }
+        }
+    }
+
+    private String appendRelatedLink(String content, String url) {
+        if (url == null || url.isBlank()) {
+            return content;
+        }
+        return content + "\n\n[查看相关页面](" + url + ")";
+    }
+
+    private String safeSummary(String summary) {
+        return summary == null || summary.isBlank() ? "工具执行完成" : summary.trim();
+    }
+
+    private Map<?, ?> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? map : Map.of();
+    }
+
+    private List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
+    }
+
+    private String valueText(Object value) {
+        String text = optionalText(value);
+        return text == null ? "-" : text;
+    }
+
+    private String optionalText(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isBlank() ? null : text;
+    }
+
+    private String statusLabel(String status) {
+        return switch (status == null ? "" : status.toUpperCase()) {
+            case "TODO" -> "待办";
+            case "DOING" -> "进行中";
+            case "TESTING" -> "测试中";
+            case "DONE" -> "已完成";
+            case "CLOSED" -> "已关闭";
+            default -> status;
+        };
+    }
+
+    private String priorityLabel(String priority) {
+        return switch (priority == null ? "" : priority.toUpperCase()) {
+            case "LOW" -> "低优先级";
+            case "MEDIUM" -> "中优先级";
+            case "HIGH" -> "高优先级";
+            case "URGENT" -> "紧急";
+            default -> priority;
+        };
+    }
+
+    private String truncate(String text, int maxLength) {
+        if (text.length() <= maxLength) {
+            return text;
+        }
+        return text.substring(0, maxLength) + "...";
     }
 
     private String titleFrom(String message) {
