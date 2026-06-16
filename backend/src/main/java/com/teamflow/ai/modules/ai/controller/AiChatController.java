@@ -1,13 +1,16 @@
 package com.teamflow.ai.modules.ai.controller;
 
 import com.teamflow.ai.common.api.ApiResult;
+import com.teamflow.ai.common.api.PageResult;
 import com.teamflow.ai.common.log.Log;
 import com.teamflow.ai.common.security.UserPrincipal;
+import com.teamflow.ai.modules.agent.dto.AgentActionPageItem;
 import com.teamflow.ai.modules.agent.dto.AgentActionResult;
 import com.teamflow.ai.modules.agent.dto.AgentCancelRequest;
 import com.teamflow.ai.modules.agent.dto.AgentChatRequest;
 import com.teamflow.ai.modules.agent.dto.AgentConfirmRequest;
 import com.teamflow.ai.modules.agent.dto.AgentToolItem;
+import com.teamflow.ai.modules.agent.service.AgentActionService;
 import com.teamflow.ai.modules.agent.service.AgentOrchestrator;
 import com.teamflow.ai.modules.agent.service.AgentToolRegistry;
 import com.teamflow.ai.modules.ai.dto.AiChatRequest;
@@ -17,6 +20,7 @@ import com.teamflow.ai.modules.ai.service.AiService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,9 +28,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Tag(name = "AI会话")
@@ -37,13 +43,16 @@ public class AiChatController {
     private final AiService aiService;
     private final AgentOrchestrator agentOrchestrator;
     private final AgentToolRegistry agentToolRegistry;
+    private final AgentActionService agentActionService;
 
     public AiChatController(AiService aiService,
                             AgentOrchestrator agentOrchestrator,
-                            AgentToolRegistry agentToolRegistry) {
+                            AgentToolRegistry agentToolRegistry,
+                            AgentActionService agentActionService) {
         this.aiService = aiService;
         this.agentOrchestrator = agentOrchestrator;
         this.agentToolRegistry = agentToolRegistry;
+        this.agentActionService = agentActionService;
     }
 
     @Operation(summary = "AI提供商状态")
@@ -84,6 +93,24 @@ public class AiChatController {
     public ApiResult<AgentActionResult> cancelAgentAction(@Valid @RequestBody AgentCancelRequest request,
                                                           @AuthenticationPrincipal UserPrincipal principal) {
         return ApiResult.success(agentOrchestrator.cancel(request.confirmToken(), principal));
+    }
+
+    @Operation(summary = "分页查询AI企业助理工具调用审计")
+    @GetMapping("/agent/actions")
+    @PreAuthorize("hasAuthority('ai:agent:action:view')")
+    public ApiResult<PageResult<AgentActionPageItem>> agentActions(
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String toolName,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer isWrite,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime
+    ) {
+        return ApiResult.success(
+                agentActionService.page(page, size, username, toolName, status, isWrite, startTime, endTime)
+        );
     }
 
     @Operation(summary = "查询当前可用AI工具")

@@ -84,6 +84,41 @@ export interface AgentPendingAction {
   preview: Record<string, unknown>
 }
 
+export interface AgentActionLogItem {
+  id: number
+  sessionId?: number
+  messageId?: number
+  userId: number
+  username?: string
+  confirmedBy?: number
+  confirmedByUsername?: string
+  toolName: string
+  toolLabel?: string
+  argumentsJson?: string
+  previewJson?: string
+  resultJson?: string
+  isWrite: number
+  status: string
+  confirmedAt?: string
+  targetType?: string
+  targetId?: number
+  errorMessage?: string
+  durationMs?: number
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface AgentActionLogQueryParams {
+  page?: number
+  size?: number
+  username?: string
+  toolName?: string
+  status?: string
+  isWrite?: number
+  startTime?: string
+  endTime?: string
+}
+
 export interface AiProviderStatus {
   provider: string
   model: string
@@ -304,6 +339,10 @@ export function confirmAgentActionApi(confirmToken: string) {
 
 export function cancelAgentActionApi(confirmToken: string) {
   return http.post<unknown, AgentActionResult>('/ai/agent/cancel', { confirmToken })
+}
+
+export function agentActionLogPageApi(params: AgentActionLogQueryParams) {
+  return http.get<unknown, PageResult<AgentActionLogItem>>('/ai/agent/actions', { params })
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

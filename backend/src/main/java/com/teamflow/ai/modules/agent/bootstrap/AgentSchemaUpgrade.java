@@ -33,6 +33,7 @@ public class AgentSchemaUpgrade implements CommandLineRunner {
         changed += ensureRolePermissions("SUPER_ADMIN", List.of("ai:agent", "ai:agent:action:view"));
         changed += ensureRolePermissions("DEVELOPER", List.of("ai:agent"));
         changed += ensureRolePermissions("DEMO_VIEWER", List.of("ai:agent"));
+        changed += ensureAgentActionMenu();
         if (changed > 0) {
             permissionCacheService.evictAll();
             log.info("AI企业助理 RBAC 数据补齐完成，changed={}", changed);
@@ -104,6 +105,18 @@ public class AgentSchemaUpgrade implements CommandLineRunner {
             }
         }
         return changed;
+    }
+
+    private int ensureAgentActionMenu() {
+        Long systemMenuId = queryLong("SELECT id FROM sys_menu WHERE path = '/system' AND deleted = 0 LIMIT 1");
+        if (systemMenuId == null) {
+            return 0;
+        }
+        return jdbcTemplate.update("""
+                INSERT INTO sys_menu(parent_id, menu_name, path, component, icon, permission_code, menu_type, sort_no, visible, created_at, updated_at, deleted)
+                SELECT ?, 'AI助理审计', '/system/agent-actions', 'AgentActionLogView', 'Tickets', 'ai:agent:action:view', 'MENU', 65, 1, NOW(), NOW(), 0
+                WHERE NOT EXISTS (SELECT 1 FROM sys_menu WHERE path = '/system/agent-actions' AND deleted = 0)
+                """, systemMenuId);
     }
 
     private Long queryLong(String sql, Object... args) {
