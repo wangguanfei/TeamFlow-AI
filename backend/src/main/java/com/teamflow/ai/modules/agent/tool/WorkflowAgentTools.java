@@ -27,9 +27,17 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 企业工作流 Agent 工具集合。
+ *
+ * <p>这组工具围绕任务推进：改状态、改负责人、催办通知、生成进展简报和老板日报。
+ * 改状态/负责人/发送通知属于写操作，必须先预览；简报类工具只读，执行后直接把结构化结果
+ * 交给 AgentOrchestrator 渲染成 Markdown。</p>
+ */
 @Component
 public class WorkflowAgentTools {
 
+    /** 根据任务 ID/编号/关键词把任务状态映射到系统标准状态。 */
     @Component
     public static class UpdateTaskStatusTool implements AgentTool {
 
@@ -130,6 +138,7 @@ public class WorkflowAgentTools {
             TaskDetail detail = resolveTask(taskService, arguments).detail();
             SysUser assignee = resolveUser(userMapper, longArg(arguments, "assigneeId"), stringArg(arguments, "assigneeName"));
             TaskListItem task = detail.task();
+            // 指派负责人时保留原执行人列表，并把新负责人加入执行人，避免负责人变更后任务协作关系丢失。
             Set<Long> executorIds = new LinkedHashSet<>(task.executorIds());
             executorIds.add(assignee.getId());
             TaskRequest request = new TaskRequest(
@@ -230,10 +239,12 @@ public class WorkflowAgentTools {
             if (explicitId != null || explicitName != null && !explicitName.isBlank()) {
                 return resolveUser(userMapper, explicitId, explicitName);
             }
+            // 用户只说“催一下这个任务”时，默认发给任务负责人。
             return getUser(userMapper, task.assigneeId());
         }
     }
 
+    /** 项目/任务进展简报，返回结构化统计给编排器格式化成适合聊天窗口的 Markdown。 */
     @Component
     public static class ProjectSummaryTool implements AgentTool {
 
@@ -284,6 +295,7 @@ public class WorkflowAgentTools {
         }
     }
 
+    /** 面向老板视角的每日经营简报 MVP，核心是风险、到期和高优先级未完成事项。 */
     @Component
     public static class DailyBusinessBriefTool implements AgentTool {
 
@@ -339,6 +351,8 @@ public class WorkflowAgentTools {
         if (keyword == null) {
             throw new BusinessException("请提供任务ID、任务编号或任务标题关键词");
         }
+        // 自然语言经常只给任务标题片段。这里最多取 20 条再判断唯一性；
+        // 多个命中时让用户补充 ID/编号，避免写操作落到错误任务上。
         PageResult<TaskListItem> page = taskService.pageTasks(1, 20, null, null, keyword, null);
         List<TaskListItem> matches = taskNo == null
                 ? page.records()
@@ -372,6 +386,7 @@ public class WorkflowAgentTools {
     }
 
     private static Map<String, Object> buildTaskBrief(List<TaskListItem> tasks) {
+        // 简报工具只做稳定可解释的聚合，不把二次总结交给模型，避免模型改写关键数量。
         Map<String, Long> statusCounts = tasks.stream()
                 .collect(Collectors.groupingBy(TaskListItem::status, LinkedHashMap::new, Collectors.counting()));
         long done = tasks.stream().filter(WorkflowAgentTools::isDone).count();
@@ -476,6 +491,7 @@ public class WorkflowAgentTools {
         if (status == null || status.isBlank()) {
             throw new BusinessException("请指定目标状态");
         }
+        // 支持中文口语到系统枚举的映射，让用户可以说“开始做/进入验收/办完了”。
         return switch (status.trim().toUpperCase()) {
             case "TODO", "待办", "待处理", "未开始" -> "TODO";
             case "DOING", "进行中", "处理中", "开始" -> "DOING";

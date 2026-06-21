@@ -9,6 +9,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+/**
+ * Agent 工具执行门面。
+ *
+ * <p>所有 preview/execute 都从这里进入，保证权限校验不会散落在各个工具实现里。
+ * 工具内部仍可以做业务级校验，例如任务是否存在、负责人是否唯一。</p>
+ */
 @Service
 public class AgentToolExecutor {
 
@@ -27,6 +33,8 @@ public class AgentToolExecutor {
         if (required == null || required.isBlank()) {
             return;
         }
+        // 这里校验的是“当前登录用户能否做这件事”，不是模型权限；
+        // 模型永远不能越过用户自己的 RBAC 权限执行后台动作。
         boolean allowed = user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(required::equals);

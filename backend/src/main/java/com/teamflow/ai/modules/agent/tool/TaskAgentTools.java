@@ -22,9 +22,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * 与任务查询和任务创建相关的 Agent 工具集合。
+ *
+ * <p>这里的内部类都会注册成独立 Spring Bean。读工具可直接执行，写工具 create_task
+ * 必须先生成预览，用户确认后才真正调用 TaskService 写库。</p>
+ */
 @Component
 public class TaskAgentTools {
 
+    /** 查询“我负责/参与”的任务，适合回答我的待办、今日事项、逾期任务这类问题。 */
     @Component
     public static class ListMyTasksTool implements AgentTool {
 
@@ -175,6 +182,8 @@ public class TaskAgentTools {
             if (title == null || title.isBlank()) {
                 throw new BusinessException("创建待办事项需要标题");
             }
+            // 模型可能只给出标题。为了让“帮我记一个待办”顺畅落地，
+            // 项目默认取最近更新的可用项目，负责人默认当前用户。
             Project project = resolveProject(longArg(arguments, "projectId"));
             SysUser assignee = resolveAssignee(longArg(arguments, "assigneeId"), stringArg(arguments, "assigneeName"), user.getUserId());
             return new ResolvedTaskArgs(
@@ -210,6 +219,7 @@ public class TaskAgentTools {
                 return getUser(assigneeId);
             }
             if (assigneeName != null && !assigneeName.isBlank()) {
+                // 先精确匹配 username/nickname，再模糊匹配；多结果时必须让用户明确，避免 AI 指派错人。
                 List<SysUser> exact = userMapper.selectList(new LambdaQueryWrapper<SysUser>()
                         .eq(SysUser::getDeleted, 0)
                         .and(query -> query.eq(SysUser::getUsername, assigneeName).or().eq(SysUser::getNickname, assigneeName))

@@ -23,6 +23,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Agent 工具调用审计服务。
+ *
+ * <p>每一次模型工具调用都会落到 ai_agent_action：读操作记录执行结果，写操作记录预览、
+ * confirm token hash、确认人、执行结果和耗时。后台审计页直接读取这些记录，便于排查
+ * “模型想做什么、用户确认了什么、系统实际执行了什么”。</p>
+ */
 @Service
 public class AgentActionService {
 
@@ -98,6 +105,7 @@ public class AgentActionService {
         action.setStatus(status);
         action.setCreatedAt(LocalDateTime.now());
         action.setUpdatedAt(LocalDateTime.now());
+        // arguments/preview/result 保留 JSON 原文，避免审计页依赖工具的 Java 类型版本。
         actionMapper.insert(action);
         return action;
     }

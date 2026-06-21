@@ -27,6 +27,7 @@ public class AgentSchemaUpgrade implements CommandLineRunner {
     @Override
     public void run(String... args) {
         int changed = 0;
+        // 项目当前使用启动期补丁兼容线上旧库；这里只补 Agent 相关表、权限和菜单。
         ensureActionTable();
         changed += ensurePermission("ai:agent", "AI企业助理", "API", "/api/ai/agent/**");
         changed += ensurePermission("ai:agent:action:view", "AI企业助理审计查看", "API", "/api/ai/agent/actions/**");
@@ -47,6 +48,7 @@ public class AgentSchemaUpgrade implements CommandLineRunner {
         if (exists) {
             return;
         }
+        // ai_agent_action 是 Agent 安全审计核心表：写操作预览、确认 token hash、执行结果都在这里追溯。
         jdbcTemplate.execute("""
                 CREATE TABLE ai_agent_action (
                   id BIGINT NOT NULL AUTO_INCREMENT COMMENT 'PK',

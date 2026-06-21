@@ -11,16 +11,24 @@ public class AiAgentAction {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+    /** 所属 AI 会话，便于从聊天历史追溯工具调用。 */
     private Long sessionId;
+    /** 触发本次工具调用的用户消息。 */
     private Long messageId;
     private Long userId;
     private String toolName;
     private String toolLabel;
+    /** 模型返回的原始工具参数 JSON。 */
     private String argumentsJson;
+    /** 写操作确认前展示给用户的预览 JSON。 */
     private String previewJson;
+    /** 工具执行完成后的结构化结果 JSON。 */
     private String resultJson;
+    /** 1 表示写操作，需要用户确认；0 表示只读工具。 */
     private Integer isWrite;
+    /** PENDING/RUNNING/EXECUTED/CANCELLED/FAILED。 */
     private String status;
+    /** confirmToken 的 SHA-256 hash，数据库不保存明文 token。 */
     private String confirmTokenHash;
     private Long confirmedBy;
     private LocalDateTime confirmedAt;

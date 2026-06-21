@@ -26,6 +26,13 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * AI 企业助理编排器。
+ *
+ * <p>Agent 模式和普通聊天的最大区别是：模型不能直接修改业务数据。
+ * 模型只能返回 tool_call；系统再按工具定义做权限校验、参数预览、审计落库和二次确认。
+ * 读工具可以立即执行，写工具必须先把预览卡片通过 SSE 发给前端，等用户 confirm 后才真正执行。</p>
+ */
 @Service
 public class AgentOrchestrator {
 
@@ -78,6 +85,7 @@ public class AgentOrchestrator {
     }
 
     public AgentActionResult confirm(String confirmToken, UserPrincipal principal) {
+        // confirmToken 只保存短 TTL，并且消费后立即删除，避免同一个预览被重复执行。
         PendingActionStore.PendingAction pending = pendingActionStore.consume(confirmToken, principal.getUserId());
         AgentTool tool = toolRegistry.getRequired(pending.toolName());
         long startMs = System.currentTimeMillis();
@@ -132,12 +140,15 @@ public class AgentOrchestrator {
 
             for (AiProvider.AiToolCall call : answer.toolCalls()) {
                 AgentTool tool = toolRegistry.getRequired(call.name());
+                // 工具调用先回传给前端展示“正在调用什么”，真正执行前仍会由 AgentToolExecutor 做权限校验。
                 send(emitter, event("agent_tool_call", Map.of(
                         "toolName", tool.definition().name(),
                         "toolLabel", tool.definition().label(),
                         "write", tool.definition().write()
                 )));
                 if (tool.definition().write()) {
+                    // 写操作只生成预览和审计记录，不在本次 SSE 请求里改业务表。
+                    // 业务写入发生在 /api/ai/agent/confirm，确保用户明确点了确认。
                     Map<String, Object> preview = toolExecutor.preview(tool, call.arguments(), principal);
                     var action = actionService.create(session.getId(), userMessage.getId(), principal.getUserId(), tool, call.arguments(), preview, "PENDING");
                     String token = pendingActionStore.save(new PendingActionStore.PendingAction(
@@ -164,6 +175,7 @@ public class AgentOrchestrator {
                 }
 
                 long startMs = System.currentTimeMillis();
+                // 读工具没有副作用，可以直接执行并把结果整理成普通助手消息。
                 var action = actionService.create(session.getId(), userMessage.getId(), principal.getUserId(), tool, call.arguments(), null, "RUNNING");
                 ToolResult result = toolExecutor.execute(tool, call.arguments(), principal);
                 actionService.markExecuted(action.getId(), principal.getUserId(), result, System.currentTimeMillis() - startMs);
@@ -203,6 +215,7 @@ public class AgentOrchestrator {
             }
             return session;
         }
+        // Agent 会话和普通 AI 会话共用 ai_session/ai_message 表，便于前端在同一个聊天页展示历史。
         AiSession session = new AiSession();
         session.setUserId(userId);
         session.setSpaceId(request.spaceId());
@@ -225,6 +238,8 @@ public class AgentOrchestrator {
                 .sorted((left, right) -> Long.compare(left.getId(), right.getId()))
                 .toList();
         List<AiProvider.AiPromptMessage> prompts = new java.util.ArrayList<>();
+        // 系统提示词是 Agent 行为边界：写操作必须返回工具调用，缺必要字段才追问，
+        // 不允许模型自己编造业务 ID 或假装已经完成数据库写入。
         prompts.add(new AiProvider.AiPromptMessage("SYSTEM", """
                 你是 TeamFlow AI 企业助理，服务对象是中小微企业。
                 你可以在当前用户权限范围内调用工具完成办事动作。
@@ -278,6 +293,7 @@ public class AgentOrchestrator {
 
     private String toReadableToolMessage(String toolName, ToolResult result) {
         Map<String, Object> data = result.data() == null ? Map.of() : result.data();
+        // 工具返回的是结构化 data；这里再转成人类可读 Markdown，作为会话历史保存和前端展示内容。
         String content = switch (toolName) {
             case "daily_business_brief" -> formatBusinessBrief(result.summary(), data);
             case "query_project_summary" -> formatProjectSummary(result.summary(), data);

@@ -10,6 +10,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Agent 知识库检索工具。
+ *
+ * <p>普通聊天的知识库增强由 AiService 调用；Agent 模式下模型需要主动决定何时 search_knowledge。
+ * 工具返回的 references 会被编排器整理成人类可读内容，同时保留 retrievalSource 供排查召回质量。</p>
+ */
 @Component
 public class KnowledgeAgentTools {
 
@@ -50,6 +56,7 @@ public class KnowledgeAgentTools {
             }
             Long spaceId = longArg(arguments, "spaceId");
             int topK = intArg(arguments, "topK", 5);
+            // 始终传入当前用户 ID，让 RAG 服务按团队/空间权限过滤引用，避免 Agent 越权读知识库。
             List<AiReferenceItem> references = knowledgeIndexService.searchReferences(query, spaceId, Math.max(1, Math.min(topK, 10)), user.getUserId());
             List<Map<String, Object>> items = references.stream().map(this::referenceItem).toList();
             Map<String, Object> data = new LinkedHashMap<>();

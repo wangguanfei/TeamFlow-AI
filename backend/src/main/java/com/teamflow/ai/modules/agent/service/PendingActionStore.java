@@ -15,6 +15,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Agent 写操作确认令牌存储。
+ *
+ * <p>写工具在模型返回后不会立即执行，而是把参数、预览和权限要求保存成短期 pending action。
+ * 前端拿到 confirmToken 后展示确认卡片；用户确认时再消费 token。Redis 是首选存储，
+ * 本地 ConcurrentHashMap 只是 Redis 不可用时的单实例兜底。</p>
+ */
 @Service
 public class PendingActionStore {
 
@@ -36,6 +43,7 @@ public class PendingActionStore {
         try {
             redisTemplate.opsForValue().set(KEY_PREFIX + token, objectMapper.writeValueAsString(stored), TTL);
         } catch (Exception e) {
+            // 兜底只在当前 JVM 有效，容器重启或多实例切换后 token 会失效；这是可接受的安全失败。
             fallbackStore.put(token, stored);
         }
         return token;
@@ -69,6 +77,7 @@ public class PendingActionStore {
 
     public String tokenHash(String token) {
         try {
+            // 审计表只保存 hash，避免 confirmToken 明文进入数据库。
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(token.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) {
