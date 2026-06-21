@@ -35,6 +35,17 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * AI 对话控制器，负责所有与 AI 推理相关的 HTTP 接口（/api/ai/**）。
+ * <p>
+ * 包含三类能力：
+ * <ul>
+ *   <li>普通 SSE 流式聊天（POST /api/ai/chat/stream）：逐 token 推流，前端 EventSource 接收</li>
+ *   <li>Agent 智能助理（POST /api/ai/agent/chat）：支持工具调用，写工具须二次 confirm 确认</li>
+ *   <li>快捷专项接口（知识问答、文档总结、代码生成）：阻塞式，适合后台小批量调用</li>
+ * </ul>
+ * 依赖 {@link AiService} 处理普通聊天，{@link AgentOrchestrator} 处理 Agent 编排。
+ */
 @Tag(name = "AI会话")
 @RestController
 @RequestMapping("/api/ai")
@@ -67,6 +78,7 @@ public class AiChatController {
     @PreAuthorize("hasAuthority('ai:chat')")
     public SseEmitter chat(@Valid @RequestBody AiChatRequest request,
                            @AuthenticationPrincipal UserPrincipal principal) {
+        // 普通聊天统一走 SSE，前端收到 token/done/error 三类事件。
         return aiService.chatStream(request, principal.getUserId());
     }
 
@@ -75,6 +87,7 @@ public class AiChatController {
     @PreAuthorize("hasAuthority('ai:agent')")
     public SseEmitter agentChat(@Valid @RequestBody AgentChatRequest request,
                                 @AuthenticationPrincipal UserPrincipal principal) {
+        // Agent SSE 事件比普通聊天多工具调用、工具结果和待确认动作。
         return agentOrchestrator.chat(request, principal);
     }
 
@@ -84,6 +97,7 @@ public class AiChatController {
     @PreAuthorize("hasAuthority('ai:agent')")
     public ApiResult<AgentActionResult> confirmAgentAction(@Valid @RequestBody AgentConfirmRequest request,
                                                            @AuthenticationPrincipal UserPrincipal principal) {
+        // 写工具必须通过 confirmToken 二次确认后才执行，不能直接在 /agent/chat 中落库。
         return ApiResult.success(agentOrchestrator.confirm(request.confirmToken(), principal));
     }
 

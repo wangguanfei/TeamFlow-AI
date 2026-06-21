@@ -47,12 +47,24 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * 知识库 RAG 索引与检索服务。
+ *
+ * <p>这里同时承担两条链路：</p>
+ * <p>1. 写链路：知识文档发布/删除后写入 ai_index_job，后台 worker 切块、调用本地
+ * embedding 服务、把向量和 payload 写入 Qdrant，并在 MySQL 的 ai_embedding 表保留切片元数据。</p>
+ * <p>2. 读链路：聊天时先按用户权限收敛可见知识空间，再做关键词召回和向量召回，
+ * 用 RRF 风格的排序融合返回引用片段。Qdrant 或 embedding 不可用时降级关键词召回，
+ * 但不会把降级结果缓存成“混合检索成功”。</p>
+ */
 @Service
 public class AiKnowledgeIndexService {
 
     private static final Logger log = LoggerFactory.getLogger(AiKnowledgeIndexService.class);
 
+    /** 以中文知识文档为主，720 字符能兼顾上下文完整度和 bge-small 的输入长度成本。 */
     private static final int CHUNK_SIZE = 720;
+    /** 相邻切片保留重叠，避免答案刚好跨切片边界时召回不到完整上下文。 */
     private static final int CHUNK_OVERLAP = 120;
     private static final String ACTION_REBUILD = "REBUILD";
     private static final String ACTION_DELETE = "DELETE";
@@ -107,6 +119,11 @@ public class AiKnowledgeIndexService {
         this.qdrantVectorStore = qdrantVectorStore;
     }
 
+    /**
+     * 文档发布时触发索引重建（写链路入口）。
+     * 只负责入队 REBUILD 任务并清缓存，实际切块/向量化由后台 worker 异步完成。
+     * 调用方是 KnowledgeService.publishDocument()。
+     */
     @Transactional
     public void rebuildDocumentIndex(KnowledgeDoc doc) {
         if (doc == null || doc.getId() == null) {
@@ -117,6 +134,11 @@ public class AiKnowledgeIndexService {
         log.info("已提交文档RAG索引重建任务 docId={} versionNo={}", doc.getId(), doc.getVersionNo());
     }
 
+    /**
+     * 文档删除/下线时清除向量索引。
+     * 同步删除 MySQL ai_embedding 记录和 Qdrant 向量点，再入队 DELETE 审计 job。
+     * 调用方是 KnowledgeService.deleteDoc()。
+     */
     @Transactional
     public void deleteDocumentIndex(Long docId) {
         if (docId == null) {
@@ -132,14 +154,27 @@ public class AiKnowledgeIndexService {
     // 不加 @Transactional：本方法是检索路径，内部调用 embedding/Qdrant 网络 IO，
     // 若包在事务里会在网络调用期间长时间占用 DB 连接（叠加 MySQL max-connections 限制易耗尽连接池）。
     // 缺失索引补建走的是各自独立提交的 enqueueIndexJob，无需事务原子性。
+    /**
+     * 匿名检索入口（无权限过滤），委托给带 userId 的重载。
+     * 适用于内部测试或不需要权限隔离的调用场景。
+     */
     public List<AiReferenceItem> searchReferences(String query, Long spaceId, int topK) {
         return searchReferences(query, spaceId, topK, null);
     }
 
+    /**
+     * RAG 知识检索主入口（读链路）。
+     * <p>
+     * 流程：权限范围收敛 → 缓存命中检查 → 混合检索（向量 + 关键词 + RRF 融合）。
+     * 缓存 key 包含用户权限范围和 query hash，保证不同用户看到各自可见的结果。
+     * 仅当向量召回真正生效时才缓存，embedding/Qdrant 故障降级的结果不缓存。
+     */
     public List<AiReferenceItem> searchReferences(String query, Long spaceId, int topK, Long userId) {
         String safeQuery = normalize(query);
         int finalTopK = topK > 0 ? topK : ragProperties.getRetrieval().getFinalTopK();
         RagSearchScope scope = searchScope(userId);
+        // 缓存 key 必须包含检索模式、用户可见范围、空间和 query hash。
+        // 否则不同用户/不同知识空间可能共享到不该看的引用结果。
         String cacheKey = RAG_KEY_PREFIX
                 + (ragProperties.isEnabled() ? "hybrid" : "keyword") + ":"
                 + scope.cacheKey() + ":"
@@ -161,6 +196,7 @@ public class AiKnowledgeIndexService {
                 "VECTOR".equals(item.retrievalSource()) || "HYBRID".equals(item.retrievalSource()));
     }
 
+    /** 管理接口手动触发单文档索引重建，返回入队任务数（始终为 1）。 */
     public long enqueueRebuild(Long docId) {
         if (docId == null) {
             return 0;
@@ -170,6 +206,11 @@ public class AiKnowledgeIndexService {
         return 1;
     }
 
+    /**
+     * 批量重建整个空间（或全量）的 RAG 索引。
+     * spaceId 为 null 时重建所有已发布文档，适合模型升级或向量维度变更后的全量重建。
+     * 注意：文档量大时入队任务数可能很多，consumer worker 会按序处理。
+     */
     public long enqueueRebuildSpace(Long spaceId) {
         List<KnowledgeDoc> docs = docMapper.selectList(new LambdaQueryWrapper<KnowledgeDoc>()
                 .eq(KnowledgeDoc::getDeleted, 0)
@@ -181,6 +222,10 @@ public class AiKnowledgeIndexService {
         return docs.size();
     }
 
+    /**
+     * 返回 RAG 系统当前健康状态快照，用于 GET /api/rag/status 接口。
+     * 三个关键指标需全部为 true 才视为正常：qdrantAvailable、embeddingAvailable、memoryGatePassed。
+     */
     public RagStatus ragStatus() {
         long pending = countJobs(STATUS_PENDING);
         long running = countJobs(STATUS_RUNNING);
@@ -203,6 +248,8 @@ public class AiKnowledgeIndexService {
 
     @Scheduled(fixedDelayString = "${teamflow.rag.index.worker-delay-ms:5000}")
     public void processNextIndexJob() {
+        // 单次调度只领取一个任务，降低 2C/2G 机器上的内存尖峰；
+        // 如果以后要并发索引，需要同时改锁领取策略和 embedding 服务容量。
         if (!ragProperties.isEnabled() || !ragProperties.getIndex().isWorkerEnabled()) {
             return;
         }
@@ -225,8 +272,14 @@ public class AiKnowledgeIndexService {
         }
     }
 
+    /**
+     * 混合检索：关键词召回 + 向量召回，融合后返回 topK 条引用。
+     * 向量召回失败时自动降级返回纯关键词结果，不向上抛异常。
+     */
     private List<AiReferenceItem> hybridSearch(String safeQuery, Long spaceId, int topK, RagSearchScope scope) {
         List<Long> visibleSpaceIds = visibleSpaceIds(scope, spaceId);
+        // 混合检索先分别取 keyword/dense 候选，再做排序融合。
+        // 这样 embedding 服务短暂不可用时 keyword 仍能兜底，用户不会直接得到空答案。
         List<ReferenceCandidate> keywordCandidates = keywordCandidates(
                 safeQuery, ragProperties.getRetrieval().getKeywordTopK(), visibleSpaceIds);
         List<ReferenceCandidate> denseCandidates = denseCandidates(
@@ -238,6 +291,11 @@ public class AiKnowledgeIndexService {
         return keywordCandidates.stream().limit(Math.max(1, topK)).map(ReferenceCandidate::toReference).toList();
     }
 
+    /**
+     * 向量召回路径：query 向量化 → Qdrant 搜索 → JVM 内二次权限过滤。
+     * 因 Qdrant 的 filter 无法完整表达多空间权限，先放大召回池（topK*8），再在 JVM 侧过滤。
+     * embedding 服务或内存门槛不满足时返回空列表，hybridSearch 自动降级。
+     */
     private List<ReferenceCandidate> denseCandidates(String safeQuery, Long spaceId, int topK, List<Long> visibleSpaceIds) {
         if (safeQuery.isBlank()
                 || !resourceGuardService.localEmbeddingAllowed()
@@ -249,6 +307,7 @@ public class AiKnowledgeIndexService {
             return List.of();
         }
         Long qdrantSpaceId = visibleSpaceIds != null && visibleSpaceIds.size() == 1 ? visibleSpaceIds.get(0) : spaceId;
+        // 多空间权限过滤不能完全下推给 Qdrant，所以先扩大召回池，再在 JVM 内按 visibleSpaceIds 二次过滤。
         int qdrantTopK = visibleSpaceIds == null ? Math.max(1, topK) : Math.max(topK * 8, topK + 20);
         return qdrantVectorStore.search(queryVector, qdrantSpaceId, Math.max(1, qdrantTopK))
                 .stream()
@@ -293,6 +352,11 @@ public class AiKnowledgeIndexService {
         );
     }
 
+    /**
+     * 关键词召回路径：查最近 80 篇已发布文档的切片，按多字段加权评分排序。
+     * 顺带触发懒补建（enqueueMissingIndexes）：首次被访问的未索引文档自动入队向量化任务。
+     * 无切片记录时降级为文档维度返回（fallbackDocs）。
+     */
     private List<ReferenceCandidate> keywordCandidates(String safeQuery, int topK, List<Long> visibleSpaceIds) {
         if (visibleSpaceIds != null && visibleSpaceIds.isEmpty()) {
             return List.of();
@@ -306,6 +370,7 @@ public class AiKnowledgeIndexService {
         if (docs.isEmpty()) {
             return List.of();
         }
+        // 关键词召回访问到已发布文档时顺手补建缺失索引，能让旧数据在第一次被问到后自动进入 RAG worker。
         enqueueMissingIndexes(docs);
         log.debug("RAG关键词检索 spaces={} topK={} 候选文档数={}", visibleSpaceIds == null ? "all" : visibleSpaceIds, topK, docs.size());
         Map<Long, KnowledgeDoc> docMap = docs.stream().collect(Collectors.toMap(KnowledgeDoc::getId, Function.identity()));
@@ -328,6 +393,11 @@ public class AiKnowledgeIndexService {
                 .toList();
     }
 
+    /**
+     * RRF（Reciprocal Rank Fusion）融合排序。
+     * 按名次倒数加权（平滑常量 60），dense 路和 keyword 路分别用配置的权重叠加，
+     * 最终按 fusionScore 降序取 topK，避免任何一路的第一名完全主导结果。
+     */
     private List<AiReferenceItem> fuseCandidates(
             List<ReferenceCandidate> denseCandidates,
             List<ReferenceCandidate> keywordCandidates,
@@ -336,6 +406,8 @@ public class AiKnowledgeIndexService {
         Map<String, FusionCandidate> fused = new LinkedHashMap<>();
         double denseWeight = ragProperties.getRetrieval().getDenseWeight();
         double keywordWeight = ragProperties.getRetrieval().getKeywordWeight();
+        // 这里采用 RRF 的思想：名次越靠前加分越高，dense/keyword 用不同权重相加。
+        // 使用 60 作为平滑常量，避免某一路召回的第一名绝对压制另一路的多个强相关候选。
         for (int i = 0; i < denseCandidates.size(); i++) {
             ReferenceCandidate candidate = denseCandidates.get(i);
             FusionCandidate fusion = fused.computeIfAbsent(candidate.key(), key -> new FusionCandidate(candidate));
@@ -442,8 +514,14 @@ public class AiKnowledgeIndexService {
                 .toList();
     }
 
+    /**
+     * 文档向量化重建（worker 执行体）。
+     * 先清除旧数据（processDelete），再切块、逐块调 embedding 服务、写 Qdrant 和 MySQL。
+     * 内存不足时抛 IllegalStateException，worker 会将任务标记 FAILED 并等待退避重试。
+     */
     private void processRebuild(Long docId) {
         KnowledgeDoc doc = docMapper.selectById(docId);
+        // 先删除再重建，保证同一 doc/version 重新发布后不会残留旧切片。
         processDelete(docId);
         if (doc == null || doc.getDeleted() != null && doc.getDeleted() == 1
                 || !"PUBLISHED".equalsIgnoreCase(doc.getDocStatus())) {
@@ -464,6 +542,7 @@ public class AiKnowledgeIndexService {
             String chunk = chunks.get(index);
             String contentHash = sha256(doc.getId() + ":" + doc.getVersionNo() + ":" + index + ":" + chunk);
             String pointId = pointId(doc.getId(), doc.getVersionNo(), index, contentHash);
+            // MySQL 先落一条 PENDING 切片，后续任何 embedding/Qdrant 异常都能在后台页面看到失败位置。
             AiEmbedding embedding = new AiEmbedding();
             embedding.setDocId(doc.getId());
             embedding.setChunkIndex(index);
@@ -487,6 +566,7 @@ public class AiKnowledgeIndexService {
                 embeddingMapper.updateById(embedding);
                 throw new IllegalStateException("Embedding维度不匹配: " + vector.size());
             }
+            // Qdrant payload 保存展示和权限过滤所需字段，读路径不用再回表才能拼引用来源。
             qdrantVectorStore.upsert(pointId, vector, payload(doc, space, embedding, contentHash));
             embedding.setIndexStatus("READY");
             embedding.setIndexedAt(LocalDateTime.now());
@@ -506,6 +586,11 @@ public class AiKnowledgeIndexService {
         jsonCacheService.evictByPrefix(RAG_KEY_PREFIX);
     }
 
+    /**
+     * 构建存入 Qdrant point 的 payload 字段。
+     * payload 包含检索命中后拼装引用卡片所需的全部信息（docId、title、chunk、权限字段等），
+     * 读路径（candidateFromPayload）不需要回表查 MySQL，显著减少检索延迟。
+     */
     private Map<String, Object> payload(
             KnowledgeDoc doc,
             KnowledgeSpace space,
@@ -537,6 +622,8 @@ public class AiKnowledgeIndexService {
                 && permissionQueryService.listRoleCodes(userId).contains(SUPER_ADMIN_ROLE)) {
             return RagSearchScope.unrestricted(userId);
         }
+        // 普通用户只能检索自己所在团队或自己拥有团队下的知识空间。
+        // 这里把团队 ID 收敛进 RagSearchScope，后续 visibleSpaceIds 再做统一过滤。
         Set<Long> teamIds = new LinkedHashSet<>();
         if (teamMemberMapper != null) {
             teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
@@ -589,6 +676,11 @@ public class AiKnowledgeIndexService {
                 .collect(Collectors.toMap(KnowledgeSpace::getId, Function.identity(), (left, right) -> left));
     }
 
+    /**
+     * 固定窗口切块（带重叠），不做语义分句。
+     * CHUNK_SIZE=720 字符 + CHUNK_OVERLAP=120 字符的滑动窗口策略，
+     * 目标是稳定、低成本地在 2C/2G 小机器上运行，复杂分句可后续替换。
+     */
     private List<String> splitChunks(String text) {
         String normalized = normalizeWhitespace(text);
         if (normalized.isBlank()) {
@@ -602,6 +694,8 @@ public class AiKnowledgeIndexService {
             if (end >= normalized.length()) {
                 break;
             }
+            // 通过回退 overlap 个字符制造重叠窗口，而不是按句号切分；
+            // 当前目标是稳定、低成本地跑在小机器上，复杂分句可后续替换为独立 chunker。
             start = Math.max(0, end - CHUNK_OVERLAP);
         }
         return chunks;
@@ -639,6 +733,8 @@ public class AiKnowledgeIndexService {
             if (part.length() >= 2) {
                 tokens.add(part);
             }
+            // 中文没有空格分词时，额外加入单字 token 作为弱匹配信号。
+            // 这不是语义分词，只是保证关键词兜底在没有 embedding 时仍有基本可用性。
             for (int i = 0; i < part.length(); i++) {
                 char ch = part.charAt(i);
                 if (Character.UnicodeScript.of(ch) == Character.UnicodeScript.HAN) {
@@ -730,6 +826,11 @@ public class AiKnowledgeIndexService {
         return embedding.getDocId() + ":" + embedding.getChunkIndex();
     }
 
+    /**
+     * 生成幂等的 Qdrant point UUID（UUID v3，基于内容签名）。
+     * 同一 docId/versionNo/chunkIndex/contentHash 组合总是产生相同 UUID，
+     * 保证重建时 upsert 而非重复插入，不会在 Qdrant 中产生重复向量点。
+     */
     private String pointId(Long docId, Integer versionNo, int chunkIndex, String contentHash) {
         String source = "teamflow:" + docId + ":" + versionNo + ":" + chunkIndex + ":" + contentHash;
         return UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8)).toString();
@@ -858,6 +959,8 @@ public class AiKnowledgeIndexService {
         }
 
         AiReferenceItem toReference() {
+            // retrievalSource 给前端和评测脚本区分召回来源：
+            // VECTOR 表示只由向量命中，KEYWORD 表示只由关键词命中，HYBRID 表示两路都支持。
             String source = denseScore != null && keywordScore != null
                     ? "HYBRID"
                     : denseScore != null ? "VECTOR" : "KEYWORD";

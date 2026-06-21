@@ -6,6 +6,13 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 本地/演示环境的 Mock AI 实现。
+ *
+ * <p>当没有配置真实模型 baseUrl/apiKey，或者上游模型调用失败时会回退到这里。
+ * Mock 不追求自然语言质量，重点是保证聊天、RAG 引用展示、Agent 工具调用和写操作确认流程
+ * 在无外部模型依赖时仍能完整演示。</p>
+ */
 @Component
 public class MockAiProvider {
 
@@ -38,6 +45,8 @@ public class MockAiProvider {
                 .reduce((first, second) -> second)
                 .map(AiProvider.AiPromptMessage::content)
                 .orElse("");
+        // 下面按关键词模拟 tool_call，让本地没有真实模型时也能走完整 Agent 编排链路。
+        // 顺序从更具体的知识库/简报/项目查询到更宽泛的“创建任务”，避免“任务”关键字过早命中创建。
         if (hasTool(tools, "search_knowledge") && looksLikeKnowledgeSearch(latestUserMessage)) {
             return new AiProvider.AiAgentAnswer("", List.of(new AiProvider.AiToolCall(
                     "mock-call-search-knowledge",
@@ -149,6 +158,8 @@ public class MockAiProvider {
     }
 
     private String inferTaskKeyword(String message) {
+        // 从自然语言里粗略剔除动词，给任务搜索留一个可用关键词。
+        // 真实模型会返回更可靠的 taskId/taskNo/keyword，Mock 只是演示兜底。
         String normalized = message.replace("帮我", "").replace("请", "").replace("任务", "")
                 .replace("待办", "").replace("状态", "").replace("更新", "")
                 .replace("完成", "").replace("催办", "").replace("提醒", "")

@@ -19,6 +19,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * AI 向量嵌入管理控制器（/api/ai-embeddings/**）。
+ * <p>
+ * 面向管理员的调试/运维接口，用于手动查看和管理 ai_embedding 表中的记录。
+ * 正常的向量化流程（文档发布 → 切块 → embedding → 写入 Qdrant）由
+ * {@link com.teamflow.ai.modules.ai.service.AiKnowledgeIndexService} 后台异步完成，
+ * 不经过本控制器。
+ */
 @Tag(name = "AI向量")
 @RestController
 @RequestMapping("/api/ai-embeddings")
@@ -34,6 +42,7 @@ public class AiEmbeddingController {
     @PostMapping
     @PreAuthorize("hasAuthority('ai:embedding')")
     public ApiResult<AiEmbeddingItem> create(@RequestBody AiEmbeddingRequest request) {
+        // 这是人工维护/调试入口；知识库发布后的自动索引走 RagController/AiKnowledgeIndexService。
         return ApiResult.success(aiService.createEmbedding(request));
     }
 

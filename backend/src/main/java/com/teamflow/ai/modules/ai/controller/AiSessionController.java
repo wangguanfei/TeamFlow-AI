@@ -23,6 +23,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * AI 会话管理控制器（/api/ai-sessions/**）。
+ * <p>
+ * 提供会话的 CRUD 操作，供前端侧边栏会话列表使用。
+ * 注意：普通对话时会话会由 AiService.chat() 自动创建，无需预先调用本控制器的创建接口。
+ * mine=true 时分页查询只返回当前用户自己的会话，mine=false 时管理员可查所有用户会话。
+ */
 @Tag(name = "AI会话")
 @RestController
 @RequestMapping("/api/ai-sessions")

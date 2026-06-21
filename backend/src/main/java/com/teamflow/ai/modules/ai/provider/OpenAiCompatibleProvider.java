@@ -19,6 +19,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+/**
+ * OpenAI Chat Completions 兼容供应商实现。
+ *
+ * <p>DeepSeek、OpenAI-compatible 网关以及很多国产模型代理都兼容 /chat/completions。
+ * 本实现把普通聊天、流式聊天和 tool calling 都收敛到同一套请求格式；配置缺失或上游异常时
+ * 统一回退到 MockAiProvider，保证演示环境和本地开发不会因为模型服务不可用而整体不可用。</p>
+ */
 @Component
 public class OpenAiCompatibleProvider implements AiProvider {
 
@@ -68,6 +75,7 @@ public class OpenAiCompatibleProvider implements AiProvider {
             }
             return new AiAnswer(content, Math.max(1, content.length() / 4), resolvedModel, false);
         } catch (Exception exception) {
+            // 这里选择降级而不是向上抛出：AI 能力是增强功能，不能因为第三方模型波动拖垮核心业务演示。
             log.warn("AI 上游调用失败，已回退 MockAIProvider：{}", exception.getMessage());
             return mockAiProvider.chat(messages, mode, references);
         }
@@ -82,6 +90,8 @@ public class OpenAiCompatibleProvider implements AiProvider {
         String resolvedModel = resolveModel(model);
         Map<String, Object> request = buildRequestMap(messages, resolvedModel);
         if (tools != null && !tools.isEmpty()) {
+            // OpenAI-compatible tool calling 要求 tools[*].function.parameters 是 JSON Schema。
+            // 这些 schema 来自 AgentTool.definition()，新增工具时必须保证参数名与 execute() 解析一致。
             request.put("tools", tools.stream().map(this::toOpenAiTool).toList());
             request.put("tool_choice", "auto");
         }
@@ -144,6 +154,8 @@ public class OpenAiCompatibleProvider implements AiProvider {
                                 String data = line.substring(5).trim();
                                 if (data.isEmpty() || "[DONE]".equals(data)) continue;
                                 try {
+                                    // 上游 SSE 每一行都是一个 chat.completion.chunk；
+                                    // 本方法只抽取 delta.content，并把最终完整文本拼回 AiAnswer 供落库。
                                     Map<String, Object> chunk = objectMapper.readValue(data, Map.class);
                                     List<Map<String, Object>> choices = (List<Map<String, Object>>) chunk.getOrDefault("choices", List.of());
                                     if (!choices.isEmpty()) {
@@ -179,10 +191,12 @@ public class OpenAiCompatibleProvider implements AiProvider {
         return (model == null || model.isBlank()) ? properties.getModel() : model.trim();
     }
 
+    /** 组装 OpenAI-compatible /chat/completions 请求体，temperature 固定 0.4（稳定性优先）。 */
     private Map<String, Object> buildRequestMap(List<AiPromptMessage> messages, String model) {
         Map<String, Object> request = new HashMap<>();
         request.put("model", model);
         request.put("temperature", 0.4);
+        // 内部角色统一使用大写，发给 OpenAI-compatible 上游前转为小写。
         request.put("messages", messages.stream()
                 .map(message -> Map.of(
                         "role", normalizeRole(message.role()),
@@ -202,6 +216,7 @@ public class OpenAiCompatibleProvider implements AiProvider {
         return wrapper;
     }
 
+    /** 解析上游返回的 tool_calls 数组，arguments 字段支持 JSON 字符串或 Map 两种格式。 */
     @SuppressWarnings("unchecked")
     private List<AiToolCall> parseToolCalls(List<Map<String, Object>> rawCalls) {
         if (rawCalls == null || rawCalls.isEmpty()) {
@@ -229,6 +244,8 @@ public class OpenAiCompatibleProvider implements AiProvider {
         }
         if (raw instanceof String text && !text.isBlank()) {
             try {
+                // OpenAI tool_call 的 arguments 通常是 JSON 字符串；部分兼容服务可能直接返回对象，
+                // 所以上面先支持 Map，这里再解析字符串。
                 return objectMapper.readValue(text, Map.class);
             } catch (Exception e) {
                 log.warn("解析 tool_call arguments 失败：{}", e.getMessage());

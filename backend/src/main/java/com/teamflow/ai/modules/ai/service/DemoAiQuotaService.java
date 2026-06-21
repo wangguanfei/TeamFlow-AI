@@ -15,6 +15,12 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * 演示账号 AI 调用限额。
+ *
+ * <p>公开演示账号不能无限消耗真实模型额度。这里按 Asia/Shanghai 自然日用 Redis INCR 计数，
+ * Redis 异常时选择 fail-closed：拒绝本次调用，而不是放开限额。</p>
+ */
 @Service
 public class DemoAiQuotaService {
 
@@ -37,6 +43,11 @@ public class DemoAiQuotaService {
         this.properties = properties;
     }
 
+    /**
+     * 演示账号发起 AI 调用时必须调用此方法消耗当日配额。
+     * 达到 demoDailyLimit 上限时抛 BusinessException(429)；Redis 故障时也拒绝（fail-closed）。
+     * 配额基于 Asia/Shanghai 自然日，每日零点自动重置（Redis key TTL 精确到下一日 00:00）。
+     */
     public void consumeForDemo() {
         int limit = properties.getDemoDailyLimit();
         if (limit <= 0) {
@@ -46,6 +57,7 @@ public class DemoAiQuotaService {
         try {
             long count = quotaCounter.increment(key);
             if (count == 1L) {
+                // 第一次调用当天 key 时设置到明天 00:00 的 TTL，避免旧计数长期残留。
                 boolean expires = quotaCounter.expire(key, ttlToNextDay());
                 if (!expires) {
                     throw new IllegalStateException("Redis EXPIRE failed");
@@ -57,6 +69,7 @@ public class DemoAiQuotaService {
         } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
+            // Redis 计数失败时拒绝调用，避免限额系统故障导致演示账号无限调用真实模型。
             log.warn("演示账号 AI 限额计数失败，已拒绝本次调用 key={}", key, exception);
             throw new BusinessException(429, "演示账号AI限额服务暂不可用，请稍后再试");
         }
@@ -79,6 +92,7 @@ public class DemoAiQuotaService {
     }
 
     interface RedisQuotaCounter {
+        /** 抽象出来便于单元测试模拟 Redis 正常、超限和故障三种场景。 */
         long increment(String key);
 
         boolean expire(String key, Duration ttl);

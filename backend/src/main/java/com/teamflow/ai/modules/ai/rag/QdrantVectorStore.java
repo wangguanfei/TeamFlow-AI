@@ -15,6 +15,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Qdrant 向量库访问封装。
+ *
+ * <p>这个类只处理 collection 初始化、向量写入、检索和按文档删除。
+ * 权限判断和关键词兜底在 AiKnowledgeIndexService 中完成；这里的失败会被吞掉并返回空结果，
+ * 保证同步聊天接口不会因为向量库短暂异常直接失败。</p>
+ */
 @Service
 public class QdrantVectorStore {
 
@@ -36,10 +43,16 @@ public class QdrantVectorStore {
         this.restClient = builder.requestFactory(ClientHttpRequestFactories.get(settings)).build();
     }
 
+    /**
+     * 确保 Qdrant collection 已存在（按需创建）。
+     * 使用进程级 volatile flag 缓存，避免每次 upsert/search 都发一次 GET 探测。
+     */
     public synchronized void ensureCollection() {
         if (collectionChecked) {
             return;
         }
+        // collectionChecked 是进程级缓存，避免每个 chunk upsert/search 都先查一次 collection。
+        // 若 Qdrant 重建 collection，重启后端即可重新探测。
         if (collectionExists()) {
             collectionChecked = true;
             return;
@@ -60,6 +73,11 @@ public class QdrantVectorStore {
                 collection(), properties.getQdrant().getVectorName(), properties.getQdrant().getDimension());
     }
 
+    /**
+     * 写入或更新一个向量点（幂等 upsert）。
+     * payload 中需包含 docId、spaceId、docStatus 等字段，检索命中时无需回表。
+     * pointId 相同的 point 会被覆盖，保证重建幂等。
+     */
     public void upsert(String pointId, List<Double> vector, Map<String, Object> payload) {
         if (pointId == null || pointId.isBlank() || vector == null || vector.isEmpty()) {
             return;
@@ -68,6 +86,7 @@ public class QdrantVectorStore {
         Map<String, Object> point = new LinkedHashMap<>();
         point.put("id", pointId);
         point.put("vector", Map.of(properties.getQdrant().getVectorName(), vector));
+        // payload 放文档、空间、版本和 chunk 文本，检索命中后可直接组装引用卡片。
         point.put("payload", payload == null ? Map.of() : payload);
         restClient.put()
                 .uri(endpoint("/collections/" + collection() + "/points?wait=true"))
@@ -78,6 +97,11 @@ public class QdrantVectorStore {
                 .toBodilessEntity();
     }
 
+    /**
+     * 按向量相似度检索最相关的知识切片。
+     * spaceId 不为 null 时只在指定空间内搜索，否则全局检索。
+     * Qdrant 异常时返回空列表而不是抛出异常，上层降级到关键词检索。
+     */
     @SuppressWarnings("unchecked")
     public List<QdrantSearchResult> search(List<Double> vector, Long spaceId, int limit) {
         if (vector == null || vector.isEmpty()) {
@@ -120,6 +144,7 @@ public class QdrantVectorStore {
         }
     }
 
+    /** 按 docId payload 字段过滤删除该文档所有向量点（不分版本和 chunk）。 */
     public void deleteByDocId(Long docId) {
         if (docId == null) {
             return;
@@ -138,6 +163,7 @@ public class QdrantVectorStore {
         }
     }
 
+    /** 检查 Qdrant 服务是否可用，用于 GET /api/rag/status 健康检查。 */
     public boolean health() {
         try {
             restClient.get()
@@ -166,6 +192,7 @@ public class QdrantVectorStore {
 
     private Map<String, Object> publishedFilter(Long spaceId) {
         List<Map<String, Object>> must = new ArrayList<>();
+        // 删除、草稿或历史版本不参与问答召回；知识文档发布状态是 RAG 的硬边界。
         must.add(match("docStatus", "PUBLISHED"));
         if (spaceId != null) {
             must.add(match("spaceId", spaceId));

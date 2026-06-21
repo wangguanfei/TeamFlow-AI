@@ -25,6 +25,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * AI 消息管理控制器（/api/ai-messages/**）。
+ * <p>
+ * 提供消息的 CRUD 操作，主要用途：
+ * <ul>
+ *   <li>前端加载会话历史：GET /api/ai-messages/page?sessionId=xxx</li>
+ *   <li>用户对 AI 回复打分：POST /api/ai-messages/{id}/feedback</li>
+ *   <li>管理员调试/手动录入：POST /api/ai-messages（正常对话中消息由服务层自动创建）</li>
+ * </ul>
+ */
 @Tag(name = "AI消息")
 @RestController
 @RequestMapping("/api/ai-messages")

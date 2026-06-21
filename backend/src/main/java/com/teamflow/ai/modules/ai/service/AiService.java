@@ -55,11 +55,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * AI 会话服务，是普通 AI 助手、知识库问答、文档总结、代码/SQL 助手的业务入口。
+ *
+ * <p>这个类只负责“对话编排”：校验会话归属、写入用户/助手消息、决定是否走 RAG、
+ * 组装提示词并调用 {@link AiProvider}。知识库索引、向量检索、模型供应商差异都下沉到
+ * 专门服务里，避免聊天接口直接依赖具体的 Qdrant/Embedding/OpenAI 实现。</p>
+ */
 @Service
 public class AiService {
 
     private static final Logger log = LoggerFactory.getLogger(AiService.class);
 
+    /**
+     * SSE 响应必须尽快把 HTTP 线程归还给容器，真实模型调用和 token 转发放到后台线程执行。
+     * 这里使用 daemon 线程，避免应用关闭时因为未结束的流式请求阻塞 JVM 退出。
+     */
     private static final ExecutorService SSE_EXECUTOR = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "sse-stream");
         t.setDaemon(true);
@@ -107,8 +118,13 @@ public class AiService {
         this.dashboardCache = dashboardCache;
     }
 
+    /**
+     * 查询当前 AI Provider 配置状态，用于前端展示是否处于 Mock 模式。
+     * apiKey 和 baseUrl 同时非空才视为"已配置真实模型"。
+     */
     public AiProviderStatus providerStatus() {
         boolean configured = hasText(properties.getApiKey()) && hasText(properties.getBaseUrl());
+        // 前端会根据 mock/configured 决定展示真实模型选择器还是 Mock 演示模式。
         return new AiProviderStatus(
                 valueOrDefault(properties.getProvider(), configured ? "openai-compatible" : "mock"),
                 configured ? valueOrDefault(properties.getModel(), "deepseek-chat") : "mock-ai",
@@ -276,6 +292,13 @@ public class AiService {
         return toFeedbackItem(feedback);
     }
 
+    /**
+     * 阻塞式 AI 对话（非流式）。
+     * <p>
+     * 完整流程：校验演示配额 → 复用/创建会话 → 保存用户消息 → 可选 RAG 检索 →
+     * 调用模型 → 保存助手消息 → 返回完整响应体。
+     * 适合后台调用（知识问答快捷接口等）；前端主对话界面应使用 {@link #chatStream}。
+     */
     @Transactional
     public AiChatResponse chat(AiChatRequest request, Long userId) {
         String mode = normalizeMode(request.mode());
@@ -284,6 +307,12 @@ public class AiService {
                 : getOwnedSessionEntity(request.sessionId(), userId);
         consumeDemoQuotaIfNeeded(userId);
 
+        // 一次完整非流式对话的持久化顺序：
+        // 1. 复用或创建会话；
+        // 2. 保存用户消息；
+        // 3. 可选执行 RAG 检索并把引用片段塞进 system prompt；
+        // 4. 调用模型；
+        // 5. 保存助手消息和引用快照。
         AiSession session = existingSession == null
                 ? createChatSession(request, userId)
                 : existingSession;
@@ -329,6 +358,18 @@ public class AiService {
         );
     }
 
+    /**
+     * 流式 AI 对话，返回 SseEmitter。
+     * <p>
+     * HTTP 线程立即返回 SseEmitter，真实推理在 SSE_EXECUTOR 线程池中异步执行。
+     * 前端通过 EventSource 接收三类事件：
+     * <ul>
+     *   <li>{@code {"type":"token","content":"..."}}：逐 token 打字机效果</li>
+     *   <li>{@code {"type":"done",...}}：流结束，携带完整会话/消息/引用信息</li>
+     *   <li>{@code {"type":"error","message":"..."}}：出错时的错误描述</li>
+     * </ul>
+     * 超时时间 120 秒，适配大多数模型的最长响应时间。
+     */
     public SseEmitter chatStream(AiChatRequest request, Long userId) {
         String mode = normalizeMode(request.mode());
         AiSession existingSession = request.sessionId() == null
@@ -345,6 +386,8 @@ public class AiService {
         if (request.spaceId() != null) {
             session.setSpaceId(request.spaceId());
         }
+        // 用户消息先落库：即使后续模型调用失败，用户在历史记录里也能看到这次输入；
+        // 失败时前端会移除本地临时气泡，但服务端审计仍保留真实输入。
         AiMessage userMessage = saveChatMessage(session.getId(), "USER", request.message(), List.of());
         long ragStartMillis = System.currentTimeMillis();
         boolean ragRequested = resolveRag(request, mode);
@@ -373,6 +416,8 @@ public class AiService {
         final AtomicBoolean firstTokenLogged = new AtomicBoolean(false);
         SSE_EXECUTOR.execute(() -> {
             try {
+                // Provider 负责把上游 SSE 翻译成 token 回调；这里再统一包装成本系统前端识别的
+                // {"type":"token"} / {"type":"done"} / {"type":"error"} 三类事件。
                 AiProvider.AiAnswer answer = aiProvider.chatStream(prompts, capturedMode, capturedReferences, capturedModel, token -> {
                     try {
                         if (firstTokenLogged.compareAndSet(false, true)) {
@@ -551,6 +596,7 @@ public class AiService {
         return user != null && DemoAccountConstants.USERNAME.equals(user.getUsername());
     }
 
+    /** 演示账号调用 AI 前先消耗配额，防止公开演示账号被刷爆上游 API 费用。 */
     private void consumeDemoQuotaIfNeeded(Long userId) {
         if (isDemoUser(userId)) {
             demoAiQuotaService.consumeForDemo();
@@ -565,6 +611,13 @@ public class AiService {
         return session;
     }
 
+    /**
+     * 组装发给大模型的 prompt 列表。
+     * <p>
+     * 结构：system prompt（含 RAG 引用）+ 最近 8 条历史消息（先降序取再升序还原顺序）。
+     * 只取 8 条是为了控制 token 成本；引用片段追加在 system prompt 末尾，
+     * 使模型在一次前向传播中同时看到指令和检索证据。
+     */
     private List<AiProvider.AiPromptMessage> buildPrompts(AiSession session, String mode, List<AiReferenceItem> references) {
         String systemPrompt = switch (mode) {
             case "KNOWLEDGE" -> "你是 TeamFlow AI 知识库问答助手。优先依据引用资料回答，在关键结论后标注引用编号如 [1]；资料不足时明确说明缺口，并给出可执行的下一步。";
@@ -583,6 +636,8 @@ public class AiService {
                     return "[" + index + "] " + reference.title() + source + version + "\n" + reference.snippet();
                 })
                 .collect(Collectors.joining("\n"));
+        // 只带最近 8 条上下文，控制 token 成本。RAG 引用统一挂在 system prompt 后面，
+        // 这样模型能在同一次回答里同时看到任务指令和检索证据。
         List<AiMessage> recentMessages = messageMapper.selectList(new LambdaQueryWrapper<AiMessage>()
                         .eq(AiMessage::getSessionId, session.getId())
                         .orderByDesc(AiMessage::getId)
@@ -602,6 +657,10 @@ public class AiService {
         return knowledgeIndexService.searchReferences(keyword, spaceId, 5, userId);
     }
 
+    /**
+     * 将会话实体列表转换为展示 DTO，批量查询 user/space 信息避免 N+1 问题。
+     * 每条会话的 messageCount 通过聚合 COUNT 实时计算（非缓存值）。
+     */
     private List<AiSessionItem> toSessionItems(List<AiSession> sessions) {
         if (sessions.isEmpty()) {
             return List.of();
@@ -705,6 +764,8 @@ public class AiService {
     }
 
     private void fillEmbedding(AiEmbedding embedding, AiEmbeddingRequest request) {
+        // 这个 CRUD 入口主要用于后台人工维护/调试切片；自动索引的真实向量写入在
+        // AiKnowledgeIndexService.processRebuild 中完成，并会写入 vectorPointId/contentHash。
         embedding.setDocId(request.docId());
         embedding.setChunkIndex(request.chunkIndex() == null ? 0 : request.chunkIndex());
         embedding.setChunkText(request.chunkText());
@@ -743,6 +804,11 @@ public class AiService {
         return title.length() > 24 ? title.substring(0, 24) : title;
     }
 
+    /**
+     * 粗略估算 token 数（字符数 / 4）。
+     * 英文约 4 字符/token 较准确；中文 1 字通常 1-2 token，此估算偏低但可接受。
+     * 仅用于统计显示，不影响实际扣费。
+     */
     private int estimateTokens(String content) {
         return Math.max(1, (content == null ? 0 : content.length()) / 4);
     }
@@ -769,6 +835,8 @@ public class AiService {
             return "[]";
         }
         try {
+            // 引用快照跟随助手消息保存，后续即使知识库重新发布或召回结果变化，
+            // 历史回答仍能展示当时模型看到的证据来源。
             return objectMapper.writeValueAsString(references);
         } catch (Exception exception) {
             return "[]";
@@ -786,6 +854,10 @@ public class AiService {
         }
     }
 
+    /**
+     * 计算 SHA-256 哈希，用于 embedding 内容去重和变更检测。
+     * 失败时返回占位字符串 "demo-hash"，不阻断写入流程。
+     */
     private String sha256(String content) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
