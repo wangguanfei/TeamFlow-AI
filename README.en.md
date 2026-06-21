@@ -1,6 +1,6 @@
 # TeamFlow AI Enterprise Collaboration Platform
 
-> AI-native enterprise collaboration platform with RBAC, knowledge RAG, workflow orchestration, real-time notification, file asset management, and cloud-native delivery.
+> AI-native enterprise collaboration platform with RBAC, knowledge RAG, AI Agent tool calling, workflow orchestration, real-time notification, file asset management, and cloud-native delivery.
 
 English | [中文](./README.md)
 
@@ -19,15 +19,16 @@ English | [中文](./README.md)
 
 ## Overview
 
-TeamFlow AI is an AI-native enterprise collaboration platform built for teams, engineering organizations, and knowledge-intensive workflows. It is more than an admin dashboard template. It provides a full-stack application foundation that connects authentication, RBAC, project collaboration, task workflow, knowledge management, file assets, AI assistants, real-time notifications, and cloud-native deployment.
+TeamFlow AI is an AI-native enterprise collaboration platform built for teams, engineering organizations, and knowledge-intensive workflows. It is more than an admin dashboard template. It provides a full-stack application foundation that connects authentication, RBAC, project collaboration, task workflow, knowledge management, file assets, a business-tool-capable AI enterprise assistant, real-time notifications, and cloud-native deployment.
 
 The project is designed as a production-minded SaaS backend and frontend system. It features clear domain boundaries, strong permission control, consistent API contracts, and end-to-end business flows that can be demonstrated, studied, extended, and self-hosted.
 
 ## Highlights
 
-- **AI-native collaboration**: chat, knowledge Q&A, document summary, code generation, SQL assistant, DeepSeek / OpenAI-compatible provider, and MockAIProvider fallback.
+- **AI-native collaboration**: chat, knowledge Q&A, document summary, code generation, SQL assistant, and AI Agent enterprise assistant, with DeepSeek / OpenAI-compatible providers, tool calling, SSE streaming status, and MockAIProvider fallback.
 - **Complete RBAC pipeline**: JWT, Spring Security, role-permission model, dynamic menus, button-level permissions, and API-level authorization, with user permissions cached in Redis to eliminate repeated lookups in the JWT filter on every request.
 - **Lightweight local RAG**: Qdrant vector database + bge-small-zh local Embedding service + custom keyword retrieval + RRF fusion ranking, runnable on 2C2G; Markdown, TXT, PDF, and DOCX import, automatic slice refresh on publish, end-to-end knowledge Q&A.
+- **Auditable Agent tool calls**: the AI enterprise assistant can search knowledge, summarize projects and tasks, update task status, assign tasks, and send task reminders; write actions generate a preview and require human confirmation, and every tool call, confirmer, and execution result is stored in an audit log.
 - **Project and task workflow**: projects, members, tags, task list, Kanban drag-and-drop, Gantt view, comments, worklogs, attachments, and executors.
 - **Enterprise file center**: MinIO storage, upload, preview, download, sharing, business archive, and large-file support.
 - **Real-time notification**: unread badges, search, read status, deletion, and WebSocket push.
@@ -48,7 +49,7 @@ Nginx / Vite Dev Proxy
 Spring Boot 3 Application
   |
   |-- Spring Security + JWT + RBAC
-  |-- Project / Task / Knowledge / File / AI / Notification Modules
+  |-- Project / Task / Knowledge / File / AI / Agent / Notification Modules
   |-- MyBatis-Plus Data Access
   |
   |-- MySQL 8           relational data
@@ -67,7 +68,7 @@ Spring Boot 3 Application
 | Backend | Java 17, Spring Boot 3, Spring Security, JWT, WebSocket, Validation, springdoc-openapi |
 | Data | MySQL 8, Redis, MyBatis-Plus |
 | File Storage | MinIO, multipart upload, 500MB upload limit |
-| AI | OpenAI-compatible HTTP client, DeepSeek-compatible config, MockAIProvider fallback |
+| AI | OpenAI-compatible HTTP client, DeepSeek-compatible config, tool calling, SSE streaming, MockAIProvider fallback |
 | RAG | Qdrant vector database, bge-small-zh local Embedding service, custom keyword retrieval, RRF fusion ranking |
 | Deployment | Docker, Docker Compose, Nginx, health checks, reverse proxy, deploy-agent.sh host proxy |
 
@@ -80,6 +81,7 @@ Spring Boot 3 Application
 - Full user, role, permission, and menu management.
 - Dynamic menus, button permissions, and API permissions.
 - Read-only demo account `demo` is protected by backend enforcement, with only AI chat writes allowed under the daily quota.
+- The demo account hides write-entry points on system pages such as team management, keeping frontend behavior aligned with backend read-only enforcement.
 
 ### Dashboard
 
@@ -105,6 +107,7 @@ Spring Boot 3 Application
 ### Knowledge Base and RAG
 
 - Knowledge space create, edit, and delete; document tree management.
+- The resource tree supports selecting a space root, and the document action area groups publish, versions, favorites, and import actions.
 - Markdown document create, edit, and delete.
 - Publishing, version history, rollback, and favorites.
 - Markdown, TXT, PDF, and DOCX import.
@@ -128,6 +131,9 @@ Spring Boot 3 Application
 - Document summary.
 - Code generation.
 - SQL assistant.
+- AI enterprise assistant Agent mode: can search knowledge, summarize projects, generate daily business briefs, update task status, assign tasks, and send task reminders through tools.
+- Agent write actions use a preview -> human confirmation -> execution flow, allowing the frontend user to confirm or cancel before business data changes.
+- Tool execution streams thinking status, tool calls, tool results, and pending actions through SSE, and the chat UI displays progress plus result summaries.
 - DeepSeek / OpenAI-compatible API.
 - MockAIProvider fallback for fully offline demos without an API key.
 
@@ -138,6 +144,7 @@ Spring Boot 3 Application
 - Permission management: maintain permission codes, names, and resource paths.
 - Menu management: maintain frontend dynamic routes, icons, and permission codes.
 - Operation log: AOP `@Log` annotation records all write operations automatically; query by operator, time range, and module.
+- AI assistant audit: records Agent tool calls, argument previews, read/write type, execution status, confirmer, duration, and result summary, with filters by user, tool, status, and time range.
 - Deploy management: trigger `deploy.sh` with one click from the admin page, with real-time SSE log streaming; requires `deploy-agent.sh` installed on the host and `DEPLOY_ENABLED=true`.
 
 ### Notification and Profile Center
@@ -154,7 +161,7 @@ Spring Boot 3 Application
 ├── backend
 │   ├── src/main/java/com/teamflow/ai
 │   │   ├── common              # API result, exception, security, trace, config
-│   │   └── modules             # auth, user, system, project, task, knowledge, file, ai, notification, rag
+│   │   └── modules             # auth, user, system, project, task, knowledge, file, ai, agent, notification, rag
 │   └── src/main/resources
 │       ├── application.yml
 │       └── db/schema.sql       # runtime schema and demo data bootstrap
@@ -339,6 +346,7 @@ Compose deployment notes:
 - `client_max_body_size 500m` supports large file uploads.
 - MySQL, Redis, MinIO, and backend containers can collaborate inside the Compose network to reduce public exposure.
 - MySQL and Redis health checks are configured, and the backend waits for core dependencies before startup.
+- Core containers use restart policies, the production gateway narrows unknown-host and direct-IP exposure, and the `/cc` tool page keeps its own CSP exception.
 
 ## Verification Commands
 
@@ -399,7 +407,7 @@ TeamFlow AI combines enterprise collaboration and AI capabilities in one coheren
 
 Contributions are welcome. Useful directions include:
 
-- AI Agent workflows,
+- AI Agent tool ecosystem, approval policies, and audit dimensions,
 - multi-tenant organization models,
 - end-to-end test coverage,
 - responsive mobile experience,

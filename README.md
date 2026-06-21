@@ -1,6 +1,6 @@
 # TeamFlow AI 企业级智能协同平台
 
-> AI-native enterprise collaboration platform with RBAC, knowledge RAG, workflow orchestration, real-time notification, file asset management, and cloud-native delivery.
+> AI-native enterprise collaboration platform with RBAC, knowledge RAG, AI Agent tool calling, workflow orchestration, real-time notification, file asset management, and cloud-native delivery.
 
 [English](./README.en.md) | 中文
 
@@ -19,15 +19,16 @@
 
 ## 项目定位
 
-TeamFlow AI 是一个面向企业团队、研发组织和知识密集型业务场景的智能协同平台。它不是一个简单的后台模板，而是一套完整的 AI 原生企业应用骨架：从统一身份认证、动态权限、项目任务协同、知识库沉淀、文件资产管理，到 AI 助手、实时通知和 Docker/Nginx 部署链路，形成了可运行、可演示、可二次开发的全栈系统。
+TeamFlow AI 是一个面向企业团队、研发组织和知识密集型业务场景的智能协同平台。它不是一个简单的后台模板，而是一套完整的 AI 原生企业应用骨架：从统一身份认证、动态权限、项目任务协同、知识库沉淀、文件资产管理，到可调用业务工具的 AI 企业助理、实时通知和 Docker/Nginx 部署链路，形成了可运行、可演示、可二次开发的全栈系统。
 
 平台以现代 SaaS 后台的工程标准构建，强调清晰的领域模块、严格的权限边界、稳定的接口契约和可落地的业务闭环。它既可以作为全栈工程能力展示项目，也可以作为企业内部协同系统、AI 知识库、研发效能平台或低代码业务中台的起点。
 
 ## 核心亮点
 
-- **AI 原生协同体验**：内置普通问答、知识库问答、文档总结、代码生成、SQL 助手等能力，支持 DeepSeek / OpenAI 兼容接口，并提供 Mock Provider 保障离线演示。
+- **AI 原生协同体验**：内置普通问答、知识库问答、文档总结、代码生成、SQL 助手和 AI Agent 企业助理，支持 DeepSeek / OpenAI 兼容接口、工具调用、SSE 流式状态，并提供 Mock Provider 保障离线演示。
 - **完整 RBAC 权限闭环**：JWT + Spring Security + 角色权限模型 + 动态菜单 + 按钮级权限 + 接口级权限，覆盖从前端路由到后端 API 的安全链路，并以 Redis 缓存用户权限，消除 JWT 过滤器在每次请求时的重复查询。
 - **轻量本地 RAG**：Qdrant 向量数据库 + bge-small-zh 本地 Embedding 服务 + 自定义关键词召回 + RRF 融合召回，2C2G 环境可运行；支持 Markdown、TXT、PDF、DOCX 文件导入，文档发布后自动刷新检索切片，从知识沉淀到智能问答完整闭环。
+- **可审计的 Agent 工具调用**：AI 企业助理可查询知识库、生成项目/任务摘要、更新任务状态、指派任务和发送事项提醒；写操作先生成预览并要求人工确认，所有工具调用、确认人与执行结果进入审计日志。
 - **项目与任务工作流**：项目、成员、标签、任务列表、看板拖拽、甘特图、评论、工时、附件、执行人协同，构成真实的团队交付闭环。
 - **企业文件资产中心**：基于 MinIO 的文件上传、预览、下载、分享、业务归档和 500MB 大文件限制，适合沉淀组织级资料资产。
 - **实时通知系统**：通知分页、未读角标、全部已读、WebSocket 实时推送，让平台具备事件驱动的协同反馈能力。
@@ -48,7 +49,7 @@ Nginx / Vite Dev Proxy
 Spring Boot 3 Application
   |
   |-- Spring Security + JWT + RBAC
-  |-- Project / Task / Knowledge / File / AI / Notification Modules
+  |-- Project / Task / Knowledge / File / AI / Agent / Notification Modules
   |-- MyBatis-Plus Data Access
   |
   |-- MySQL 8           relational data
@@ -67,7 +68,7 @@ Spring Boot 3 Application
 | 后端 | Java 17, Spring Boot 3, Spring Security, JWT, WebSocket, Validation, springdoc-openapi |
 | 数据 | MySQL 8, Redis, MyBatis-Plus |
 | 文件 | MinIO, Multipart Upload, 500MB upload limit |
-| AI | OpenAI-compatible HTTP client, DeepSeek-compatible config, MockAIProvider fallback |
+| AI | OpenAI-compatible HTTP client, DeepSeek-compatible config, tool calling, SSE streaming, MockAIProvider fallback |
 | RAG | Qdrant 向量数据库, bge-small-zh 本地 Embedding 服务, 自定义关键词召回, RRF 融合召回 |
 | 部署 | Docker, Docker Compose, Nginx, health checks, reverse proxy, deploy-agent.sh 宿主机代理 |
 
@@ -80,6 +81,7 @@ Spring Boot 3 Application
 - 用户、角色、权限、菜单完整管理。
 - 动态菜单、按钮权限、接口权限联动。
 - 只读演示账号 `demo` 具备后端强制只读保护，仅 AI 聊天写入按每日限额受控放行。
+- 演示账号在团队管理等系统页面隐藏写操作入口，避免前端展示与后端只读策略冲突。
 
 ### 工作台
 
@@ -105,6 +107,7 @@ Spring Boot 3 Application
 ### 知识库与 RAG
 
 - 知识空间创建、编辑、删除，文档树管理。
+- 资源树支持空间根目录选择，文档操作区集中展示发布、版本、收藏、导入等常用动作。
 - Markdown 文档新增、编辑、删除。
 - 发布、历史版本、回滚、收藏。
 - 支持 md、txt、pdf、docx 上传导入。
@@ -128,6 +131,9 @@ Spring Boot 3 Application
 - 文档总结。
 - 代码生成。
 - SQL 助手。
+- AI 企业助理 Agent 模式：可通过工具查询知识、汇总项目、生成今日业务简报、更新任务状态、指派任务、发送任务提醒。
+- Agent 写操作采用“预览 -> 人工确认 -> 执行”链路，可在前端确认或取消，避免模型直接改写业务数据。
+- 工具调用过程通过 SSE 返回思考状态、工具调用、工具结果和待确认动作，聊天界面展示执行进度与结果摘要。
 - DeepSeek / OpenAI 兼容接口。
 - MockAIProvider 兜底，保证未配置 API Key 时依然可完整演示。
 
@@ -138,6 +144,7 @@ Spring Boot 3 Application
 - 权限管理：权限编码、名称、资源路径维护。
 - 菜单管理：前端动态路由、图标和权限码维护。
 - 操作日志：AOP `@Log` 注解自动记录所有写操作，支持按操作人、时间范围、模块查询。
+- AI 助理审计：记录 Agent 工具调用、参数预览、读写类型、执行状态、确认人、耗时和结果摘要，支持按用户、工具、状态、时间范围筛选。
 - 部署管理：一键触发 `deploy.sh` 部署脚本，实时 SSE 日志流跟踪进度；需宿主机预先安装 `deploy-agent.sh` 并设置 `DEPLOY_ENABLED=true`。
 
 ### 通知与个人中心
@@ -154,7 +161,7 @@ Spring Boot 3 Application
 ├── backend
 │   ├── src/main/java/com/teamflow/ai
 │   │   ├── common              # API result, exception, security, trace, config
-│   │   └── modules             # auth, user, system, project, task, knowledge, file, ai, notification, rag
+│   │   └── modules             # auth, user, system, project, task, knowledge, file, ai, agent, notification, rag
 │   └── src/main/resources
 │       ├── application.yml
 │       └── db/schema.sql       # runtime schema and demo data bootstrap
@@ -339,6 +346,7 @@ Compose 部署说明：
 - `client_max_body_size 500m` 支持大文件上传。
 - MySQL、Redis、MinIO、后端容器默认以内网方式协作，减少公网暴露面。
 - MySQL、Redis 配置健康检查，后端等待核心依赖健康后启动。
+- 核心容器配置重启策略，生产网关针对未知 Host / 直连 IP 暴露面做收敛，并为 `/cc` 工具页保留单独 CSP 例外。
 
 ## 验证命令
 
@@ -401,7 +409,7 @@ TeamFlow AI 尝试把传统企业协同系统和 AI 能力放在同一个工程�
 
 欢迎通过 Issue 和 Pull Request 参与项目建设。建议贡献方向：
 
-- 增强 AI Agent 工作流。
+- 扩展 AI Agent 工具生态、审批策略和审计维度。
 - 增加多租户和组织架构模型。
 - 增强端到端测试覆盖。
 - 优化移动端响应式体验。
