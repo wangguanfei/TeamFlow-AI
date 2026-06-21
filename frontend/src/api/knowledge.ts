@@ -9,30 +9,38 @@ export interface KnowledgeTagItem {
   createdAt?: string
 }
 
+/** 知识空间列表项。visibility: PUBLIC(所有人可读) / TEAM(所属团队可读) / PRIVATE(本人)。 */
 export interface KnowledgeSpaceItem {
   id: number
   teamId: number
   spaceName: string
   description?: string
+  /** PUBLIC / TEAM / PRIVATE */
   visibility: string
   ownerId: number
   ownerName?: string
+  /** 文档总数（后端聚合计算，不含软删除文档）。 */
   docCount: number
   createdAt?: string
 }
 
+/** 文档详情/列表项，包含完整 Markdown 内容。docStatus: DRAFT / PUBLISHED。 */
 export interface KnowledgeDocItem {
   id: number
   spaceId: number
   spaceName?: string
   parentId: number
   title: string
+  /** 正文 Markdown 原文，编辑器和预览均使用此字段。 */
   contentMd: string
+  /** 纯文本内容（用于 RAG 切块），前端展示通常用 contentMd。 */
   contentText?: string
   authorId: number
   authorName?: string
+  /** DRAFT（草稿）或 PUBLISHED（已发布，触发 RAG 索引）。 */
   docStatus: string
   sortNo: number
+  /** 每次 publish 递增，恢复历史版本时也会生成新版本号。 */
   versionNo: number
   favorite: boolean
   favoriteId?: number
@@ -41,6 +49,7 @@ export interface KnowledgeDocItem {
   updatedAt?: string
 }
 
+/** 文档树节点，不含 contentMd（减少首屏传输量，点击后再按需加载详情）。 */
 export interface KnowledgeDocTreeNode {
   id: number
   parentId: number
@@ -63,11 +72,14 @@ export interface KnowledgeVersionItem {
   createdAt?: string
 }
 
+/** 文件导入结果：后端解析 docx/txt 后自动创建文档，并可选立即发布触发 RAG 索引。 */
 export interface KnowledgeImportResult {
   doc: KnowledgeDocItem
   file: FileItem
+  /** autoPublish=true 时为 true，文档已自动发布并触发 RAG 索引入队。 */
   published: boolean
   indexed: boolean
+  /** 提取模式，例如 'docx' / 'txt' / 'tika'。 */
   extractMode: string
 }
 

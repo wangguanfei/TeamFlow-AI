@@ -334,6 +334,8 @@ const modelOptions = [
 
 const DEFAULT_MODEL = 'deepseek-chat'
 
+// 会话列表和当前聊天窗口的本地状态。消息发送时会先插入负数 ID 的临时气泡，
+// 等后端 done 事件返回真实 messageId 后再替换，保证流式体验足够顺滑。
 const sessionKeyword = ref('')
 const sessionLoading = ref(false)
 const sending = ref(false)
@@ -351,6 +353,9 @@ const runtimeMock = ref<boolean | null>(null)
 const latestMock = ref<boolean | null>(null)
 const latestReferences = ref<AiReferenceItem[]>([])
 const messageListRef = ref<HTMLElement | null>(null)
+
+// 普通聊天使用 streamingContent 展示 token 增量；Agent 模式使用 agentStatus/pendingAgentAction
+// 展示工具调用状态和待确认预览，两条状态线不要混在一起。
 const streamingContent = ref('')
 const isStreaming = ref(false)
 const agentStatus = ref('')
@@ -429,6 +434,10 @@ async function loadSessions() {
   }
 }
 
+/**
+ * 切换到历史会话，并同步本地 UI 状态（模式、知识库开关、模型）。
+ * 历史 KNOWLEDGE 类型会话归一化为 CHAT + useKnowledge=true，与新解耦模型兼容。
+ */
 async function selectSession(session: AiSessionItem) {
   activeSessionId.value = session.id
   const sessionType = session.sessionType || 'CHAT'
@@ -466,6 +475,12 @@ function startNewChat() {
   pendingAgentAction.value = null
 }
 
+/**
+ * 发送消息的主入口，根据当前模式分两条路：
+ * - AGENT 模式：消费 agent_status/tool_call/pending_action/done 事件；写操作需二次确认。
+ * - 普通模式：逐 token 追加 streamingContent，done 后用后端落库消息替换临时气泡。
+ * 两路都先做乐观插入（负 ID 临时消息），失败时回滚 input。
+ */
 async function sendMessage() {
   const content = input.value.trim()
   if (!content) {
@@ -488,6 +503,8 @@ async function sendMessage() {
 
   try {
     if (activeMode.value === 'AGENT') {
+      // Agent 分支不会逐 token 渲染回答，而是消费“状态/工具调用/待确认/完成”事件。
+      // 写工具收到 pending_action 后只展示确认卡片，业务写入发生在 confirmPendingAgentAction。
       await aiAgentChatStreamApi(
         {
           sessionId: activeSessionId.value || undefined,
@@ -536,6 +553,7 @@ async function sendMessage() {
       return
     }
 
+    // 普通 AI 分支逐 token 追加到 streamingContent；done 后用后端落库的真实消息替换临时气泡。
     await aiChatStreamApi(
       {
         sessionId: activeSessionId.value || undefined,
@@ -585,12 +603,18 @@ async function sendMessage() {
   }
 }
 
+/**
+ * 确认 Agent 写操作（二次确认流程的第二步）。
+ * confirm 接口不推 SSE，手动追加一条本地助手消息展示执行结果。
+ */
 async function confirmPendingAgentAction() {
   if (!pendingAgentAction.value) return
   confirmingAgentAction.value = true
   try {
     const result = await confirmAgentActionApi(pendingAgentAction.value.confirmToken)
     ElMessage.success(result.summary || '已执行')
+    // confirm 接口只返回执行结果，不会再推一条 SSE 消息；
+    // 这里手动补一条本地助手消息，让用户在当前上下文里立刻看到执行结果。
     messages.value = [
       ...messages.value,
       {
@@ -620,6 +644,10 @@ async function cancelPendingAgentAction() {
   agentStatus.value = '已取消'
 }
 
+/**
+ * 创建乐观 UI 用的临时用户消息（负自减 ID），在后端响应前展示。
+ * done/error 后统一按 ID 过滤掉，替换为服务器落库的真实消息。
+ */
 function createTemporaryUserMessage(content: string): AiMessageItem {
   return {
     id: temporaryMessageId--,
@@ -678,6 +706,9 @@ async function copyMessage(message: AiMessageItem) {
   }
 }
 
+/**
+ * 写入剪贴板，优先用 navigator.clipboard（HTTPS），降级到 execCommand('copy')（HTTP 或旧浏览器）。
+ */
 async function copyTextToClipboard(text: string) {
   if (navigator.clipboard && window.isSecureContext) {
     try {
@@ -732,6 +763,8 @@ function displayMessageContent(message: AiMessageItem) {
 }
 
 function stripTrailingJsonBlock(content: string) {
+  // 兼容早期 Agent mock 可能把结构化 JSON 直接拼到消息末尾的情况；
+  // 展示时去掉可解析的尾部 JSON，保留前面的自然语言说明。
   const marker = content.lastIndexOf('\n\n{')
   if (marker < 0) {
     return content

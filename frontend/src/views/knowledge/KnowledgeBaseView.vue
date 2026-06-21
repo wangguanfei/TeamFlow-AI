@@ -399,6 +399,10 @@ watch(
   }
 )
 
+/**
+ * 全量初始化/刷新：加载空间列表和文档树，按优先级决定激活哪个文档。
+ * URL query 中若带 docId 则直接打开该文档，否则按 selectFirst 决定是否激活第一个。
+ */
 async function loadAll(options: { selectFirst?: boolean } = { selectFirst: true }) {
   loading.value = true
   try {
@@ -425,6 +429,10 @@ async function loadSpaces() {
   }
 }
 
+/**
+ * 加载当前空间的文档列表和文档树（并发请求）。
+ * activeDocId 如不在新列表中则清除，避免编辑器展示已删除文档的旧内容。
+ */
 async function loadDocs(options: { selectFirst?: boolean } = {}) {
   if (!activeSpaceId.value) {
     docs.value = []
@@ -490,6 +498,10 @@ async function handleTreeNodeClick(data: KnowledgeTreeNode) {
   await selectDoc(data.id)
 }
 
+/**
+ * 将后端文档树节点递归转换为带 treeKey 的本地树节点。
+ * treeKey 格式 "doc-{id}" 与空间节点的 "space-{id}" 区分，方便 el-tree 定位当前节点。
+ */
 function toDocTreeNode(doc: KnowledgeDocTreeNode): KnowledgeTreeNode {
   return {
     treeKey: `doc-${doc.id}`,
@@ -502,6 +514,10 @@ function toDocTreeNode(doc: KnowledgeDocTreeNode): KnowledgeTreeNode {
   }
 }
 
+/**
+ * 将文档详情同步到本地编辑器状态（currentDoc + editor 响应式对象）。
+ * 每次打开文档、保存、发布、回滚后都应调用此方法，确保本地状态与后端一致。
+ */
 function applyDoc(doc: KnowledgeDocItem) {
   currentDoc.value = doc
   activeDocId.value = doc.id
@@ -517,6 +533,10 @@ function applyDoc(doc: KnowledgeDocItem) {
   })
 }
 
+/**
+ * 从 URL query 参数读取并应用初始状态（keyword/spaceId/docId）。
+ * 返回 docId 供 loadAll 判断是否跳过 selectFirst 逻辑。
+ */
 function applyRouteQuery() {
   if (Object.prototype.hasOwnProperty.call(route.query, 'keyword')) {
     keyword.value = parseStringQuery(route.query.keyword)
@@ -628,6 +648,10 @@ async function createDocument() {
   await selectDoc(doc.id)
 }
 
+/**
+ * el-upload 自定义上传回调：调用 importKnowledgeDocFileApi 上传文件并解析为文档。
+ * autoPublish=true 时后端会立即发布并入队 RAG 索引任务，弹窗提示已含索引状态。
+ */
 async function importUploadRequest(options: UploadRequestOptions) {
   if (!importForm.spaceId) {
     ElMessage.warning('请选择知识空间')
@@ -695,6 +719,10 @@ async function removeDocument() {
   await loadDocs({ selectFirst: true })
 }
 
+/**
+ * 发布文档：先保存当前编辑内容，再调用 publish 接口。
+ * publish 接口会递增 versionNo 并触发 RAG 索引重建（异步入队）。
+ */
 async function publishDocument() {
   if (!activeDocId.value || !editor.spaceId || !editor.title.trim()) {
     ElMessage.warning('请选择文档并填写标题')
@@ -718,6 +746,10 @@ async function openHistory() {
   historyVisible.value = true
 }
 
+/**
+ * 回滚到历史版本：后端会创建一个新版本（versionNo 递增），并重置 contentMd。
+ * 如历史版本的状态是 PUBLISHED，回滚后自动触发 RAG 索引重建。
+ */
 async function restoreVersion(version: KnowledgeVersionItem) {
   if (!activeDocId.value) {
     return
@@ -737,6 +769,7 @@ function parseTags(value: string) {
     .filter(Boolean)
 }
 
+/** 从本地 editor 状态组装保存/发布接口所需的请求体。 */
 function buildDocumentPayload() {
   return {
     spaceId: editor.spaceId!,

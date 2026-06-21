@@ -1,6 +1,8 @@
 import http from './request'
 import type { PageResult } from './system'
 
+// 后端 RAG 返回的引用快照。retrievalSource 用于区分向量召回、关键词召回和混合命中，
+// 前端展示只依赖这些字段，不再回查知识库文档，保证历史消息可复现当时的引用来源。
 export interface AiReferenceItem {
   docId: number
   title: string
@@ -78,6 +80,7 @@ export interface AgentActionResult {
 
 export interface AgentPendingAction {
   actionId: number
+  // confirmToken 只用于本次确认，后端不会把明文 token 落库。
   confirmToken: string
   toolName: string
   toolLabel: string
@@ -197,6 +200,12 @@ export function aiMessageFeedbackApi(messageId: number, data: AiMessageFeedbackR
   return http.post<unknown, AiMessageFeedbackItem>(`/ai-messages/${messageId}/feedback`, data)
 }
 
+/**
+ * 普通 AI 聊天流式接口。
+ *
+ * 后端通过 Spring SseEmitter 推送 data: JSON 行，事件类型固定为：
+ * token：增量文本；done：完整响应和消息 ID；error：可展示错误。
+ */
 export async function aiChatStreamApi(
   data: AiChatPayload,
   onToken: (token: string) => void,
@@ -231,6 +240,7 @@ export async function aiChatStreamApi(
     const { done, value } = await reader.read()
     if (done) break
 
+    // 浏览器读取到的 chunk 不保证按 SSE 行切开，所以保留最后一个不完整行到下一轮继续拼。
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop() ?? ''
@@ -254,12 +264,19 @@ export async function aiChatStreamApi(
           break
         }
       } catch {
+        // 单个坏事件不应中断整个流，服务端后续 done/error 仍可能正常到达。
         // ignore malformed SSE events
       }
     }
   }
 }
 
+/**
+ * Agent 聊天流式接口。
+ *
+ * 相比普通聊天多了 agent_tool_call、agent_tool_result、agent_pending_action。
+ * pending_action 表示后端只生成了写操作预览，真正写库要再调用 confirmAgentActionApi。
+ */
 export async function aiAgentChatStreamApi(
   data: AiChatPayload,
   handlers: {
