@@ -23,6 +23,9 @@ if (!Array.isArray(dataset)) {
   process.exit(1)
 }
 
+// 数据集每条样例形如：
+// { id, question, spaceId?, expectedDocIds?, answerable?, model? }。
+// 脚本直接调用线上/本地 /ai/knowledge/ask，用真实后端链路评估召回质量。
 const results = []
 for (const item of dataset) {
   const startedAt = performance.now()
@@ -48,6 +51,7 @@ for (const item of dataset) {
   const topDocIds = references.map((reference) => Number(reference.docId)).filter(Boolean)
   const answer = data?.assistantMessage?.content || ''
   const answerable = item.answerable !== false
+  // expectedHitRank 只看引用文档命中，不让模型生成文本的好坏影响召回指标。
   const expectedHitRank = topDocIds.findIndex((docId) => expectedDocIds.has(docId))
 
   results.push({
@@ -98,6 +102,8 @@ function summarize(items) {
   const unanswerable = items.filter((item) => !item.answerable)
   const ok = items.filter((item) => item.status >= 200 && item.status < 300)
   return {
+    // successRate 衡量接口可用性；top1/top3 衡量可回答问题的召回质量；
+    // unanswerableUnexpectedReferenceRate 衡量不可回答问题是否错误给了引用。
     successRate: ratio(ok.length, items.length),
     p95LatencyMs: percentile(ok.map((item) => item.elapsedMs), 0.95),
     top1HitRate: ratio(answerable.filter((item) => item.top1Hit).length, answerable.length),

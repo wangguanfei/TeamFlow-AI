@@ -7,6 +7,7 @@ from sentence_transformers import SentenceTransformer
 
 
 MODEL_NAME = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
+# 生产小机器默认 batch=1，避免 CPU-only 推理时内存和延迟被批量请求放大。
 MAX_TEXTS = int(os.getenv("EMBEDDING_BATCH_SIZE", "1"))
 MAX_TEXT_CHARS = int(os.getenv("EMBEDDING_MAX_TEXT_CHARS", "4000"))
 QUERY_INSTRUCTION = os.getenv(
@@ -15,6 +16,7 @@ QUERY_INSTRUCTION = os.getenv(
 )
 
 app = FastAPI(title="TeamFlow AI Embedding Service")
+# 懒加载模型：容器启动先快速通过健康检查，第一次 /embed 再加载 sentence-transformers。
 model: SentenceTransformer | None = None
 
 
@@ -42,6 +44,7 @@ def normalize_text(text: str, mode: str) -> str:
     if len(compact) > MAX_TEXT_CHARS:
         compact = compact[:MAX_TEXT_CHARS]
     if mode == "query":
+        # bge 系列检索模型推荐给 query 加指令，document 则保持原文。
         return QUERY_INSTRUCTION + compact
     return compact
 
@@ -63,6 +66,7 @@ def embed(request: EmbedRequest) -> EmbedResponse:
     encoder = get_model()
     vectors = encoder.encode(
         texts,
+        # 归一化后 Qdrant 使用 Cosine 距离时更稳定，也便于不同批次之间直接比较分数。
         normalize_embeddings=True,
         batch_size=1,
         convert_to_numpy=True,
