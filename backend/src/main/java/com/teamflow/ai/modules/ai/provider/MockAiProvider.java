@@ -5,6 +5,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 本地/演示环境的 Mock AI 实现。
@@ -59,6 +61,17 @@ public class MockAiProvider {
                     "mock-call-daily-business-brief",
                     "daily_business_brief",
                     Map.of("limit", 200)
+            )), 32, "mock-ai", true);
+        }
+        if (hasTool(tools, "task_progress_detail") && looksLikeSingleTaskProgress(latestUserMessage)) {
+            String taskNo = inferTaskNo(latestUserMessage);
+            Map<String, Object> arguments = taskNo == null
+                    ? Map.of("keyword", inferTaskKeyword(latestUserMessage))
+                    : Map.of("taskNo", taskNo);
+            return new AiProvider.AiAgentAnswer("", List.of(new AiProvider.AiToolCall(
+                    "mock-call-task-progress-detail",
+                    "task_progress_detail",
+                    arguments
             )), 32, "mock-ai", true);
         }
         if (hasTool(tools, "query_project_summary") && looksLikeProjectSummary(latestUserMessage)) {
@@ -138,6 +151,14 @@ public class MockAiProvider {
                 || message.contains("统计") || message.contains("项目情况");
     }
 
+    private boolean looksLikeSingleTaskProgress(String message) {
+        return (inferTaskNo(message) != null && (message.contains("进展") || message.contains("如何")
+                || message.contains("怎么样") || message.contains("状态") || message.contains("风险"))
+                )
+                || message.contains("这个任务进展") || message.contains("这个任务怎么样")
+                || message.contains("该任务进展") || message.contains("该任务怎么样");
+    }
+
     private boolean looksLikeDailyBrief(String message) {
         return message.contains("老板") || message.contains("经营简报") || message.contains("每日简报")
                 || message.contains("今日经营");
@@ -158,6 +179,10 @@ public class MockAiProvider {
     }
 
     private String inferTaskKeyword(String message) {
+        String taskNo = inferTaskNo(message);
+        if (taskNo != null) {
+            return taskNo;
+        }
         // 从自然语言里粗略剔除动词，给任务搜索留一个可用关键词。
         // 真实模型会返回更可靠的 taskId/taskNo/keyword，Mock 只是演示兜底。
         String normalized = message.replace("帮我", "").replace("请", "").replace("任务", "")
@@ -168,6 +193,11 @@ public class MockAiProvider {
             return message.length() > 40 ? message.substring(0, 40) : message;
         }
         return normalized.length() > 60 ? normalized.substring(0, 60) : normalized;
+    }
+
+    private String inferTaskNo(String message) {
+        Matcher matcher = Pattern.compile("(?i)[A-Z][A-Z0-9]*-\\d+").matcher(message);
+        return matcher.find() ? matcher.group().toUpperCase() : null;
     }
 
     private String inferStatus(String message) {

@@ -177,7 +177,13 @@ public class AgentOrchestrator {
                 long startMs = System.currentTimeMillis();
                 // 读工具没有副作用，可以直接执行并把结果整理成普通助手消息。
                 var action = actionService.create(session.getId(), userMessage.getId(), principal.getUserId(), tool, call.arguments(), null, "RUNNING");
-                ToolResult result = toolExecutor.execute(tool, call.arguments(), principal);
+                ToolResult result;
+                try {
+                    result = toolExecutor.execute(tool, call.arguments(), principal);
+                } catch (Exception toolError) {
+                    actionService.markFailed(action.getId(), toolError.getMessage(), System.currentTimeMillis() - startMs);
+                    throw toolError;
+                }
                 actionService.markExecuted(action.getId(), principal.getUserId(), result, System.currentTimeMillis() - startMs);
                 send(emitter, event("agent_tool_result", Map.of(
                         "toolName", tool.definition().name(),
@@ -249,7 +255,8 @@ public class AgentOrchestrator {
                 当用户表达完成、开始、进入测试、关闭任务时，调用 update_task_status。
                 当用户表达把任务交给某人、负责人改成某人时，调用 assign_task。
                 当用户表达催办、提醒、通知某人跟进任务时，调用 send_notification。
-                当用户需要进展、项目简报、任务统计时，调用 query_project_summary。
+                当用户询问某个具体任务的进展、状态、风险或“TF-4怎么样了”时，调用 task_progress_detail。
+                当用户需要项目、团队或整体进展简报、任务统计时，调用 query_project_summary。
                 当用户需要老板每日经营简报、今日经营情况时，调用 daily_business_brief。
                 当用户询问制度、流程、规范、资料或知识库内容时，调用 search_knowledge。
                 只有必填参数缺失或无法定位唯一业务对象时才追问；不要编造任务ID、用户ID或知识库空间ID。
@@ -297,6 +304,7 @@ public class AgentOrchestrator {
         String content = switch (toolName) {
             case "daily_business_brief" -> formatBusinessBrief(result.summary(), data);
             case "query_project_summary" -> formatProjectSummary(result.summary(), data);
+            case "task_progress_detail" -> formatTaskProgressDetail(result.summary(), data);
             case "list_my_tasks" -> formatTaskList(result.summary(), data);
             case "search_knowledge" -> formatKnowledgeSearch(result.summary(), data);
             default -> safeSummary(result.summary());
@@ -328,6 +336,53 @@ public class AgentOrchestrator {
         appendStatusCounts(builder, data.get("statusCounts"));
         appendTaskItems(builder, "重点风险", data.get("riskTasks"), 5);
         appendTaskItems(builder, "近期事项", recentTasks, 6);
+        return builder.toString();
+    }
+
+    private String formatTaskProgressDetail(String summary, Map<String, Object> data) {
+        String taskNo = optionalText(data.get("taskNo"));
+        String title = valueText(data.get("title"));
+        String status = optionalText(data.get("status"));
+        String priority = optionalText(data.get("priority"));
+        String assignee = optionalText(data.get("assigneeName"));
+        String projectName = optionalText(data.get("projectName"));
+        String dueTime = optionalText(data.get("dueTime"));
+        String actualHours = optionalText(data.get("actualHours"));
+        String estimateHours = optionalText(data.get("estimateHours"));
+        String riskLevel = optionalText(data.get("riskLevel"));
+        String nextStep = optionalText(data.get("nextStep"));
+
+        StringBuilder builder = new StringBuilder("### 任务进展诊断\n\n");
+        builder.append("**").append(taskNo == null ? title : taskNo + " " + title).append("**\n\n");
+        builder.append("- 当前状态：").append(status == null ? "未设置" : statusLabel(status)).append('\n');
+        if (priority != null) {
+            builder.append("- 优先级：").append(priorityLabel(priority)).append('\n');
+        }
+        if (assignee != null) {
+            builder.append("- 负责人：").append(assignee).append('\n');
+        }
+        if (projectName != null) {
+            builder.append("- 所属项目：").append(projectName).append('\n');
+        }
+        if (dueTime != null) {
+            builder.append("- 截止时间：").append(dueTime.replace('T', ' ')).append('\n');
+        }
+        if (actualHours != null || estimateHours != null) {
+            builder.append("- 工时：实际 ").append(actualHours == null ? "0" : actualHours)
+                    .append("h / 预计 ").append(estimateHours == null ? "0" : estimateHours).append("h\n");
+        }
+        if (riskLevel != null) {
+            builder.append("- 风险判断：").append(riskLevelLabel(riskLevel)).append('\n');
+        }
+
+        builder.append("\n**判断**\n\n").append(safeSummary(summary));
+        appendPlainItems(builder, "关注点", data.get("risks"), 5);
+        appendRecentComments(builder, data.get("recentComments"));
+        appendRecentWorklogs(builder, data.get("recentWorklogs"));
+        appendRecentAttachments(builder, data.get("recentAttachments"));
+        if (nextStep != null) {
+            builder.append("\n\n**下一步建议**\n\n").append(nextStep);
+        }
         return builder.toString();
     }
 
@@ -467,6 +522,74 @@ public class AgentOrchestrator {
         }
     }
 
+    private void appendPlainItems(StringBuilder builder, String title, Object value, int limit) {
+        List<?> items = listValue(value);
+        if (items.isEmpty()) {
+            return;
+        }
+        builder.append("\n\n**").append(title).append("**");
+        for (Object item : items.stream().limit(limit).toList()) {
+            builder.append("\n- ").append(valueText(item));
+        }
+    }
+
+    private void appendRecentComments(StringBuilder builder, Object value) {
+        List<?> comments = listValue(value);
+        if (comments.isEmpty()) {
+            return;
+        }
+        builder.append("\n\n**最近评论**");
+        for (Object item : comments) {
+            Map<?, ?> comment = mapValue(item);
+            builder.append("\n- ")
+                    .append(valueText(comment.get("author")))
+                    .append("：")
+                    .append(valueText(comment.get("content")));
+            String createdAt = optionalText(comment.get("createdAt"));
+            if (createdAt != null) {
+                builder.append("（").append(createdAt.replace('T', ' ')).append("）");
+            }
+        }
+    }
+
+    private void appendRecentWorklogs(StringBuilder builder, Object value) {
+        List<?> worklogs = listValue(value);
+        if (worklogs.isEmpty()) {
+            return;
+        }
+        builder.append("\n\n**最近工时**");
+        for (Object item : worklogs) {
+            Map<?, ?> worklog = mapValue(item);
+            builder.append("\n- ")
+                    .append(valueText(worklog.get("workDate")))
+                    .append(" ")
+                    .append(valueText(worklog.get("author")))
+                    .append(" ")
+                    .append(valueText(worklog.get("hours")))
+                    .append("h");
+            String description = optionalText(worklog.get("description"));
+            if (description != null) {
+                builder.append("：").append(description);
+            }
+        }
+    }
+
+    private void appendRecentAttachments(StringBuilder builder, Object value) {
+        List<?> attachments = listValue(value);
+        if (attachments.isEmpty()) {
+            return;
+        }
+        builder.append("\n\n**最近附件**");
+        for (Object item : attachments) {
+            Map<?, ?> attachment = mapValue(item);
+            builder.append("\n- ")
+                    .append(valueText(attachment.get("fileName")))
+                    .append("（上传人：")
+                    .append(valueText(attachment.get("uploaderName")))
+                    .append("）");
+        }
+    }
+
     private String appendRelatedLink(String content, String url) {
         if (url == null || url.isBlank()) {
             return content;
@@ -517,6 +640,15 @@ public class AgentOrchestrator {
             case "HIGH" -> "高优先级";
             case "URGENT" -> "紧急";
             default -> priority;
+        };
+    }
+
+    private String riskLevelLabel(String riskLevel) {
+        return switch (riskLevel == null ? "" : riskLevel.toUpperCase()) {
+            case "HIGH" -> "高风险";
+            case "MEDIUM" -> "中风险";
+            case "LOW" -> "低风险";
+            default -> riskLevel;
         };
     }
 

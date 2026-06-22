@@ -6,21 +6,28 @@ import com.teamflow.ai.common.exception.BusinessException;
 import com.teamflow.ai.common.security.UserPrincipal;
 import com.teamflow.ai.modules.project.entity.Project;
 import com.teamflow.ai.modules.project.mapper.ProjectMapper;
+import com.teamflow.ai.modules.task.dto.TaskAttachmentItem;
+import com.teamflow.ai.modules.task.dto.TaskCommentItem;
 import com.teamflow.ai.modules.task.dto.TaskDetail;
 import com.teamflow.ai.modules.task.dto.TaskListItem;
 import com.teamflow.ai.modules.task.dto.TaskRequest;
+import com.teamflow.ai.modules.task.dto.TaskWorklogItem;
 import com.teamflow.ai.modules.task.service.TaskService;
 import com.teamflow.ai.modules.user.entity.SysUser;
 import com.teamflow.ai.modules.user.mapper.SysUserMapper;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 与任务查询和任务创建相关的 Agent 工具集合。
@@ -92,6 +99,238 @@ public class TaskAgentTools {
             summary.put("assigneeName", task.assigneeName());
             summary.put("dueTime", task.dueTime());
             return summary;
+        }
+    }
+
+    /** 精确诊断单个任务的进展，适合回答“TF-4 这个任务怎么样了”。 */
+    @Component
+    public static class TaskProgressDetailTool implements AgentTool {
+
+        private final TaskService taskService;
+
+        public TaskProgressDetailTool(TaskService taskService) {
+            this.taskService = taskService;
+        }
+
+        @Override
+        public ToolDefinition definition() {
+            return new ToolDefinition(
+                    "task_progress_detail",
+                    "单任务进展诊断",
+                    "精确查询某个任务的当前进展、负责人、截止时间、最近评论、工时、附件、风险判断和下一步建议。适合回答“TF-4进展如何”“某个任务卡住了吗”这类单任务问题。",
+                    Map.of(
+                            "type", "object",
+                            "properties", Map.of(
+                                    "taskId", Map.of("type", "integer", "description", "任务ID"),
+                                    "taskNo", Map.of("type", "string", "description", "任务编号，例如 TF-4"),
+                                    "keyword", Map.of("type", "string", "description", "任务标题或描述关键词")
+                            )
+                    ),
+                    false,
+                    "task:view"
+            );
+        }
+
+        @Override
+        public ToolResult execute(Map<String, Object> arguments, UserPrincipal user) {
+            TaskDetail detail = resolveTaskDetail(arguments);
+            TaskListItem task = detail.task();
+            Map<String, Object> data = buildProgressData(detail);
+            String summary = "任务「" + task.taskNo() + " " + task.title() + "」当前状态为 "
+                    + statusLabel(task.status()) + "，负责人 " + nullSafe(task.assigneeName())
+                    + "，风险等级 " + riskLabel(String.valueOf(data.get("riskLevel"))) + "。";
+            return ToolResult.ok(summary, data, "TASK", task.id(), "/task/list?taskId=" + task.id());
+        }
+
+        private TaskDetail resolveTaskDetail(Map<String, Object> arguments) {
+            Long taskId = longArg(arguments, "taskId");
+            if (taskId != null) {
+                return taskService.getTask(taskId);
+            }
+            String taskNo = normalizeBlank(stringArg(arguments, "taskNo"));
+            String keyword = normalizeBlank(stringArg(arguments, "keyword"));
+            if (taskNo == null && keyword != null) {
+                taskNo = extractTaskNo(keyword);
+            }
+            keyword = taskNo != null ? taskNo : keyword;
+            if (keyword == null) {
+                throw new BusinessException("请提供任务ID、任务编号或任务标题关键词");
+            }
+            PageResult<TaskListItem> page = taskService.pageTasks(1, 20, null, null, keyword, null);
+            String resolvedTaskNo = taskNo;
+            List<TaskListItem> matches = resolvedTaskNo == null
+                    ? page.records()
+                    : page.records().stream().filter(task -> resolvedTaskNo.equalsIgnoreCase(task.taskNo())).toList();
+            if (matches.isEmpty()) {
+                throw new BusinessException("未找到匹配的任务：" + keyword);
+            }
+            if (matches.size() > 1) {
+                throw new BusinessException("找到多个匹配任务，请提供更明确的任务编号或任务ID");
+            }
+            return taskService.getTask(matches.get(0).id());
+        }
+
+        private Map<String, Object> buildProgressData(TaskDetail detail) {
+            TaskListItem task = detail.task();
+            LocalDateTime now = LocalDateTime.now();
+            boolean done = isDone(task);
+            boolean overdue = !done && task.dueTime() != null && task.dueTime().isBefore(now);
+            boolean dueToday = !done && task.dueTime() != null && task.dueTime().toLocalDate().equals(LocalDate.now());
+            boolean highPriority = !done && ("HIGH".equals(task.priority()) || "URGENT".equals(task.priority()));
+            long idleDays = task.updatedAt() == null ? 0 : Math.max(0, Duration.between(task.updatedAt(), now).toDays());
+            boolean noProgressRecord = !done && detail.comments().isEmpty() && detail.worklogs().isEmpty();
+
+            List<String> risks = new ArrayList<>();
+            if (overdue) {
+                risks.add("任务已逾期，截止时间为 " + task.dueTime());
+            } else if (dueToday) {
+                risks.add("任务今日到期，需要确认是否能按时完成");
+            }
+            if (highPriority) {
+                risks.add(priorityLabel(task.priority()) + "任务尚未完成");
+            }
+            if (task.assigneeId() == null) {
+                risks.add("任务未指定负责人");
+            }
+            if (idleDays >= 3 && !done) {
+                risks.add("任务已 " + idleDays + " 天没有更新");
+            }
+            if (noProgressRecord) {
+                risks.add("暂无评论或工时记录，缺少可追踪进展");
+            }
+
+            String riskLevel = overdue || "URGENT".equals(task.priority())
+                    ? "HIGH"
+                    : (highPriority || dueToday || idleDays >= 3 || noProgressRecord ? "MEDIUM" : "LOW");
+
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("id", task.id());
+            data.put("taskNo", task.taskNo());
+            data.put("title", task.title());
+            data.put("description", task.description());
+            data.put("projectName", task.projectName());
+            data.put("status", task.status());
+            data.put("priority", task.priority());
+            data.put("assigneeName", task.assigneeName());
+            data.put("reporterName", task.reporterName());
+            data.put("executorNames", task.executorNames());
+            data.put("startTime", task.startTime());
+            data.put("dueTime", task.dueTime());
+            data.put("estimateHours", task.estimateHours());
+            data.put("actualHours", task.actualHours());
+            data.put("updatedAt", task.updatedAt());
+            data.put("commentCount", detail.comments().size());
+            data.put("worklogCount", detail.worklogs().size());
+            data.put("attachmentCount", detail.attachments().size());
+            data.put("recentComments", detail.comments().stream().limit(3).map(this::commentData).toList());
+            data.put("recentWorklogs", detail.worklogs().stream().limit(3).map(this::worklogData).toList());
+            data.put("recentAttachments", detail.attachments().stream().limit(3).map(this::attachmentData).toList());
+            data.put("risks", risks);
+            data.put("riskLevel", riskLevel);
+            data.put("nextStep", nextStep(task, overdue, noProgressRecord));
+            return data;
+        }
+
+        private Map<String, Object> commentData(TaskCommentItem comment) {
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("author", actorName(comment.nickname(), comment.username()));
+            data.put("content", truncate(comment.content(), 120));
+            data.put("createdAt", comment.createdAt());
+            return data;
+        }
+
+        private Map<String, Object> worklogData(TaskWorklogItem worklog) {
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("author", actorName(worklog.nickname(), worklog.username()));
+            data.put("workDate", worklog.workDate());
+            data.put("hours", worklog.hours());
+            data.put("description", truncate(worklog.description(), 100));
+            data.put("createdAt", worklog.createdAt());
+            return data;
+        }
+
+        private Map<String, Object> attachmentData(TaskAttachmentItem attachment) {
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("fileName", attachment.fileName());
+            data.put("uploaderName", attachment.uploaderName());
+            data.put("createdAt", attachment.createdAt());
+            return data;
+        }
+
+        private String nextStep(TaskListItem task, boolean overdue, boolean noProgressRecord) {
+            if (isDone(task)) {
+                return "该任务已完成或关闭，可检查验收结果和沉淀资料是否齐全。";
+            }
+            if (task.assigneeId() == null) {
+                return "建议先指定负责人，再继续推进。";
+            }
+            if (overdue) {
+                return "建议立即催办负责人，并要求补充当前阻塞点和预计完成时间。";
+            }
+            if (noProgressRecord) {
+                return "建议让负责人补充一条进展评论或登记工时，便于后续追踪。";
+            }
+            if ("TESTING".equals(task.status())) {
+                return "建议关注验收反馈和缺陷处理，明确是否可以关闭任务。";
+            }
+            if ("DOING".equals(task.status())) {
+                return "建议继续跟进负责人更新下一步交付物和预计完成时间。";
+            }
+            return "建议确认任务是否已经开始，并明确下一步处理时间。";
+        }
+
+        private boolean isDone(TaskListItem task) {
+            return "DONE".equals(task.status()) || "CLOSED".equals(task.status());
+        }
+
+        private String actorName(String nickname, String username) {
+            return nickname == null || nickname.isBlank() ? nullSafe(username) : nickname;
+        }
+
+        private String extractTaskNo(String value) {
+            Matcher matcher = Pattern.compile("(?i)[A-Z][A-Z0-9]*-\\d+").matcher(value);
+            return matcher.find() ? matcher.group().toUpperCase() : null;
+        }
+
+        private String statusLabel(String status) {
+            return switch (status == null ? "" : status.toUpperCase()) {
+                case "TODO" -> "待办";
+                case "DOING" -> "进行中";
+                case "TESTING" -> "测试中";
+                case "DONE" -> "已完成";
+                case "CLOSED" -> "已关闭";
+                default -> nullSafe(status);
+            };
+        }
+
+        private String priorityLabel(String priority) {
+            return switch (priority == null ? "" : priority.toUpperCase()) {
+                case "LOW" -> "低优先级";
+                case "MEDIUM" -> "中优先级";
+                case "HIGH" -> "高优先级";
+                case "URGENT" -> "紧急";
+                default -> nullSafe(priority);
+            };
+        }
+
+        private String riskLabel(String riskLevel) {
+            return switch (riskLevel == null ? "" : riskLevel.toUpperCase()) {
+                case "HIGH" -> "高";
+                case "MEDIUM" -> "中";
+                case "LOW" -> "低";
+                default -> "未知";
+            };
+        }
+
+        private String nullSafe(String value) {
+            return value == null || value.isBlank() ? "未指定" : value;
+        }
+
+        private String truncate(String value, int maxLength) {
+            if (value == null || value.isBlank()) {
+                return "-";
+            }
+            return value.length() <= maxLength ? value : value.substring(0, maxLength) + "...";
         }
     }
 

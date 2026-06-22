@@ -209,7 +209,7 @@ public class NotificationService {
         return notifications.stream()
                 .map(notification -> {
                     NotificationRead read = reads.get(notification.getId());
-                    SysUser sender = senders.get(notification.getSenderId());
+                    SysUser sender = notification.getSenderId() == null ? null : senders.get(notification.getSenderId());
                     String senderName = sender == null ? "系统" : (sender.getNickname() == null || sender.getNickname().isBlank()
                             ? sender.getUsername()
                             : sender.getNickname());
