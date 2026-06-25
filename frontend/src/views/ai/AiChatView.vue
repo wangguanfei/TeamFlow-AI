@@ -199,7 +199,7 @@
             type="textarea"
             :rows="4"
             resize="none"
-            placeholder="输入问题，例如：请总结 TeamFlow AI 的面试讲解亮点"
+            placeholder="输入问题，例如：请总结 TeamFlow AI 的亮点"
             @keydown.ctrl.enter.prevent="sendMessage"
             @keydown.meta.enter.prevent="sendMessage"
           />
